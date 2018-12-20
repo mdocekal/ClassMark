@@ -21,6 +21,10 @@ class WidgetManager(object):
     UI_FOLDER=os.path.dirname(os.path.realpath(__file__))
     """Absolute path to UI folder."""
     
+    TEAMPLATE_FOLDER=os.path.join(UI_FOLDER, "templates")
+    """Absolute path to template folder."""
+    
+    
     def __init__(self):
         """
         Initializes manager.
@@ -35,19 +39,20 @@ class WidgetManager(object):
         """
         return self._widget
     
-    @staticmethod
-    def _loadWidget(filePath, parent=None):
+    @classmethod
+    def _loadTemplate(cls, template, parent=None):
         """
         Loads template from file.
         
-        :param filePath: The path to template.
-        :type filePath: string
+        :param template: Name of the template.
+        :type template: string
         :param parent: Parent widget
         :type parent: QWidget
         :return: Loaded template.
         """
         loader = QUiLoader()
-        file = QFile(filePath)
+        loader.setWorkingDirectory(cls.TEAMPLATE_FOLDER)
+        file = QFile(os.path.join(cls.TEAMPLATE_FOLDER, template + ".ui"))
         file.open(QFile.ReadOnly)
         template=loader.load(file, parent)
         file.close()

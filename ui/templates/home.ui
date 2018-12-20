@@ -78,19 +78,45 @@
           <number>5</number>
          </property>
          <item row="0" column="0">
-          <widget class="QPushButton" name="pushButton">
-           <property name="locale">
-            <locale language="English" country="UnitedStates"/>
+          <widget class="QToolButton" name="toolNewExperiment">
+           <property name="autoFillBackground">
+            <bool>false</bool>
            </property>
            <property name="text">
             <string>New experiment</string>
            </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>../icons/document-new.svg</normaloff>../icons/document-new.svg</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>64</width>
+             <height>64</height>
+            </size>
+           </property>
+           <property name="toolButtonStyle">
+            <enum>Qt::ToolButtonTextUnderIcon</enum>
+           </property>
           </widget>
          </item>
          <item row="0" column="1">
-          <widget class="QPushButton" name="pushButton_2">
+          <widget class="QToolButton" name="toolLoadExperiment">
            <property name="text">
             <string>Load experiment</string>
+           </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>../icons/document-open.svg</normaloff>../icons/document-open.svg</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>64</width>
+             <height>64</height>
+            </size>
+           </property>
+           <property name="toolButtonStyle">
+            <enum>Qt::ToolButtonTextUnderIcon</enum>
            </property>
           </widget>
          </item>

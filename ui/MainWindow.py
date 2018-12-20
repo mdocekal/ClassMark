@@ -9,31 +9,43 @@ Module for main window of the application.
 
 from .WidgetManager import WidgetManager
 from .Home import Home
+from .Experiment import Experiment
 
 class MainWindow(WidgetManager):
     """
     Main window manager of that application.
     """
     
-    WINDOW_TEMPLATE=WidgetManager.UI_FOLDER+"/templates/window.ui"
-    HOME_PAGE_INDEX=0
+    TEMPLATE="window"
+    """Corresponding template name."""
+    
 
-
-    def __init__(self):
+    def __init__(self, app):
         """
         Initializes main window. Initial section is set to home.
+        
+        :param app: The QT app.
+        :type app: QApplication
         """
         super(MainWindow, self).__init__()
         
-        self._widget=self._loadWidget(self.WINDOW_TEMPLATE)
+        self._widget=self._loadTemplate(self.TEMPLATE)
         
         self._home=Home(self._widget.mainContent)
+        self._experiment=Experiment(self._widget.mainContent)
+
+        
         #Main content is Stacked Widget.
-        #Home must be first, or change goHome method.
         self._widget.mainContent.addWidget(self._home.widget)
+        self._widget.mainContent.addWidget(self._experiment.widget)
         
+        #register click events
+        self._widget.menuFileNewExperiment.triggered.connect(self.goExperiment)
+        self._widget.menuFileLoadExperiment.triggered.connect(self.goLoadExperiment)
+        self._widget.menuFileExit.triggered.connect(app.quit)
         
-        #self._setTemplateAsLayout(self._template)
+        self.goHome()
+        
     
     def show(self):
         """
@@ -45,15 +57,24 @@ class MainWindow(WidgetManager):
         """
         Go to home section.
         """
-        self._widget.mainContent.setCurrentIndex(self.HOME_PAGE_INDEX)
+        self._widget.mainContent.setCurrentIndex(self._widget.mainContent.indexOf(self._home.widget))
     
-    def goExperiment(self):
+    def goExperiment(self, load=None):
         """
         Go to experiment section.
+        
+        :param load: Path to file containing experiment configuration.
+            None means that new experiment should be loaded.
+        :type load: string|None
+        """
+        if load is not None:
+            self._experiment.loadExperiment(load)
+            
+        self._widget.mainContent.setCurrentIndex(self._widget.mainContent.indexOf(self._experiment.widget))
+        
+    def goLoadExperiment(self):
+        """
+        Selection of experiment file.
         """
         pass
-        
-        
-        
-    
         

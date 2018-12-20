@@ -13,7 +13,8 @@ class Home(WidgetManager):
     Home section manager class.
     """
     
-    HOME_TEMPLATE=WidgetManager.UI_FOLDER+"/templates/home.ui"
+    TEMPLATE="home"
+    """Corresponding template name."""
 
 
     def __init__(self, parent=None):
@@ -24,5 +25,8 @@ class Home(WidgetManager):
         :type parent: QWidget
         """
         super(Home, self).__init__()
-        self._widget=self._loadWidget(self.HOME_TEMPLATE, parent)
+        self._widget=self._loadTemplate(self.TEMPLATE, parent)
+        
+        #register click events
+        #self._widget.toolNewExperiment.triggered.connect(self.goExperiment())
         

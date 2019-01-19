@@ -42,7 +42,7 @@ class WidgetManager(object):
     @classmethod
     def _loadTemplate(cls, template, parent=None):
         """
-        Loads template from file.
+        Loads template from a file.
         
         :param template: Name of the template.
         :type template: string

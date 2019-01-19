@@ -8,10 +8,11 @@ Module for main window of the application.
 
 
 from .WidgetManager import WidgetManager
-from .Home import Home
-from .Experiment import Experiment
+from .HomeSection import HomeSection
+from .ExperimentSection import ExperimentSection
+from .SectionRouter import SectionRouter
 
-class MainWindow(WidgetManager):
+class MainWindow(WidgetManager, SectionRouter):
     """
     Main window manager of that application.
     """
@@ -31,8 +32,8 @@ class MainWindow(WidgetManager):
         
         self._widget=self._loadTemplate(self.TEMPLATE)
         
-        self._home=Home(self._widget.mainContent)
-        self._experiment=Experiment(self._widget.mainContent)
+        self._home=HomeSection(self, self._widget.mainContent)
+        self._experiment=ExperimentSection(self, self._widget.mainContent)
 
         
         #Main content is Stacked Widget.
@@ -43,6 +44,7 @@ class MainWindow(WidgetManager):
         self._widget.menuFileNewExperiment.triggered.connect(self.goExperiment)
         self._widget.menuFileLoadExperiment.triggered.connect(self.goLoadExperiment)
         self._widget.menuFileExit.triggered.connect(app.quit)
+        
         
         self.goHome()
         

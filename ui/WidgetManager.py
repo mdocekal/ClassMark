@@ -9,7 +9,7 @@ Module for widget manager.
 import os
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QFile
-
+from PySide2.QtWidgets import QApplication
 
 class WidgetManager(object):
     """
@@ -31,6 +31,14 @@ class WidgetManager(object):
 
         """
         self._widget=None
+        
+    @property
+    def tr(self):
+        """
+        Get the application translator.
+        """
+        
+        return QApplication.instance().translate
 
     @property
     def widget(self):

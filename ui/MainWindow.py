@@ -12,6 +12,8 @@ from .HomeSection import HomeSection
 from .ExperimentSection import ExperimentSection
 from .SectionRouter import SectionRouter
 
+from PySide2.QtWidgets import QFileDialog
+
 class MainWindow(WidgetManager, SectionRouter):
     """
     Main window manager of that application.
@@ -78,5 +80,9 @@ class MainWindow(WidgetManager, SectionRouter):
         """
         Selection of experiment file.
         """
-        pass
+
+        files=QFileDialog.getOpenFileName(self, self.tr("Load experiment"), "~", self.tr("Any files (*)"))
+        
+        print(files)
+
         

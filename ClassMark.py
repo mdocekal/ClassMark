@@ -11,11 +11,13 @@ ClassMark is a classifier benchmark.
 import sys
 
 from PySide2.QtWidgets import QApplication
+from PySide2.QtCore import Qt
 from ui.MainWindow import MainWindow
 
 
 
 if __name__ == '__main__':
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     app = QApplication(sys.argv)
 
     window = MainWindow(app)

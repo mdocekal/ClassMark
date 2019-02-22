@@ -14,7 +14,7 @@ from .SectionRouter import SectionRouter
 
 from PySide2.QtWidgets import QFileDialog
 
-class MainWindow(WidgetManager, SectionRouter):
+class MainWindow(WidgetManager,SectionRouter):
     """
     Main window manager of that application.
     """
@@ -30,7 +30,7 @@ class MainWindow(WidgetManager, SectionRouter):
         :param app: The QT app.
         :type app: QApplication
         """
-        super(MainWindow, self).__init__()
+        super().__init__()
         
         self._widget=self._loadTemplate(self.TEMPLATE)
         
@@ -63,9 +63,19 @@ class MainWindow(WidgetManager, SectionRouter):
         """
         self._widget.mainContent.setCurrentIndex(self._widget.mainContent.indexOf(self._home.widget))
     
-    def goExperiment(self, load=None):
+    def goExperiment(self):
         """
         Go to experiment section.
+        
+        :param load: Path to file containing experiment configuration.
+            None means that new experiment should be loaded.
+        :type load: string|None
+        """
+        self._goExperiment()
+        
+    def _goExperiment(self, load=None):
+        """
+        Go to experiment section. Actually changes sections and load the experiment.
         
         :param load: Path to file containing experiment configuration.
             None means that new experiment should be loaded.
@@ -81,8 +91,9 @@ class MainWindow(WidgetManager, SectionRouter):
         Selection of experiment file.
         """
 
-        files=QFileDialog.getOpenFileName(self, self.tr("Load experiment"), "~", self.tr("Any files (*)"))
-        
-        print(files)
+        file=QFileDialog.getOpenFileName(self._widget, self.tr("Load experiment"), "~", self.tr("Any files (*)"))
+        if file[0]:
+            #use selected a file
+            self._goExperiment(file[0])
 
         

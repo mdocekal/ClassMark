@@ -7,7 +7,7 @@ Module for home section of the application.
 """
 
 from .WidgetManager import WidgetManager
-from ui.SectionRouter import SectionRouter
+from .SectionRouter import SectionRouter
 
 class HomeSection(WidgetManager):
     """
@@ -27,11 +27,12 @@ class HomeSection(WidgetManager):
         :param parent: Parent widget
         :type parent: QWidget
         """
-        super(HomeSection, self).__init__()
+        super().__init__()
         self._widget=self._loadTemplate(self.TEMPLATE, parent)
         self._router=sectionRouter
         
         
         #register click events
         self._widget.toolNewExperiment.clicked.connect(self._router.goExperiment)
+        self._widget.toolLoadExperiment.clicked.connect(self._router.goLoadExperiment)
         #self._widget.findChild(QToolButton, 'toolNewExperiment')

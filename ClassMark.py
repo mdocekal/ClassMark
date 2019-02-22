@@ -12,7 +12,7 @@ import sys
 
 from PySide2.QtWidgets import QApplication
 from PySide2.QtCore import Qt
-from ui.MainWindow import MainWindow
+from ClassMarkPack.ui.MainWindow import MainWindow
 
 
 

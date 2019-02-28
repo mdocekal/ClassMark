@@ -6,8 +6,9 @@ This module contains Qt delegates.
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
 
-from PySide2.QtWidgets import QStyledItemDelegate, QRadioButton, QAbstractItemView
+from PySide2.QtWidgets import QStyledItemDelegate, QRadioButton, QComboBox
 from PySide2.QtCore import Qt
+from typing import List
 
 class RadioButtonDelegate(QStyledItemDelegate):
     """
@@ -84,6 +85,39 @@ class ComboBoxDelegate(QStyledItemDelegate):
     """
     Delegate for combo box.
     """
-    pass
     
+    def __init__(self, parent, items:List[str]):
+        """
+        Initialization of combobox.
+        
+        :param parent: Parent of that combobox.
+        :type parent: PySide2.QtCore.QObject
+        :param items: Options that can be selected by user.
+        :type items: List[str]
+        """
+        
+        self._items=items
+    
+    def paint(self, painter, option, index):
+        #we want to always show the editor
+        self.parent().openPersistentEditor(index)
+        
+        
+    def createEditor(self, parent, option, index):
+        """
+        Providing an editor.
+        
+        :param parent: Parent widget.
+        :type parent: QWidget
+        :param option: Option.
+        :type option: QStyleOptionViewItem
+        :param index: The index in view.
+        :type index: QModelIndex
+        """
+        comboBox = QComboBox(parent)
+        comboBox.currentIndexChanged.connect(self.commitAndCloseEditor)
+        comboBox.addItems(items)
+            
+        
+        return comboBox
     

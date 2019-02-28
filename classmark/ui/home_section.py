@@ -6,8 +6,8 @@ Module for home section of the application.
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
 
-from .WidgetManager import WidgetManager
-from .SectionRouter import SectionRouter
+from .widget_manager import WidgetManager
+from .section_router import SectionRouter
 
 class HomeSection(WidgetManager):
     """

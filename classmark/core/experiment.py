@@ -6,7 +6,7 @@ Module for experiment representation and actions.
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
 
-from ..data.DataSet import DataSet
+from ..data.data_set import DataSet
 
 class Experiment(object):
     """

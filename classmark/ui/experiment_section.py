@@ -6,13 +6,13 @@ Module for experiment section of the application.
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
 
-from .WidgetManager import WidgetManager
-from .SectionRouter import SectionRouter
+from .widget_manager import WidgetManager
+from .section_router import SectionRouter
 from PySide2.QtWidgets import QFileDialog
 from PySide2.QtWidgets import QHeaderView
-from ..core.Experiment import Experiment
-from .Delegates import RadioButtonDelegate, ComboBoxDelegate
-from .Models import TableDataAttributesModel
+from ..core.experiment import Experiment
+from .delegates import RadioButtonDelegate, ComboBoxDelegate
+from .models import TableDataAttributesModel
 
 class ExperimentSection(WidgetManager):
     """

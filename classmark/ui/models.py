@@ -6,7 +6,7 @@ This module contains models.
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
 from PySide2.QtCore import QAbstractTableModel, Qt
-from ..data.DataSet import DataSet
+from ..data.data_set import DataSet
 
 class TableDataAttributesModel(QAbstractTableModel):
     """

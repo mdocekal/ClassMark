@@ -7,10 +7,10 @@ Module for main window of the application.
 """
 
 
-from .WidgetManager import WidgetManager
-from .HomeSection import HomeSection
-from .ExperimentSection import ExperimentSection
-from .SectionRouter import SectionRouter
+from .widget_manager import WidgetManager
+from .home_section import HomeSection
+from .experiment_section import ExperimentSection
+from .section_router import SectionRouter
 
 from PySide2.QtWidgets import QFileDialog
 

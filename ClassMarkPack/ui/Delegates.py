@@ -116,7 +116,7 @@ class ComboBoxDelegate(QStyledItemDelegate):
         """
         comboBox = QComboBox(parent)
         comboBox.currentIndexChanged.connect(self.commitAndCloseEditor)
-        comboBox.addItems(items)
+        comboBox.addItems(self._items)
             
         
         return comboBox

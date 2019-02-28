@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: UTF-8 -*-
 """
 Created on 19. 12. 2018
 ClassMark is a classifier benchmark.
@@ -12,11 +10,10 @@ import sys
 
 from PySide2.QtWidgets import QApplication
 from PySide2.QtCore import Qt
-from ClassMarkPack.ui.MainWindow import MainWindow
+from .ui.MainWindow import MainWindow
 
 
-
-if __name__ == '__main__':
+def main():
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     app = QApplication(sys.argv)
 
@@ -24,3 +21,6 @@ if __name__ == '__main__':
     window.show()
 
     sys.exit(app.exec_())
+    
+if __name__ == '__main__':
+    main()

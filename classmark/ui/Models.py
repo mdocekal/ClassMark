@@ -137,9 +137,12 @@ class TableDataAttributesModel(QAbstractTableModel):
             else:
                 writeTo[index.row()]=False
         
-        elif role==Qt.EditRole and index.column() == self.COLL_LABEL:
-            #radio button
-            self._label=index.row()
+        elif role==Qt.EditRole:
+            if index.column() == self.COLL_LABEL:
+                #radio button
+                self._label=index.row()
+            elif index.column() == self.COLL_FEATURE_EXTRACTION:
+                pass
         
         self.dataChanged.emit(index, index)
         return True
@@ -158,7 +161,7 @@ class TableDataAttributesModel(QAbstractTableModel):
 
         if not index.isValid():
             return None
-        
+        #TODO: DATA ACCORDING TO SAVED SETTINGS
         if role == Qt.DisplayRole or role==Qt.EditRole:
             if index.column()==self.COLL_ATTRIBUTE_NAME:
                 #attribute name
@@ -167,6 +170,10 @@ class TableDataAttributesModel(QAbstractTableModel):
             if index.column()==self.COLL_LABEL:
                 #Is on that index selected label?
                 return index.row()==self._label
+            
+            if index.column()==self.COLL_FEATURE_EXTRACTION:
+                #TODO: zero index just for now
+                return 0
         
         if role ==Qt.CheckStateRole:
             if index.column()==self.COLL_USE:

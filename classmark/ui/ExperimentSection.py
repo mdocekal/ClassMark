@@ -11,7 +11,7 @@ from .SectionRouter import SectionRouter
 from PySide2.QtWidgets import QFileDialog
 from PySide2.QtWidgets import QHeaderView
 from ..core.Experiment import Experiment
-from .Delegates import RadioButtonDelegate 
+from .Delegates import RadioButtonDelegate, ComboBoxDelegate
 from .Models import TableDataAttributesModel
 
 class ExperimentSection(WidgetManager):
@@ -55,7 +55,10 @@ class ExperimentSection(WidgetManager):
         #assign model to table view
         self._widget.tableDataAttributes.setModel(TableDataAttributesModel(self._widget, self._experiment.dataset))
         #set delegates
-        self._widget.tableDataAttributes.setItemDelegateForColumn(TableDataAttributesModel.COLL_LABEL, RadioButtonDelegate(self._widget.tableDataAttributes))
+        self._widget.tableDataAttributes.setItemDelegateForColumn(TableDataAttributesModel.COLL_LABEL, 
+                                                                  RadioButtonDelegate(self._widget.tableDataAttributes))
+        self._widget.tableDataAttributes.setItemDelegateForColumn(TableDataAttributesModel.COLL_FEATURE_EXTRACTION, 
+                                                                  ComboBoxDelegate(self._widget.tableDataAttributes,[]))
         
         #set resize modes
         self._setSecResModeForDataAttrTable()

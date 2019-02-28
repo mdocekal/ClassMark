@@ -95,7 +95,7 @@ class ComboBoxDelegate(QStyledItemDelegate):
         :param items: Options that can be selected by user.
         :type items: List[str]
         """
-        
+        super().__init__(parent)
         self._items=items
     
     def paint(self, painter, option, index):
@@ -115,9 +115,53 @@ class ComboBoxDelegate(QStyledItemDelegate):
         :type index: QModelIndex
         """
         comboBox = QComboBox(parent)
-        comboBox.currentIndexChanged.connect(self.commitAndCloseEditor)
         comboBox.addItems(self._items)
-            
-        
+        comboBox.currentIndexChanged.connect(self.commitAndCloseEditor)
         return comboBox
+    
+    def setEditorData(self, editor, index):
+        """
+        Set data from model to editor.
+        
+        :param editor: The created editor.
+        :type editor: QComboBox
+        :param index: The index in view.
+        :type index: QModelIndex
+        """
+        editor.setCurrentIndex(index.data(Qt.EditRole))
+
+    def setModelData(self, editor, model, index):
+        """
+        Set data from editor to model.
+        
+        :param editor: The created editor.
+        :type editor: QComboBox
+        :param model: The model that wants to know the value.
+        :type model: QAbstractItemModel
+        :param index: The index in view.
+        :type index: QModelIndex
+        """
+        model.setData(index, editor.currentIndex(), Qt.EditRole);
+        
+    def commitAndCloseEditor(self):
+        """
+        Finish editing and inform model that editing is finished.
+        """
+        
+        self.closeEditor.emit(self.sender())
+        
+        
+    def updateEditorGeometry(self, editor, option, index):
+        """
+        Update actual geometry of created editor.
+        
+        :param editor: The created editor.
+        :type editor: QComboBox
+        :param option: Option.
+        :type option: QStyleOptionViewItem
+        :param index: The index in view.
+        :type index: QModelIndex
+        """
+        
+        editor.setGeometry(option.rect)
     

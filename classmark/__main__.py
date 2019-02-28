@@ -10,7 +10,7 @@ import sys
 
 from PySide2.QtWidgets import QApplication
 from PySide2.QtCore import Qt
-from .ui.MainWindow import MainWindow
+from .ui.main_window import MainWindow
 
 
 def main():

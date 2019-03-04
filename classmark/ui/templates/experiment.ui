@@ -165,14 +165,10 @@
             </widget>
            </item>
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_3">
-             <item>
-              <widget class="QComboBox" name="comboBox"/>
-             </item>
-            </layout>
+            <layout class="QVBoxLayout" name="testClassifiersLayout"/>
            </item>
            <item>
-            <widget class="QToolButton" name="toolButton">
+            <widget class="QToolButton" name="buttonAddClassifierOption">
              <property name="text">
               <string>...</string>
              </property>

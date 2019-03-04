@@ -8,11 +8,11 @@ Module for experiment section of the application.
 
 from .widget_manager import WidgetManager
 from .section_router import SectionRouter
-from PySide2.QtWidgets import QFileDialog
-from PySide2.QtWidgets import QHeaderView
+from PySide2.QtWidgets import QFileDialog, QHeaderView, QHBoxLayout, QComboBox
 from ..core.experiment import Experiment
 from .delegates import RadioButtonDelegate, ComboBoxDelegate
 from .models import TableDataAttributesModel
+from ..core.plugins import CLASSIFIERS, FEATURE_EXTRACTORS
 
 class ExperimentSection(WidgetManager):
     """
@@ -43,6 +43,7 @@ class ExperimentSection(WidgetManager):
         self._experiment=Experiment(load)
         
         self._initData()
+        self._initCls()
         
     def _initData(self):
         """
@@ -58,10 +59,34 @@ class ExperimentSection(WidgetManager):
         self._widget.tableDataAttributes.setItemDelegateForColumn(TableDataAttributesModel.COLL_LABEL, 
                                                                   RadioButtonDelegate(self._widget.tableDataAttributes))
         self._widget.tableDataAttributes.setItemDelegateForColumn(TableDataAttributesModel.COLL_FEATURE_EXTRACTION, 
-                                                                  ComboBoxDelegate(self._widget.tableDataAttributes,[]))
-        
+                                                                  ComboBoxDelegate(self._widget.tableDataAttributes,
+                                                                    [cls.getName() for cls in FEATURE_EXTRACTORS.values()]))
         #set resize modes
         self._setSecResModeForDataAttrTable()
+        
+    def _initCls(self):
+        """
+        Initialization of classifiers tab.
+        """
+        
+        #register click events
+        self._widget.buttonAddClassifierOption.clicked.connect(self.loadDataset)
+        
+        #add one classifier option
+        self._addClassifierOption()
+        
+    def _addClassifierOption(self):
+        """
+        Add one new classifier option to UI.
+        """
+        
+        #lets create option row
+        
+        comBox= QComboBox()
+        comBox.addItems([cls.getName() for cls in CLASSIFIERS.values()])
+        row = QHBoxLayout();
+        row.addWidget(comBox)
+        self._widget.testClassifiersLayout.addLayout(row);
         
         
         
@@ -83,7 +108,7 @@ class ExperimentSection(WidgetManager):
             #use selected a file
             self._experiment.loadDataset(file[0])
             self._widget.pathToData.setText(file[0])
-            self._widget.tableDataAttributes.setModel(TableDataAttributesModel(self._widget, self._experiment.dataset))
+            self._widget.tableDataAttributes.setModel(TableDataAttributesModel(self._widget, self._experiment))
             
             
     def _setSecResModeForDataAttrTable(self):

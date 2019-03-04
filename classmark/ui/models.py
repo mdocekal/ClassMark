@@ -6,7 +6,7 @@ This module contains models.
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
 from PySide2.QtCore import QAbstractTableModel, Qt
-from ..data.data_set import DataSet
+from ..core.experiment import Experiment
 
 class TableDataAttributesModel(QAbstractTableModel):
     """
@@ -33,62 +33,39 @@ class TableDataAttributesModel(QAbstractTableModel):
     """Index of feature extraction method column."""
     
     
-    def __init__(self, parent, dataSet:DataSet):
+    def __init__(self, parent, experiment:Experiment):
         """
         Initialization of model.
         
         :param parent: Parent widget.
         :type parent: Widget
-        :param dataSet: Dataset which attributes you want to show.
-        :type dataSet: DataSet | None
+        :param experiment: Experiment which attributes you want to show.
+        :type experiment: Experiment
         """
         QAbstractTableModel.__init__(self, parent)
-        self._dataSet = dataSet
-        self._init()
-        
-        
-    def _init(self):
-        """
-        Data initialization of the model.
-        """
-        attrNum=0
-        if self._dataSet is not None:
-            attrNum=len(self._dataSet.attributes)  
-        #flag that determining if given attribute should be used
-        self._use=[True]* attrNum
-            
-        #flag that determining if given attribute value is path to file that should be read
-        #and its content should be used instead of the path
-        self._path=[False]*attrNum
-            
-        #name of attribute which should be used as label
-        self._label=None 
-            
-        #feature extractor which is assigned to an attribute
-        self._featureExt=[None]*attrNum
- 
+        self._experiment = experiment
+
     @property
-    def dataSet(self):
+    def experiment(self):
         """
-        Assigned data set.
+        Assigned experiment.
         """
-        return self._dataSet
+        return self._experiment
     
-    @dataSet.setter
-    def dataSet(self, dataSet:DataSet):
+    @experiment.setter
+    def experiment(self, experiment:Experiment):
         """
-        Assign new data set.
+        Assign new experiment.
         
-        :param dataSet: New data set that should be now used.
-        :type dataSet:DataSet
+        :param experiment: New experiment that should be now used.
+        :type experiment: Experiment
         """
-        self._dataSet=dataSet
-        self._init()
+        self._experiment=experiment
         self.beginResetModel()
         
     def rowCount(self, parent):
         try:
-            return len(self._dataSet.attributes)
+            return len(self._experiment.dataset.attributes)
         except AttributeError:
             #probably no assigned data set
             return 0
@@ -128,19 +105,22 @@ class TableDataAttributesModel(QAbstractTableModel):
         if not index.isValid():
             return False
         
+        #attribute name on current row
+        attributeName=self._experiment.dataset.attributes[index.row()]
+        
         if role == Qt.CheckStateRole and index.column() in {self.COLL_USE, self.COLL_PATH}:
             #checkbox change
-            writeTo=self._use if index.column()==self.COLL_USE else self._path
+            changeSetting=Experiment.AttributeSettings.USE if index.column()==self.COLL_USE else Experiment.AttributeSettings.PATH
             
             if value ==Qt.Checked:
-                writeTo[index.row()]=True
+                self._experiment.setAttributeSetting(attributeName, changeSetting, True)
             else:
-                writeTo[index.row()]=False
+                self._experiment.setAttributeSetting(attributeName, changeSetting, False)
         
         elif role==Qt.EditRole:
             if index.column() == self.COLL_LABEL:
                 #radio button
-                self._label=index.row()
+                self._experiment.label=attributeName
             elif index.column() == self.COLL_FEATURE_EXTRACTION:
                 pass
         
@@ -161,15 +141,18 @@ class TableDataAttributesModel(QAbstractTableModel):
 
         if not index.isValid():
             return None
+        
+        #attribute name on current row
+        attributeName=self._experiment.dataset.attributes[index.row()]
         #TODO: DATA ACCORDING TO SAVED SETTINGS
         if role == Qt.DisplayRole or role==Qt.EditRole:
             if index.column()==self.COLL_ATTRIBUTE_NAME:
                 #attribute name
-                return self._dataSet.attributes[index.row()]
+                return attributeName
             
             if index.column()==self.COLL_LABEL:
                 #Is on that index selected label?
-                return index.row()==self._label
+                return attributeName==self._experiment.label
             
             if index.column()==self.COLL_FEATURE_EXTRACTION:
                 #TODO: zero index just for now
@@ -178,11 +161,11 @@ class TableDataAttributesModel(QAbstractTableModel):
         if role ==Qt.CheckStateRole:
             if index.column()==self.COLL_USE:
                 #use column
-                return Qt.Checked if self._use[index.row()] else Qt.Unchecked
+                return Qt.Checked if self._experiment.getAttributeSetting(attributeName, Experiment.AttributeSettings.USE) else Qt.Unchecked
             
             if index.column()==self.COLL_PATH:
                 #path column
-                return Qt.Checked if self._path[index.row()] else Qt.Unchecked
+                return Qt.Checked if  self._experiment.getAttributeSetting(attributeName, Experiment.AttributeSettings.PATH) else Qt.Unchecked
 
         return None
         

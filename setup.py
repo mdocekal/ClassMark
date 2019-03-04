@@ -22,8 +22,8 @@ setup(name='ClassMark',
             'classmark = classmark.__main__:main'
         ]
     },
-    install_requires={
+    install_requires=[
         'PySide2>=5',
         'typing>=3'
-    }
+    ]
 )

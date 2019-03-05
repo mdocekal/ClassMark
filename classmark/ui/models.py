@@ -7,6 +7,8 @@ This module contains models.
 """
 from PySide2.QtCore import QAbstractTableModel, Qt
 from ..core.experiment import Experiment
+from ..core.plugins import FeatureExtractor
+from typing import Dict
 
 class TableDataAttributesModel(QAbstractTableModel):
     """
@@ -33,7 +35,7 @@ class TableDataAttributesModel(QAbstractTableModel):
     """Index of feature extraction method column."""
     
     
-    def __init__(self, parent, experiment:Experiment):
+    def __init__(self, parent, experiment:Experiment, featuresExt:Dict[str,FeatureExtractor]):
         """
         Initialization of model.
         
@@ -41,9 +43,12 @@ class TableDataAttributesModel(QAbstractTableModel):
         :type parent: Widget
         :param experiment: Experiment which attributes you want to show.
         :type experiment: Experiment
+        :param featuresExt: Dictionary name -> feature extractor.
+        :type featuresExt: Dict[str,FeatureExtractor]
         """
         QAbstractTableModel.__init__(self, parent)
         self._experiment = experiment
+        self._featuresExt = featuresExt
 
     @property
     def experiment(self):
@@ -189,7 +194,7 @@ class TableDataAttributesModel(QAbstractTableModel):
                 return self._HEADERS[section]
             except AttributeError:
                 """Name of columns in table. Initialization is performed on demand."""
-                self._HEADERS=[self.tr("attributes"),self.tr("use"),self.tr("path"),self.tr("label"),self.tr("feature extraction")]
+                self._HEADERS=[self.tr("attributes"),self.tr("use"),self.tr("path"),self.tr("label"),self.tr("features extraction")]
                 return self._HEADERS[section]
         
         return None

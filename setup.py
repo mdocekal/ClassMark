@@ -18,7 +18,7 @@ setup(name='ClassMark',
     package_data={'classmark': ['ui/icons/*','languages/*','templates/*']},
     data_files=[('examples', ['examples/test.csv'])],
     entry_points={
-        'gui_scripts': [
+        'console_scripts': [
             'classmark = classmark.__main__:main'
         ]
     },

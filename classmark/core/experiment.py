@@ -8,11 +8,16 @@ Module for experiment representation and actions.
 
 from ..data.data_set import DataSet
 from enum import Enum
-
+from _collections import OrderedDict
+from ..core.plugins import CLASSIFIERS, FEATURE_EXTRACTORS
 class Experiment(object):
     """
     This class represents experiment.
     """
+    
+    DEFAULT_FEATURE_EXTRACTOR_NAME="Pass"
+    """Name of default feature extractor that is set to attribute.
+    If exists."""
     
     class AttributeSettings(Enum):
         """
@@ -30,12 +35,42 @@ class Experiment(object):
         :param filePath: Path to file. If None than new experiment is created, else
             saved experiment is loaded.
         :type filePath: str| None
+        :raise RuntimeError: Where collision of features extractors names occurs.
         """
         self._dataset=None
         self._attributesSet={}
         self._label=None
+        
+        #available features extractors
+        feTmp={}
+        for fe in FEATURE_EXTRACTORS.values():
+            if fe.getName() in feTmp:
+                #wow, name collision
+                #TODO: Maybe multilanguage message will be better.
+                raise RuntimeError("Collision of features extractors names. For name: "+fe.getName())
+            feTmp[fe.getName()]=fe
+        
+        #TODO: raise exception when now plugins are available.
+        
+        #lets put the default feature extractor as the first if exists
+        if self.DEFAULT_FEATURE_EXTRACTOR_NAME in feTmp:
+            cont=[(self.DEFAULT_FEATURE_EXTRACTOR_NAME,feTmp[self.DEFAULT_FEATURE_EXTRACTOR_NAME])]
+            #add the rest
+            cont+=[(n,p) for n,p in feTmp.items() if n!=self.DEFAULT_FEATURE_EXTRACTOR_NAME]
+            self._featuresExt=OrderedDict(cont)
+        else:
+            self._featuresExt=OrderedDict(feTmp)
+        
         #TODO: loading
 
+    @property
+    def featuresExt(self):
+        """
+        Available features extractors plugins.
+        Stored in OrderedDict (name -> plugin). Because it is handy to have default extractor as first
+        (if exists). 
+        """
+        return self._featuresExt
         
     def loadDataset(self, filePath:str):
         """
@@ -47,7 +82,8 @@ class Experiment(object):
         self._dataset=DataSet(filePath)
         #prepare new attribute settings
         self._attributesSet={
-            name:{self.AttributeSettings.USE:True, self.AttributeSettings.PATH:False,self.AttributeSettings.FEATURE_EXTRACTOR:None} 
+            name:{self.AttributeSettings.USE:True, self.AttributeSettings.PATH:False,
+                  self.AttributeSettings.FEATURE_EXTRACTOR:next(iter(self._featuresExt.values()))} 
                           for name in self._dataset.attributes}
         self._label=None
         

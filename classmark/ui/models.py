@@ -35,7 +35,7 @@ class TableDataAttributesModel(QAbstractTableModel):
     """Index of feature extraction method column."""
     
     
-    def __init__(self, parent, experiment:Experiment, featuresExt:Dict[str,FeatureExtractor]):
+    def __init__(self, parent, experiment:Experiment):
         """
         Initialization of model.
         
@@ -43,12 +43,9 @@ class TableDataAttributesModel(QAbstractTableModel):
         :type parent: Widget
         :param experiment: Experiment which attributes you want to show.
         :type experiment: Experiment
-        :param featuresExt: Dictionary name -> feature extractor.
-        :type featuresExt: Dict[str,FeatureExtractor]
         """
         QAbstractTableModel.__init__(self, parent)
         self._experiment = experiment
-        self._featuresExt = featuresExt
 
     @property
     def experiment(self):
@@ -127,7 +124,8 @@ class TableDataAttributesModel(QAbstractTableModel):
                 #radio button
                 self._experiment.label=attributeName
             elif index.column() == self.COLL_FEATURE_EXTRACTION:
-                pass
+                self._experiment.setAttributeSetting(attributeName, 
+                    Experiment.AttributeSettings.FEATURE_EXTRACTOR, self._experiment.featuresExt[value])
         
         self.dataChanged.emit(index, index)
         return True
@@ -149,7 +147,7 @@ class TableDataAttributesModel(QAbstractTableModel):
         
         #attribute name on current row
         attributeName=self._experiment.dataset.attributes[index.row()]
-        #TODO: DATA ACCORDING TO SAVED SETTINGS
+
         if role == Qt.DisplayRole or role==Qt.EditRole:
             if index.column()==self.COLL_ATTRIBUTE_NAME:
                 #attribute name
@@ -160,8 +158,9 @@ class TableDataAttributesModel(QAbstractTableModel):
                 return attributeName==self._experiment.label
             
             if index.column()==self.COLL_FEATURE_EXTRACTION:
-                #TODO: zero index just for now
-                return 0
+
+                return self._experiment.getAttributeSetting(attributeName, 
+                                                            Experiment.AttributeSettings.FEATURE_EXTRACTOR).getName()
         
         if role ==Qt.CheckStateRole:
             if index.column()==self.COLL_USE:

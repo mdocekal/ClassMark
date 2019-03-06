@@ -21,10 +21,6 @@ class ExperimentSection(WidgetManager):
 
     TEMPLATE="experiment"
     """Corresponding template name."""
-    
-    DEFAULT_FEATURE_EXTRACTOR_NAME="Pass"
-    """Name of default feature extractor that is set to attribute.
-    If exists."""
 
     def __init__(self, sectionRouter:SectionRouter, parent=None, load=None):
         """
@@ -52,31 +48,20 @@ class ExperimentSection(WidgetManager):
         """
         Initialization of data tab.
         """
-                
-        #available features extractors
-        self._featuresExt={fe.getName():fe for fe in FEATURE_EXTRACTORS.values()}
-        
-        #lets put the default feature extractor as the first if exists
-        if self.DEFAULT_FEATURE_EXTRACTOR_NAME in self._featuresExt:
-            self._featureExtNames=[self.DEFAULT_FEATURE_EXTRACTOR_NAME]
-            #add the rest
-            self._featureExtNames+=[n for n in self._featuresExt if n!=self.DEFAULT_FEATURE_EXTRACTOR_NAME]
-        else:
-            self._featureExtNames=[n for n in featuresExt]
-            
             
         #register click events
         self._widget.buttonChooseData.clicked.connect(self.loadDataset)
         
         #assign model to table view
-        self._widget.tableDataAttributes.setModel(TableDataAttributesModel(self._widget, self._experiment.dataset, self._featuresExt))
+        self._widget.tableDataAttributes.setModel(TableDataAttributesModel(self._widget, 
+                                                                           self._experiment))
         #set delegates
         self._widget.tableDataAttributes.setItemDelegateForColumn(TableDataAttributesModel.COLL_LABEL, 
                                                                   RadioButtonDelegate(self._widget.tableDataAttributes))
         
         self._widget.tableDataAttributes.setItemDelegateForColumn(TableDataAttributesModel.COLL_FEATURE_EXTRACTION, 
                                                                   ComboBoxDelegate(self._widget.tableDataAttributes,
-                                                                    self._featureExtNames))
+                                                                    [n for n in self._experiment.featuresExt]))
         #set resize modes
         self._setSecResModeForDataAttrTable()
         
@@ -124,7 +109,7 @@ class ExperimentSection(WidgetManager):
             #use selected a file
             self._experiment.loadDataset(file[0])
             self._widget.pathToData.setText(file[0])
-            self._widget.tableDataAttributes.setModel(TableDataAttributesModel(self._widget, self._experiment,self._featureExtNames))
+            self._widget.tableDataAttributes.setModel(TableDataAttributesModel(self._widget, self._experiment))
             
             
     def _setSecResModeForDataAttrTable(self):

@@ -116,7 +116,7 @@ class ComboBoxDelegate(QStyledItemDelegate):
         """
         comboBox = QComboBox(parent)
         comboBox.addItems(self._items)
-        comboBox.currentIndexChanged.connect(self.commitAndCloseEditor)
+        comboBox.currentTextChanged.connect(self.commitAndCloseEditor)
         return comboBox
     
     def setEditorData(self, editor, index):
@@ -128,7 +128,7 @@ class ComboBoxDelegate(QStyledItemDelegate):
         :param index: The index in view.
         :type index: QModelIndex
         """
-        editor.setCurrentIndex(index.data(Qt.EditRole))
+        editor.setCurrentText(index.data(Qt.EditRole))
 
     def setModelData(self, editor, model, index):
         """
@@ -141,7 +141,7 @@ class ComboBoxDelegate(QStyledItemDelegate):
         :param index: The index in view.
         :type index: QModelIndex
         """
-        model.setData(index, editor.currentIndex(), Qt.EditRole);
+        model.setData(index, editor.currentText(), Qt.EditRole);
         
     def commitAndCloseEditor(self):
         """

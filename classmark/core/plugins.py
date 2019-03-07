@@ -60,16 +60,26 @@ class Classifier(Plugin):
     """
     
     @abstractmethod
-    def train(self):
+    def train(self, data, labels):
         """
         Train classifier on provided data.
+        
+        :param data: Data that will be used for training.
+        :type data: ArrayLike
+        :param labels: Labels for the training data.
+        :type labels: ArrayLike
         """
         pass
     
     @abstractmethod
-    def predict(self):
+    def predict(self, data):
         """
         Predict label on provided data.
+        
+        :param data: Data for classification.
+        :type data: ArrayLike
+        :return: Predicted labels.
+        :rtype: ArrayLike
         """
         pass
     
@@ -79,16 +89,27 @@ class FeatureExtractor(Plugin):
     """
     
     @abstractmethod
-    def fit(self):
+    def fit(self, data, labels=None):
         """
         Prepare feature extractor with given data.
+        Something like classifier training.
+        
+        :param data: Data for preparation.
+        :type data: ArrayLike
+        :param labels: Labels for preparation.
+        :type labels: ArrayLike
         """
         pass
     
     @abstractmethod
-    def extract(self):
+    def extract(self, data):
         """
         Extract features from given data.
+        
+        :param data: Original data for features extraction.
+        :type data: ArrayLike
+        :return: Extracted features.
+        :rtype: ArrayLike
         """
         pass
 

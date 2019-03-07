@@ -10,6 +10,30 @@ from ..data.data_set import DataSet
 from enum import Enum
 from _collections import OrderedDict
 from ..core.plugins import CLASSIFIERS, FEATURE_EXTRACTORS
+
+class ClassifierSlot(object):
+    """
+    Slot that stores informations about classifier that should be tested. 
+    """
+    
+    def __init__(self, slotID):
+        """
+        Creates empty classifier slot
+        
+        :param slotID: Unique identifier of slot.
+        :type slotID: int
+        """
+        self._id=slotID
+        self.classifier=None
+    
+    def __eq__(self, other):
+        if not isinstance(other, __class__):
+            return False
+        return self._id==other._id
+        
+    def __hash__(self):
+        return self._id
+    
 class Experiment(object):
     """
     This class represents experiment.
@@ -35,13 +59,28 @@ class Experiment(object):
         :param filePath: Path to file. If None than new experiment is created, else
             saved experiment is loaded.
         :type filePath: str| None
-        :raise RuntimeError: Where collision of features extractors names occurs.
+        :raise RuntimeError: When there is problem with plugins.
         """
         self._dataset=None
         self._attributesSet={}
         self._label=None
+        self._classifiers=[]    #classifiers for testing
         
+        #let's load the plugins that are now available
+        self._loadPlugins()
+        #TODO: loading
+        
+    def _loadPlugins(self):
+        """
+        Loads available plugins.
+        
+        :raise RuntimeError: When there is problem with plugins.
+        """
         #available features extractors
+        if len(FEATURE_EXTRACTORS)==0:
+            #TODO: Maybe multilanguage message will be better.
+            raise RuntimeError("There are no features extractors plugins.")
+        
         feTmp={}
         for fe in FEATURE_EXTRACTORS.values():
             if fe.getName() in feTmp:
@@ -49,8 +88,6 @@ class Experiment(object):
                 #TODO: Maybe multilanguage message will be better.
                 raise RuntimeError("Collision of features extractors names. For name: "+fe.getName())
             feTmp[fe.getName()]=fe
-        
-        #TODO: raise exception when now plugins are available.
         
         #lets put the default feature extractor as the first if exists
         if self.DEFAULT_FEATURE_EXTRACTOR_NAME in feTmp:
@@ -61,7 +98,61 @@ class Experiment(object):
         else:
             self._featuresExt=OrderedDict(feTmp)
         
-        #TODO: loading
+        #available classifiers
+        if len(CLASSIFIERS)==0:
+            #TODO: Maybe multilanguage message will be better.
+            raise RuntimeError("There are no classifiers plugins.")
+        
+        clsTmp=set()
+        for cls in CLASSIFIERS.values():
+            if cls.getName() in clsTmp:
+                #wow, name collision
+                #TODO: Maybe multilanguage message will be better.
+                raise RuntimeError("Collision of classifiers names. For name: "+cls.getName())
+            clsTmp.add(cls.getName())
+    
+    def newClassifierSlot(self):
+        """
+        Creates new slot for classifier that should be tested.
+        
+        :return: Classifier slot
+        :rtype: ClassifierSlot
+        """
+        #lets find first empty id
+        slotId=len(self._classifiers)
+        for i, x in enumerate(self._classifiers):
+            if x is None:
+                #there is empty id
+                self._classifiers[i]=ClassifierSlot(i)
+                return self._classifiers[i]
+            
+        self._classifiers.append(ClassifierSlot(slotId))
+        return self._classifiers[-1]
+    
+    def removeClassifierSlot(self, slot:ClassifierSlot):
+        """
+        Remove classifier slot.
+        
+        :param slot: Slot fot classifier.
+        :type slot:ClassifierSlot
+        """
+
+        i=self._classifiers.index(slot)
+        self._classifiers[i]=None
+        
+        #remove all None from the end of list
+        for i in range(len(self._classifiers)-1,-1,-1):
+            if self._classifiers[i] is None:
+                self._classifiers.pop()
+            else:
+                break
+    
+    @property
+    def availableClassifiers(self):
+        """
+        Available classifiers plugins.
+        """
+        return CLASSIFIERS
 
     @property
     def featuresExt(self):
@@ -135,6 +226,7 @@ class Experiment(object):
         else:
             self._attributesSet[attribute][t]=val
         
+    
   
     @property
     def dataset(self):

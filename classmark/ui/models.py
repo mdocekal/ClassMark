@@ -7,8 +7,6 @@ This module contains models.
 """
 from PySide2.QtCore import QAbstractTableModel, Qt
 from ..core.experiment import Experiment
-from ..core.plugins import FeatureExtractor
-from typing import Dict
 
 class TableDataAttributesModel(QAbstractTableModel):
     """
@@ -16,7 +14,7 @@ class TableDataAttributesModel(QAbstractTableModel):
 
     """
     
-    NUM_COL=5
+    NUM_COL=6
     """Number of columns in table."""
     
     COLL_ATTRIBUTE_NAME=0
@@ -33,6 +31,9 @@ class TableDataAttributesModel(QAbstractTableModel):
     
     COLL_FEATURE_EXTRACTION=4
     """Index of feature extraction method column."""
+    
+    COLL_FEATURE_EXTRACTION_PROPERITES=5
+    """Index of feature extraction method properties column."""
     
     
     def __init__(self, parent, experiment:Experiment):
@@ -65,14 +66,14 @@ class TableDataAttributesModel(QAbstractTableModel):
         self._experiment=experiment
         self.beginResetModel()
         
-    def rowCount(self, parent):
+    def rowCount(self, parent=None):
         try:
             return len(self._experiment.dataset.attributes)
         except AttributeError:
             #probably no assigned data set
             return 0
     
-    def columnCount(self, parent):
+    def columnCount(self, parent=None):
         return self.NUM_COL
     
     def flags(self, index):
@@ -193,7 +194,7 @@ class TableDataAttributesModel(QAbstractTableModel):
                 return self._HEADERS[section]
             except AttributeError:
                 """Name of columns in table. Initialization is performed on demand."""
-                self._HEADERS=[self.tr("attributes"),self.tr("use"),self.tr("path"),self.tr("label"),self.tr("features extraction")]
+                self._HEADERS=[self.tr("attributes"),self.tr("use"),self.tr("path"),self.tr("label"),self.tr("features extraction"), ""]
                 return self._HEADERS[section]
         
         return None

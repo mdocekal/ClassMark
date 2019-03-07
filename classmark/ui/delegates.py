@@ -6,7 +6,7 @@ This module contains Qt delegates.
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
 
-from PySide2.QtWidgets import QStyledItemDelegate, QRadioButton, QComboBox
+from PySide2.QtWidgets import QStyledItemDelegate, QRadioButton, QComboBox, QToolButton
 from PySide2.QtCore import Qt
 from typing import List
 

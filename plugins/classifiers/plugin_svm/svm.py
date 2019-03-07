@@ -6,11 +6,19 @@ SVM classifier plugin for ClassMark.
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
 from classmark.core.plugins import Classifier
+from sklearn.svm import LinearSVC
 
 class SVM(Classifier):
     """
     SVM classifier plugin for ClassMark.
     """
+    
+    def __init__(self):
+        """
+        Classifier initialization.
+        """
+        self._cls=LinearSVC()
+    
     @staticmethod
     def getAttributes():
         return []
@@ -27,9 +35,9 @@ class SVM(Classifier):
     def getInfo():
         return ""
     
-    def train(self):
-        pass
+    def train(self, data, labels):
+        self._cls.fit(data,labels)
     
-    def predict(self):
-        pass
+    def predict(self, data):
+        return self._cls.predict(data)
         

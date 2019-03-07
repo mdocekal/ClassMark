@@ -16,6 +16,7 @@ import traceback
 def main():
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     app = QApplication(sys.argv)
+
     try:
         
         window = MainWindow(app)

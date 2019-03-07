@@ -27,9 +27,9 @@ class HOG(FeatureExtractor):
     def getInfo():
         return ""
     
-    def fit(self):
+    def fit(self, data, labels=None):
         pass
 
-    def extract(self):
+    def extract(self, data):
         pass
         

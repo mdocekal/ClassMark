@@ -7,6 +7,7 @@ This module contains models.
 """
 from PySide2.QtCore import QAbstractTableModel, Qt
 from ..core.experiment import Experiment
+from typing import Callable
 
 class TableDataAttributesModel(QAbstractTableModel):
     """
@@ -36,7 +37,7 @@ class TableDataAttributesModel(QAbstractTableModel):
     """Index of feature extraction method properties column."""
     
     
-    def __init__(self, parent, experiment:Experiment):
+    def __init__(self, parent, experiment:Experiment, showExtractorAttr:Callable[[int],None]=None):
         """
         Initialization of model.
         
@@ -44,9 +45,12 @@ class TableDataAttributesModel(QAbstractTableModel):
         :type parent: Widget
         :param experiment: Experiment which attributes you want to show.
         :type experiment: Experiment
+        :param showExtractorAttr: This method will be called, with parameter containing row number, when extractor is changed.
+        :type showExtractorAttr: Callable[[int],None]
         """
         QAbstractTableModel.__init__(self, parent)
         self._experiment = experiment
+        self._showExtractorAttr=showExtractorAttr
 
     @property
     def experiment(self):
@@ -125,8 +129,18 @@ class TableDataAttributesModel(QAbstractTableModel):
                 #radio button
                 self._experiment.label=attributeName
             elif index.column() == self.COLL_FEATURE_EXTRACTION:
-                self._experiment.setAttributeSetting(attributeName, 
-                    Experiment.AttributeSettings.FEATURE_EXTRACTOR, self._experiment.featuresExt[value])
+                if self._experiment.getAttributeSetting(attributeName, 
+                        Experiment.AttributeSettings.FEATURE_EXTRACTOR).getName()!=value:
+                    #we are interested only if there is a change
+                    self._experiment.setAttributeSetting(attributeName, 
+                        Experiment.AttributeSettings.FEATURE_EXTRACTOR, self._experiment.featuresExt[value]())
+                    
+                    #Emit attributes click event, because we want to show to user actual feature extractor
+                    #attributes.
+                    if self._showExtractorAttr is not None:
+                        self._showExtractorAttr(index.row())
+                
+                
         
         self.dataChanged.emit(index, index)
         return True

@@ -14,5 +14,9 @@ setup(name='ClassMarkPluginFeatureExtractorPass',
     version='1.0dev',
     description='Pass feature extractor plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.features_extractors': 'pass = pass:Pass'}
+    entry_points={'classmark.plugins.features_extractors': 'pass = pass:Pass'},
+    install_requires=[
+        'numpy>=1.14',
+        'typing>=3'
+    ]
 )

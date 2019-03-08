@@ -35,7 +35,7 @@
       <locale language="English" country="UnitedStates"/>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="tabData">
       <attribute name="title">
@@ -52,6 +52,9 @@
          </property>
          <widget class="QWidget" name="verticalLayoutWidget">
           <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0">
+           <property name="rightMargin">
+            <number>5</number>
+           </property>
            <item>
             <widget class="QLabel" name="label_2">
              <property name="text">
@@ -128,12 +131,98 @@
           </layout>
          </widget>
          <widget class="QWidget" name="verticalLayoutWidget_2">
-          <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0">
+          <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,0">
+           <property name="leftMargin">
+            <number>5</number>
+           </property>
            <item>
-            <widget class="QLabel" name="label">
-             <property name="text">
-              <string>Properties:</string>
+            <widget class="QWidget" name="dataPluginAttributesHeader" native="true">
+             <layout class="QVBoxLayout" name="dataPropertiesHeader">
+              <item>
+               <widget class="QLabel" name="dataPluginNameShownAttributes">
+                <property name="font">
+                 <font>
+                  <weight>75</weight>
+                  <bold>true</bold>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Plugin name</string>
+                </property>
+                <property name="scaledContents">
+                 <bool>false</bool>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="label">
+                <property name="font">
+                 <font>
+                  <weight>50</weight>
+                  <italic>true</italic>
+                  <bold>false</bold>
+                  <underline>false</underline>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>attributes</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QScrollArea" name="scrollArea_2">
+             <property name="font">
+              <font>
+               <italic>false</italic>
+              </font>
              </property>
+             <property name="styleSheet">
+              <string notr="true">QScrollArea {background-color:transparent;}
+QScrollArea &gt; QWidget &gt; QWidget { background: transparent; }
+QScrollArea &gt; QWidget &gt; QScrollBar { background: palette(base); }</string>
+             </property>
+             <property name="widgetResizable">
+              <bool>true</bool>
+             </property>
+             <widget class="QWidget" name="dataPluginAttributesWidget">
+              <property name="geometry">
+               <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>258</width>
+                <height>608</height>
+               </rect>
+              </property>
+              <layout class="QGridLayout" name="gridLayout_6">
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item row="0" column="0">
+                <layout class="QGridLayout" name="dataPluginAttributesContent"/>
+               </item>
+              </layout>
+             </widget>
             </widget>
            </item>
           </layout>
@@ -156,6 +245,9 @@
           <layout class="QVBoxLayout" name="verticalLayout_3">
            <property name="spacing">
             <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>5</number>
            </property>
            <item>
             <widget class="QLabel" name="label_5">
@@ -199,7 +291,7 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>784</width>
+                <width>780</width>
                 <height>549</height>
                </rect>
               </property>
@@ -208,6 +300,9 @@
               </property>
               <property name="tabletTracking">
                <bool>false</bool>
+              </property>
+              <property name="styleSheet">
+               <string notr="true"/>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_6">
                <item>
@@ -258,11 +353,86 @@
          </widget>
          <widget class="QWidget" name="verticalLayoutWidget_4">
           <layout class="QVBoxLayout" name="verticalLayout_4">
+           <property name="leftMargin">
+            <number>5</number>
+           </property>
            <item>
-            <widget class="QLabel" name="label_4">
-             <property name="text">
-              <string>Properties:</string>
+            <widget class="QWidget" name="classifierPluginAttributesHeader" native="true">
+             <layout class="QVBoxLayout" name="classifierPropertiesHeader">
+              <item>
+               <widget class="QLabel" name="classifierPluginNameShownAttributes">
+                <property name="font">
+                 <font>
+                  <weight>75</weight>
+                  <bold>true</bold>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Plugin name</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="label_8">
+                <property name="font">
+                 <font>
+                  <italic>true</italic>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>attributes</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QScrollArea" name="scrollArea_3">
+             <property name="styleSheet">
+              <string notr="true">QScrollArea {background-color:transparent;}
+QScrollArea &gt; QWidget &gt; QWidget { background: transparent; }
+QScrollArea &gt; QWidget &gt; QScrollBar { background: palette(base); }</string>
              </property>
+             <property name="widgetResizable">
+              <bool>true</bool>
+             </property>
+             <widget class="QWidget" name="classifierPluginAttributesWidget">
+              <property name="geometry">
+               <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>296</width>
+                <height>608</height>
+               </rect>
+              </property>
+              <property name="autoFillBackground">
+               <bool>true</bool>
+              </property>
+              <layout class="QGridLayout" name="gridLayout_8">
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item row="0" column="1">
+                <layout class="QGridLayout" name="classifierPluginAttributesContent"/>
+               </item>
+              </layout>
+             </widget>
             </widget>
            </item>
           </layout>

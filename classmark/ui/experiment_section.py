@@ -6,10 +6,10 @@ Module for experiment section of the application.
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
 
-from .widget_manager import WidgetManager, IconName
+from .widget_manager import WidgetManager, IconName, AttributesWidgetManager
 from .section_router import SectionRouter
 from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton
-from PySide2.QtCore import Qt, QModelIndex
+from PySide2.QtCore import Qt
 from ..core.experiment import Experiment
 from .delegates import RadioButtonDelegate, ComboBoxDelegate
 from .models import TableDataAttributesModel
@@ -143,7 +143,8 @@ class ExperimentSection(WidgetManager):
         
         #assign model to table view
         self._widget.tableDataAttributes.setModel(TableDataAttributesModel(self._widget, 
-                                                                           self._experiment))
+                                                                           self._experiment,
+                                                                           self._showFeaturesExtractorProperties))
         #set delegates
         self._widget.tableDataAttributes.setItemDelegateForColumn(TableDataAttributesModel.COLL_LABEL, 
                                                                   RadioButtonDelegate(self._widget.tableDataAttributes))
@@ -155,6 +156,10 @@ class ExperimentSection(WidgetManager):
         
         #set resize modes
         self._setSecResModeForDataAttrTable()
+        
+        #hide the plugin attributes
+        self._hideFeaturesExtractorProperties()
+        
         
     def _initCls(self):
         """
@@ -172,6 +177,8 @@ class ExperimentSection(WidgetManager):
         #add one classifier option
         self._addClassifierOption()
         
+        #hide the plugin attributes header
+        self._widget.classifierPluginAttributesHeader.hide()
         
     def _addClassifierOption(self):
         """
@@ -214,7 +221,9 @@ class ExperimentSection(WidgetManager):
             #use selected a file
             self._experiment.loadDataset(file[0])
             self._widget.pathToData.setText(file[0])
-            self._widget.tableDataAttributes.setModel(TableDataAttributesModel(self._widget, self._experiment))
+            self._widget.tableDataAttributes.setModel(TableDataAttributesModel(self._widget, 
+                                                                               self._experiment, 
+                                                                               self._showFeaturesExtractorProperties))
             self._setPropertiesButtonsToDataAttrTable()
             
     def _setPropertiesButtonsToDataAttrTable(self):
@@ -239,10 +248,46 @@ class ExperimentSection(WidgetManager):
         :param row: Button was clicked on that row.
         :type row: int
         """
-        return partial(print, row)
+        return partial(self._showFeaturesExtractorProperties, row)
         
-    def _showFeaturesExtractorProperties(self):
-        pass
+    def _showFeaturesExtractorProperties(self, row):
+        """
+        Show properties on row.
+        
+        :param row: Row number.
+        :type row: int
+        """
+        #remove old
+        child=self._widget.dataPluginAttributesContent.takeAt(0)
+        while child:
+            child.widget().deleteLater()
+            child=self._widget.dataPluginAttributesContent.takeAt(0)
+
+        plugin=self._experiment.getAttributeSetting(self._experiment.dataset.attributes[row], 
+                    self._experiment.AttributeSettings.FEATURE_EXTRACTOR)
+        
+        #set the header
+        self._widget.dataPluginAttributesHeader.show()
+        self._widget.dataPluginAttributesWidget.show()
+        self._widget.dataPluginNameShownAttributes.setText(plugin.getName()+"\n["+self._experiment.dataset.attributes[row]+"]")
+        
+        
+        hasOwnWidget=plugin.getAttributesWidget(self._widget.dataPluginAttributesWidget)
+        
+        if hasOwnWidget is not None:
+            self._widget.dataPluginAttributesContent.addWidget(hasOwnWidget)
+        else:
+            self.manager=AttributesWidgetManager(plugin.getAttributes(), self._widget.dataPluginAttributesWidget)
+            self._widget.dataPluginAttributesContent.addWidget(self.manager.widget)
+        
+    def _hideFeaturesExtractorProperties(self):
+        """
+        Hides features extractor properties.
+        """
+        self._widget.dataPluginAttributesHeader.hide()
+        self._widget.dataPluginAttributesWidget.hide()
+        
+        
             
     def _setSecResModeForDataAttrTable(self):
         """

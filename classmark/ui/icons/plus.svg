@@ -6,11 +6,35 @@
    xmlns:svg="http://www.w3.org/2000/svg"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    id="svg8"
    version="1.1"
    viewBox="0 0 210 210"
    height="210mm"
-   width="210mm">
+   width="210mm"
+   sodipodi:docname="plus.svg"
+   inkscape:version="0.92.4 (33fec40, 2019-01-16)">
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="995"
+     id="namedview11"
+     showgrid="false"
+     inkscape:zoom="0.29734127"
+     inkscape:cx="225.33031"
+     inkscape:cy="396.85039"
+     inkscape:window-x="0"
+     inkscape:window-y="28"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
   <defs
      id="defs2">
     <linearGradient
@@ -26,10 +50,10 @@
     </linearGradient>
     <linearGradient
        gradientUnits="userSpaceOnUse"
-       y2="79.522957"
-       x2="752.56366"
-       y1="620.96472"
-       x1="163.64471"
+       y2="6.1796875"
+       x2="271.67383"
+       y1="782.39539"
+       x1="5.5771861"
        id="linearGradient839"
        xlink:href="#linearGradient837" />
   </defs>
@@ -41,7 +65,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>

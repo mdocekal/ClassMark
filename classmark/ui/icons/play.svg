@@ -6,11 +6,35 @@
    xmlns:svg="http://www.w3.org/2000/svg"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    id="svg866"
    version="1.1"
    viewBox="0 0 210 210"
    height="210mm"
-   width="210mm">
+   width="210mm"
+   sodipodi:docname="play.svg"
+   inkscape:version="0.92.4 (33fec40, 2019-01-16)">
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="995"
+     id="namedview11"
+     showgrid="false"
+     inkscape:zoom="0.29734127"
+     inkscape:cx="225.33031"
+     inkscape:cy="400.21353"
+     inkscape:window-x="0"
+     inkscape:window-y="28"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
   <defs
      id="defs860">
     <linearGradient
@@ -26,8 +50,8 @@
     </linearGradient>
     <linearGradient
        gradientUnits="userSpaceOnUse"
-       y2="191.73363"
-       x2="227.30357"
+       y2="190.8438"
+       x2="36.879848"
        y1="191.73363"
        x1="-0.93528229"
        id="linearGradient1432"
@@ -41,7 +65,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>

@@ -174,7 +174,7 @@ class Experiment(object):
         #prepare new attribute settings
         self._attributesSet={
             name:{self.AttributeSettings.USE:True, self.AttributeSettings.PATH:False,
-                  self.AttributeSettings.FEATURE_EXTRACTOR:next(iter(self._featuresExt.values()))} 
+                  self.AttributeSettings.FEATURE_EXTRACTOR:next(iter(self._featuresExt.values()))()} 
                           for name in self._dataset.attributes}
         self._label=None
         

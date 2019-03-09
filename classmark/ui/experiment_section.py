@@ -11,6 +11,7 @@ from .section_router import SectionRouter
 from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton
 from PySide2.QtCore import Qt
 from ..core.experiment import Experiment
+from ..core.plugins import Classifier
 from .delegates import RadioButtonDelegate, ComboBoxDelegate
 from .models import TableDataAttributesModel
 from typing import Callable
@@ -19,6 +20,7 @@ from functools import partial
 
 class ClassifierRowWidgetManager(WidgetManager):
     """
+    TODO: TRANSFORM TO ORDINARY WIDGET
     Widget manager of row with selection of classifier for testing.
     
     About user choice of classifier this widget informs Experiment object directly, but
@@ -40,6 +42,10 @@ class ClassifierRowWidgetManager(WidgetManager):
         :type parent: QWidget
         """
         super().__init__()
+        self._removeCallback=None   #registered remove event callback
+        self._changeCallback=None   #registered change event callback
+        self._propertyCallback=None   #registered property event callback
+        
         self._widget=self._loadTemplate(self.TEMPLATE, parent)
         self._experiment=experiment
         
@@ -53,9 +59,10 @@ class ClassifierRowWidgetManager(WidgetManager):
         
         #register events
         self._widget.removeClassifierButton.clicked.connect(self._onRemove)
+        self._widget.propertiesButton.clicked.connect(self._onProperty)
         self._widget.classifiersComboBox.currentTextChanged.connect(self._onChange)
         
-        self._removeCallback=None   #registered remove event callback
+
         
     def __eq__(self, other):
         if not isinstance(other, __class__):
@@ -75,12 +82,35 @@ class ClassifierRowWidgetManager(WidgetManager):
         """
         self._removeCallback=callback
         
+            
+    def registerPropertiesEvent(self, callback:Callable):
+        """
+        Provided callback will be called when user wants to show classifiers properties.
+        
+        :param callback: Method that will be called. That method must have one 
+            parameter where selected classifier will be passed.
+        :type callback: Callable[[Classifier],None]
+        """
+        self._propertyCallback=callback
+        
+    def registerChangeEvent(self, callback:Callable):
+        """
+        Provided callback will be called when user changed classifier.
+        
+        :param callback: Method that will be called. That method must have one 
+            parameter where newly selected classifier will be passed.
+        :type callback: Callable[[Classifier],None]
+        """
+        self._changeCallback=callback
+        
     def _onChange(self):
         """
         Classifier change.
         """
         
-        self.classifierSlot.classifier=self._clsNameToCls[self._widget.classifiersComboBox.currentText()]
+        self.classifierSlot.classifier=self._clsNameToCls[self._widget.classifiersComboBox.currentText()]()
+        if self._changeCallback is not None:
+            self._changeCallback(self.classifierSlot.classifier)
         
         
     def _onRemove(self):
@@ -90,15 +120,16 @@ class ClassifierRowWidgetManager(WidgetManager):
         self._experiment.removeClassifierSlot(self.classifierSlot)
         if self._removeCallback is not None:
             self._removeCallback(self)
-        
-        
-    def registerPropertiesEvent(self, callback:Callable):
+            
+    def _onProperty(self):
         """
-        Provided callback will be called when user wants to show classifiers properties.
-        :param callback: Method that will be called.
-        :type callback: Callable
+        User wants to show properties.
         """
-        self._widget.propertiesButton.clicked.connect(callback)
+        
+        if self._propertyCallback is not None:
+            self._propertyCallback(self.classifierSlot.classifier)
+
+        
 
 class ExperimentSection(WidgetManager):
     """
@@ -158,7 +189,8 @@ class ExperimentSection(WidgetManager):
         self._setSecResModeForDataAttrTable()
         
         #hide the plugin attributes
-        self._hideFeaturesExtractorProperties()
+        self._widget.dataPluginAttributesHeader.hide()
+        self._widget.dataAttributesScrollArea.hide()
         
         
     def _initCls(self):
@@ -178,7 +210,14 @@ class ExperimentSection(WidgetManager):
         self._addClassifierOption()
         
         #hide the plugin attributes header
+        self._hideClassifierProperties()
+        
+    def _hideClassifierProperties(self):
+        """
+        Hides UI section of classifier properties.
+        """
         self._widget.classifierPluginAttributesHeader.hide()
+        self._widget.classifierAttributesScrollArea.hide()
         
     def _addClassifierOption(self):
         """
@@ -189,6 +228,8 @@ class ExperimentSection(WidgetManager):
         manager=ClassifierRowWidgetManager(self._experiment, self._widget)
         #register events
         manager.registerRemoveEvent(self._removeClassifierOption)
+        manager.registerChangeEvent(self._classifierPropertiesEvent)
+        manager.registerPropertiesEvent(self._classifierPropertiesEvent)
         self._classifiersRowsManagers.append(manager)
         self._widget.testClassifiersLayout.addWidget(manager.widget);
         
@@ -201,7 +242,38 @@ class ExperimentSection(WidgetManager):
         """
         self._classifiersRowsManagers.remove(manager)
         manager.widget.deleteLater()
+
+        self._hideClassifierProperties()
         
+    def _classifierPropertiesEvent(self, classifier:Classifier):
+        """
+        Show properties for given classifier.
+        
+        :param classifier: The classifier which attributes you want to show.
+        :type classifier: Classifier
+        """
+        #TODO: _classifierPropertiesEvent _showFeaturesExtractorProperties is quite same code
+        #    maybe they can share a method
+        
+        #remove old
+        child=self._widget.classifierPluginAttributesContent.takeAt(0)
+        while child:
+            child.widget().deleteLater()
+            child=self._widget.classifierPluginAttributesContent.takeAt(0)
+
+        #set the header
+        self._widget.classifierPluginAttributesHeader.show()
+        self._widget.classifierAttributesScrollArea.show()
+        self._widget.classifierPluginNameShownAttributes.setText(classifier.getName())
+        
+        
+        hasOwnWidget=classifier.getAttributesWidget(self._widget.classifierPluginAttributesWidget)
+        
+        if hasOwnWidget is not None:
+            self._widget.classifierPluginAttributesContent.addWidget(hasOwnWidget)
+        else:
+            self.manager=AttributesWidgetManager(classifier.getAttributes(), self._widget.classifierPluginAttributesWidget)
+            self._widget.classifierPluginAttributesContent.addWidget(self.manager.widget)
         
     def loadExperiment(self, load):
         """
@@ -268,7 +340,7 @@ class ExperimentSection(WidgetManager):
         
         #set the header
         self._widget.dataPluginAttributesHeader.show()
-        self._widget.dataPluginAttributesWidget.show()
+        self._widget.dataAttributesScrollArea.show()
         self._widget.dataPluginNameShownAttributes.setText(plugin.getName()+"\n["+self._experiment.dataset.attributes[row]+"]")
         
         
@@ -279,15 +351,8 @@ class ExperimentSection(WidgetManager):
         else:
             self.manager=AttributesWidgetManager(plugin.getAttributes(), self._widget.dataPluginAttributesWidget)
             self._widget.dataPluginAttributesContent.addWidget(self.manager.widget)
-        
-    def _hideFeaturesExtractorProperties(self):
-        """
-        Hides features extractor properties.
-        """
-        self._widget.dataPluginAttributesHeader.hide()
-        self._widget.dataPluginAttributesWidget.hide()
-        
-        
+            
+
             
     def _setSecResModeForDataAttrTable(self):
         """

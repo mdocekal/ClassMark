@@ -11,10 +11,12 @@ from enum import Enum
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QFile, QObject, Qt
 from PySide2.QtGui import QPixmap, QIcon
-from PySide2.QtWidgets import QWidget, QComboBox, QCheckBox,QLineEdit,QHBoxLayout, QVBoxLayout, QLabel
+from PySide2.QtWidgets import QWidget, QComboBox, QCheckBox,QLineEdit,QHBoxLayout, QVBoxLayout, QLabel,\
+    QPushButton
 from builtins import isinstance
 from typing import List
 from ..core.plugins import PluginAttribute
+from functools import partial
 
     
 class IconName(Enum):
@@ -23,6 +25,8 @@ class IconName(Enum):
     """
     
     PROPERTIES="gear.svg"
+    PLUS="plus.svg"
+    MINUS="minus.svg"
     
 class WidgetManager(object):
     """
@@ -109,6 +113,93 @@ class AttributesWidgetManager(WidgetManager):
     to do it on your own from scratch.
     """
     
+    class WGroup(QWidget):
+        """
+        Group widget.
+        """
+        
+        def __init__(self, a, parent=None):
+            """
+            Initialization of group.
+            
+            :param a:The attribute.
+            :type a: PluginAttribute
+            :param parent: Parent widget.
+            :type parent: QWidget
+            """
+            super().__init__(parent)
+            self._a=a
+
+            layout=QVBoxLayout(self)
+            layout.setContentsMargins(5, 0, 5, 5)
+            self.setLayout(layout)
+            
+            self.inputW=QWidget(self)
+            self.inputW.setLayout(QVBoxLayout(self.inputW))
+            layout.addWidget(self.inputW)
+            
+            for i,v in enumerate(a.value):
+                self._addItemWidget(i, v)
+
+            
+            #add buttons for adding and removing items
+            buttonsLayoutWidget=QWidget(self.inputW)
+            layout.addWidget(buttonsLayoutWidget)
+            buttonsLayout=QHBoxLayout(buttonsLayoutWidget)
+            buttonsLayoutWidget.setLayout(buttonsLayout)
+            
+            plusButton=QPushButton(buttonsLayoutWidget)
+            plusButton.setIcon(WidgetManager.loadIcon(IconName.PLUS))
+            plusButton.clicked.connect(self.appendItem)
+            buttonsLayout.addWidget(plusButton)
+    
+            minusButton=QPushButton(buttonsLayoutWidget)
+            minusButton.setIcon(WidgetManager.loadIcon(IconName.MINUS))
+            minusButton.clicked.connect(self.popItem)
+            buttonsLayout.addWidget(minusButton)
+                
+        def _addItemWidget(self, i, v):
+            """
+            Create item widgets and append them to layout.
+
+            :param i: Position of item in group.
+            :type i: int
+            :param v: Item value.
+            :type v: Any
+            """
+            
+            actInp=QLineEdit(self.inputW)
+            if self._a.groupItemLabel:
+                #ok we have label for items
+                label=QLabel(self._a.groupItemLabel.format(i+1)+":", self.inputW)
+                label.setBuddy(actInp)
+                self.inputW.layout().addWidget(label)
+                
+            if v is not None:
+                actInp.setText(str(v))
+            actInp.textChanged.connect(self._a.setValueBind(actInp.setText,i))
+
+            self.inputW.layout().addWidget(actInp)
+            
+            
+        def appendItem(self):
+            """
+            Append new item.
+            """
+            self._addItemWidget(len(self._a.value),None)
+            self._a.value.append(None)
+        
+        def popItem(self):
+            """
+            Remove item from the end of group.
+            """
+            if self._a.value is not None and len(self._a.value)>0:
+                self._a.value.pop()
+                #remove input and label
+                for i in range(2):
+                    child = self.inputW.layout().takeAt(self.inputW.layout().count()-1)
+                    child.widget().deleteLater()
+    
     def __init__(self, attributes:List[PluginAttribute], parent=None):
         """
         Initialization of manager.
@@ -144,7 +235,7 @@ class AttributesWidgetManager(WidgetManager):
         """
         Creates widget for given attribute and input.
         
-        :param a:The attribute.
+        :param a: The attribute.
         :type a: PluginAttribute
         :param inputW: Input that is used for value manipulation.
         :type inputW: QWidget
@@ -234,17 +325,7 @@ class AttributesWidgetManager(WidgetManager):
         :return: Widget for attribute.
         :rtype: QWidget
         """
-        
-        inputW=QWidget()
-        layout=QVBoxLayout(inputW)
-        layout.setContentsMargins(5, 0, 5, 5)
-        inputW.setLayout(layout)
-        
-        for v in a.value:
-            inputW=QLineEdit()
-            if v is not None:
-                inputW.setText(str(v))
-            inputW.textChanged.connect(a.setValueBind(inputW.setText))
-        
-        return self._createWidget(a, inputW)
+    
+        return self._createWidget(a, self.WGroup(a))
+    
         

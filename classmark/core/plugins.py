@@ -49,6 +49,27 @@ class PluginAttribute(object):
         self._valT=valT
         self._value=None
         self._selVals=selVals
+        self._groupItemLabel=None
+        
+    @property
+    def groupItemLabel(self):
+        """
+        Label for item in group.
+        """
+        return self._groupItemLabel
+    
+    @groupItemLabel.setter
+    def groupItemLabel(self,v):
+        """
+        Label for item in group.
+        If you want to add position of item to label, when used with AttributesWidgetManager (default), than use {}.
+        Example: Layer {}    ->     Layer 1
+                                    ...
+                                    Layer x                
+        :param v: New label.
+        :type v: str
+        """
+        self._groupItemLabel=v
         
     @property
     def selVals(self):
@@ -89,33 +110,57 @@ class PluginAttribute(object):
         """
         self.setValue(nVal)
         
-    def setValue(self, nVal):
+    def setValue(self, nVal, index=None):
         """
         Set new value of attribute.
         
         :param nVal: The new value.
         :type nVal: According to provided valT in __init__.
+        :param index: This parameter is for GROUP attributes and
+            defines index in list where the value should be set.
+        :type index: int
         :raise ValueError: When the type of new value is invalid.
         """
-        if nVal is None or nVal=="":
-            self._value=None
-        else:
-            self._value=nVal if self._valT is None else self._valT(nVal)
         
-    def setValueBind(self, bind:Callable[[str],Any]):
+        
+        if nVal is None or nVal=="":
+            if index is None:
+                self._value=None
+            else:
+                self._value[index]=None
+        else:
+            
+            if index is None:
+                if self.type==PluginAttribute.PluginAttributeType.GROUP_VALUE:
+                    self._value=[x if x is None else self._valT(x) for x in nVal]
+                else:
+                    self._value=nVal if self._valT is None else self._valT(nVal)
+            else:
+                self._value[index]=nVal if self._valT is None else self._valT(nVal)
+            
+        
+    def setValueBind(self, bind:Callable[[str],Any],index=None):
         """
-        Same as setValue, but when ValueError exception is raised, than
+        Creates setter that is same as setValue, but when ValueError exception is raised, than
         it calls bind callable with old value (as str).
         
         :param bind: Callable that should be called when exception raise.
         :type bind: Callable[[str],Any]
+        :param index:This parameter is for GROUP attributes and
+            defines index in list where the value should be set.
+        :type index: int
+        :return:  Setter that sets value and handles exception
+        :rtype: Callable[[Any],Any]
         """
         
         def setV(val):
             try:
-                self.setValue(val)
+                self.setValue(val,index)
             except ValueError:
-                bind(str(self._value))
+                if index is None:
+                    bind(str(self._value))
+                else:
+                    bind(str(self._value[index]))
             
         return setV
         

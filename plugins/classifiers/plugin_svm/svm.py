@@ -5,7 +5,7 @@ SVM classifier plugin for ClassMark.
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
-from classmark.core.plugins import Classifier
+from classmark.core.plugins import Classifier, PluginAttribute
 from sklearn.svm import LinearSVC
 
 class SVM(Classifier):
@@ -18,11 +18,7 @@ class SVM(Classifier):
         Classifier initialization.
         """
         self._cls=LinearSVC()
-    
-    @staticmethod
-    def getAttributes():
-        return []
-    
+
     @staticmethod
     def getName():
         return "Support Vector Machines"

@@ -19,7 +19,7 @@ class Pass(FeatureExtractor):
 
     """
     
-    def __init__(self, convToNums=True, convToNp=True):
+    def __init__(self, convToNums:bool=True, convToNp:bool=True):
         """
         Initialize Pass feature extractor.
         
@@ -34,15 +34,7 @@ class Pass(FeatureExtractor):
         self._convToNums.value=convToNums
         self._convToNp=PluginAttribute("To numpy array", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
         self._convToNp.value=convToNp
-        
-        self._val=PluginAttribute("Value", PluginAttribute.PluginAttributeType.VALUE, int)
-        self._val.value=10
-        
-        self._sel=PluginAttribute("Select", PluginAttribute.PluginAttributeType.SELECTABLE, str,["First", "Second", "Third"])
-        self._sel.value="First"
-        
-        self._group=PluginAttribute("Hidden layers", PluginAttribute.PluginAttributeType.GROUP_VALUE, int)
-        self._group.value=[]
+
     
     @staticmethod
     def getName():

@@ -10,6 +10,8 @@ from ..data.data_set import DataSet
 from enum import Enum
 from _collections import OrderedDict
 from ..core.plugins import CLASSIFIERS, FEATURE_EXTRACTORS
+from ..core.validation import Validator
+
 
 class ClassifierSlot(object):
     """
@@ -34,6 +36,8 @@ class ClassifierSlot(object):
     def __hash__(self):
         return self._id
     
+
+    
 class Experiment(object):
     """
     This class represents experiment.
@@ -51,6 +55,7 @@ class Experiment(object):
         PATH=1
         FEATURE_EXTRACTOR=2
         LABEL=3
+        
 
     def __init__(self, filePath:str=None):
         """
@@ -65,6 +70,7 @@ class Experiment(object):
         self._attributesSet={}
         self._label=None
         self._classifiers=[]    #classifiers for testing
+        self._evaluationMethod=None
         
         #let's load the plugins that are now available
         self._loadPlugins()
@@ -110,6 +116,19 @@ class Experiment(object):
                 #TODO: Maybe multilanguage message will be better.
                 raise RuntimeError("Collision of classifiers names. For name: "+cls.getName())
             clsTmp.add(cls.getName())
+            
+        #available Validators
+        self._validators = []
+        stackValidators = [Validator]
+        while len(stackValidators):
+            base = stackValidators.pop()
+            for child in base.__subclasses__():
+                if child not in self._validators:
+                    self._validators.append(child)
+                    stackValidators.append(child)
+                    
+        self._evaluationMethod=self._validators[0]  #add default
+        
     
     def newClassifierSlot(self):
         """
@@ -177,6 +196,13 @@ class Experiment(object):
                   self.AttributeSettings.FEATURE_EXTRACTOR:next(iter(self._featuresExt.values()))()} 
                           for name in self._dataset.attributes}
         self._label=None
+        
+    @property
+    def evaluationMethod(self):
+        """
+        Validator used for evaluation.
+        """
+        return self._evaluationMethod
         
     @property
     def label(self):

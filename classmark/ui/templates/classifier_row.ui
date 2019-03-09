@@ -36,7 +36,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QToolButton" name="toolButton_2">
+    <widget class="QToolButton" name="propertiesButton">
      <property name="locale">
       <locale language="English" country="UnitedStates"/>
      </property>

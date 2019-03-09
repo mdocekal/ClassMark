@@ -11,6 +11,7 @@ from enum import Enum
 from _collections import OrderedDict
 from ..core.plugins import CLASSIFIERS, FEATURE_EXTRACTORS
 from ..core.validation import Validator
+from builtins import isinstance
 
 
 class ClassifierSlot(object):
@@ -118,16 +119,16 @@ class Experiment(object):
             clsTmp.add(cls.getName())
             
         #available Validators
-        self._validators = []
+        self.availableEvaluationMethods = []
         stackValidators = [Validator]
         while len(stackValidators):
             base = stackValidators.pop()
             for child in base.__subclasses__():
-                if child not in self._validators:
-                    self._validators.append(child)
+                if child not in self.availableEvaluationMethods:
+                    self.availableEvaluationMethods.append(child)
                     stackValidators.append(child)
                     
-        self._evaluationMethod=self._validators[0]  #add default
+        self._evaluationMethod=self.availableEvaluationMethods[0]()  #add default
         
     
     def newClassifierSlot(self):
@@ -203,6 +204,39 @@ class Experiment(object):
         Validator used for evaluation.
         """
         return self._evaluationMethod
+    
+    @evaluationMethod.setter
+    def evaluationMethod(self,val):
+        """
+        Validator used for evaluation.
+        
+        :param val: Validtor or name of validator class.
+            If name of validator is provided than new  object of it's corresponding class is created.
+        :type val:str|Validator
+        :raise ValueError: When invalid value is given (unknown name).
+        """
+        if isinstance(val, Validator):
+            self._evaluationMethod=val
+        else:
+            #self.availableEvaluationMethods is a list because we want to preserve order and therefore
+            #we have no other choice than to iterate over it and find the right by name.
+            for v in self.availableEvaluationMethods:
+                if v.getName()==val:
+                    self._evaluationMethod=v()
+                    return
+            
+            raise ValueError("Unknown Validator name: "+val)
+        
+    def setEvaluationMethod(self,val):
+        """
+        Same as evaluationMethod but can be used as callable
+        
+        :param val: Validtor or name of validator class.
+            If name of validator is provided than new  object of it's corresponding class is created.
+        :type val:str|Validator
+        :raise ValueError: When invalid value is given (unknown name).
+        """
+        self.evaluationMethod=val
         
     @property
     def label(self):

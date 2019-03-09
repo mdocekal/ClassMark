@@ -192,6 +192,12 @@ class ExperimentSection(WidgetManager):
         self._widget.dataPluginAttributesHeader.hide()
         self._widget.dataAttributesScrollArea.hide()
         
+        #init validators
+        self._widget.comboBoxValidation.addItems([v.getName() for v in self._experiment.availableEvaluationMethods])
+        
+        self._widget.comboBoxValidation.currentTextChanged.connect(self._experiment.setEvaluationMethod)
+        self._widget.comboBoxValidation.currentTextChanged.connect(self._showEvaluationMethodProperties)
+        self._widget.validationPropertiesButton.clicked.connect(self._showEvaluationMethodProperties)
         
     def _initCls(self):
         """
@@ -252,7 +258,7 @@ class ExperimentSection(WidgetManager):
         :param classifier: The classifier which attributes you want to show.
         :type classifier: Classifier
         """
-        #TODO: _classifierPropertiesEvent _showFeaturesExtractorProperties is quite same code
+        #TODO: _classifierPropertiesEvent _showFeaturesExtractorProperties is quite the same code
         #    maybe they can share a method
         
         #remove old
@@ -330,18 +336,36 @@ class ExperimentSection(WidgetManager):
         :type row: int
         """
         #remove old
+        plugin=self._experiment.getAttributeSetting(self._experiment.dataset.attributes[row], 
+                    self._experiment.AttributeSettings.FEATURE_EXTRACTOR)
+        
+        self._showPropertiesInDataSection(plugin, plugin.getName()+"\n["+self._experiment.dataset.attributes[row]+"]")
+        
+    def _showEvaluationMethodProperties(self):
+        """
+        Show properties of actually selected evaluation method.
+        """
+        self._showPropertiesInDataSection(self._experiment.evaluationMethod, self._experiment.evaluationMethod.getName())
+            
+    def _showPropertiesInDataSection(self, plugin, name):
+        """
+        Shows plugins attributes.
+        
+        :param plugin: The plugin which attributes should be shown.
+        :type plugin: Plugin
+        :param name: Name that will be shown in header.
+        :type name: str
+        """
+        #remove old
         child=self._widget.dataPluginAttributesContent.takeAt(0)
         while child:
             child.widget().deleteLater()
             child=self._widget.dataPluginAttributesContent.takeAt(0)
 
-        plugin=self._experiment.getAttributeSetting(self._experiment.dataset.attributes[row], 
-                    self._experiment.AttributeSettings.FEATURE_EXTRACTOR)
-        
         #set the header
         self._widget.dataPluginAttributesHeader.show()
         self._widget.dataAttributesScrollArea.show()
-        self._widget.dataPluginNameShownAttributes.setText(plugin.getName()+"\n["+self._experiment.dataset.attributes[row]+"]")
+        self._widget.dataPluginNameShownAttributes.setText(name)
         
         
         hasOwnWidget=plugin.getAttributesWidget(self._widget.dataPluginAttributesWidget)
@@ -351,8 +375,6 @@ class ExperimentSection(WidgetManager):
         else:
             self.manager=AttributesWidgetManager(plugin.getAttributes(), self._widget.dataPluginAttributesWidget)
             self._widget.dataPluginAttributesContent.addWidget(self.manager.widget)
-            
-
             
     def _setSecResModeForDataAttrTable(self):
         """

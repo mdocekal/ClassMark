@@ -49,6 +49,7 @@ class Validator(Plugin):
         """
         Total number of steps to complete validation process.
         """
+        pass
     
 class ValidatorStratifiedKFold(Validator):
     """
@@ -78,6 +79,32 @@ class ValidatorStratifiedKFold(Validator):
     @staticmethod
     def getInfo():
         return ""
+    
+    def run(self):
+        """
+        Run whole validation process.
+        """
+        pass
+
+    def step(self):
+        """
+        Run one step of validation process.
+        """
+        pass
+    
+    @property
+    def results(self):
+        """
+        Get gathered results so far.
+        """
+        pass
+    
+    @property
+    def numOfSteps(self):
+        """
+        Total number of steps to complete validation process.
+        """
+        pass
 
 class ValidatorKFold(Validator):
     """
@@ -107,6 +134,32 @@ class ValidatorKFold(Validator):
     @staticmethod
     def getInfo():
         return ""
+    
+    def run(self):
+        """
+        Run whole validation process.
+        """
+        pass
+
+    def step(self):
+        """
+        Run one step of validation process.
+        """
+        pass
+    
+    @property
+    def results(self):
+        """
+        Get gathered results so far.
+        """
+        pass
+    
+    @property
+    def numOfSteps(self):
+        """
+        Total number of steps to complete validation process.
+        """
+        pass   
 
 class ValidatorLeaveOneOut(Validator):
     """
@@ -125,3 +178,29 @@ class ValidatorLeaveOneOut(Validator):
     @staticmethod
     def getInfo():
         return ""
+    
+    def run(self):
+        """
+        Run whole validation process.
+        """
+        pass
+
+    def step(self):
+        """
+        Run one step of validation process.
+        """
+        pass
+    
+    @property
+    def results(self):
+        """
+        Get gathered results so far.
+        """
+        pass
+    
+    @property
+    def numOfSteps(self):
+        """
+        Total number of steps to complete validation process.
+        """
+        pass

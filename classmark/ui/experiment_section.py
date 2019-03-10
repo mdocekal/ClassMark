@@ -10,12 +10,14 @@ from .widget_manager import WidgetManager, IconName, AttributesWidgetManager
 from .section_router import SectionRouter
 from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton
 from PySide2.QtCore import Qt
-from ..core.experiment import Experiment
+from ..core.experiment import Experiment, ExperimentRunner
 from ..core.plugins import Classifier
 from .delegates import RadioButtonDelegate, ComboBoxDelegate
 from .models import TableDataAttributesModel
 from typing import Callable
 from functools import partial
+import copy
+from enum import Enum
 
 
 class ClassifierRowWidgetManager(WidgetManager):
@@ -138,6 +140,15 @@ class ExperimentSection(WidgetManager):
 
     TEMPLATE="experiment"
     """Corresponding template name."""
+    
+    class ResultPage(Enum):
+        """
+        Pages in result tab.
+        """
+        PAGE_NO_RESULTS=0
+        PAGE_RUNNING=1
+        PAGE_RESULTS=2
+
 
     def __init__(self, sectionRouter:SectionRouter, parent=None, load=None):
         """
@@ -157,9 +168,42 @@ class ExperimentSection(WidgetManager):
         self._router=sectionRouter
         #create new or load saved experiment
         self._experiment=Experiment(load)
-                
+        
+        
         self._initData()
         self._initCls()
+        
+        #experiment start events
+        self._widget.startExperimentButton.clicked.connect(self._experimentStarts)
+        
+    def _experimentStarts(self):
+        """
+        Starts the experiment.
+        """
+        #create runner for that experiment
+        self._experimentRunner=ExperimentRunner(copy.deepcopy(self._experiment))
+        self._experimentRunner.finished.connect(self._experimentFinished)
+        self._experimentRunner.numberOfSteps.connect(self._widget.experimentProgressBar.setMaximum)
+        self._experimentRunner.step.connect(self._incExperimentProgressBar)
+        self._experimentRunner.actInfo.connect(self._widget.experimentActInfo.setText)
+        
+        #change the page
+        self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_RUNNING.value)
+        
+        self._experimentRunner.start()
+        
+    def _incExperimentProgressBar(self):
+        """
+        Increases progress bar for running experiment.
+        """
+        self._widget.experimentProgressBar.setValue(self._widget.experimentProgressBar.value()+1)
+        
+    def _experimentFinished(self):
+        #show the data and classifiers tabs
+        
+        #TODO: CHANGE TO RESULTS
+        self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_NO_RESULTS.value)
+        
         
     def _initData(self):
         """

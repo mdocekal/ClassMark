@@ -5,36 +5,16 @@ Feature extractor plugin for ClassMark.
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
-from classmark.core.plugins import FeatureExtractor, PluginAttribute
+from classmark.core.plugins import FeatureExtractor
 
-import numpy as np
+from scipy.sparse import csr_matrix
 
 class Pass(FeatureExtractor):
     """
     Pass feature extractor plugin for ClassMark.
-    This extractor can work in one of these modes:
-        convert data to float np.array (convToNums=True)
-        convert data to np.array (convToNums=False,convToNp=True)
-        just pass data (convToNums=False,convToNp=False)
+    This extractor just returns the input data in scipy.sparse matrix (float) format.
 
     """
-    
-    def __init__(self, convToNums:bool=True, convToNp:bool=True):
-        """
-        Initialize Pass feature extractor.
-        
-        :param convToNums:If true than data are converted to float np array and
-            convToNp attribute is not considered.
-        :type convToNums: bool
-        :param convToNp: If true than data are converted to float np array.
-        :type convToNp: bool
-        """
-        
-        self._convToNums=PluginAttribute("To float numpy array", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
-        self._convToNums.value=convToNums
-        self._convToNp=PluginAttribute("To numpy array", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
-        self._convToNp.value=convToNp
-
     
     @staticmethod
     def getName():
@@ -63,21 +43,17 @@ class Pass(FeatureExtractor):
 
     def extract(self, data):
         """
-        This extractor can work in one of these modes:
-            convert data to float np.array (convToNums=True)
-            convert data to np.array (convToNums=False,convToNp=True)
-            just pass data (convToNums=False,convToNp=False)
+        This extractor just returns the input data in scipy.sparse matrix (float) format.
         
         :param data: Original data for features extraction.
         :type data: ArrayLike
         :return: Converted data.
-        :rtype: np.array
+        :rtype: scipy.sparse.spmatrix
         """
-        if self._convNums:
-            return np.asfarray(data)
-        elif self._convToNp:
-            return np.array(data)
-        else:
-            return data
+
+        return csr_matrix(data, dtype=float)
+
+    def fitAndExtract(self, data, labels=None):
+        return self.extract(data)
 
         

@@ -32,4 +32,7 @@ class HOG(FeatureExtractor):
 
     def extract(self, data):
         pass
+    
+    def fitAndExtract(self, data, labels=None):
+        pass
         

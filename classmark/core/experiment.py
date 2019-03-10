@@ -12,7 +12,8 @@ from _collections import OrderedDict
 from ..core.plugins import CLASSIFIERS, FEATURE_EXTRACTORS
 from ..core.validation import Validator
 from builtins import isinstance
-
+from PySide2.QtCore import QThread, Signal, QObject
+from .results import Results
 
 class ClassifierSlot(object):
     """
@@ -130,6 +131,13 @@ class Experiment(object):
                     
         self._evaluationMethod=self.availableEvaluationMethods[0]()  #add default
         
+    @property
+    def classifiers(self):
+        """
+        Classifiers for testing.
+        """
+        
+        return [ c.classifier for c in self._classifiers if c is not None]
     
     def newClassifierSlot(self):
         """
@@ -286,11 +294,87 @@ class Experiment(object):
         else:
             self._attributesSet[attribute][t]=val
         
+
+    def attributesThatShouldBeUsed(self, label:bool=True):
+        """
+        Names of attributes that should be used.
+        
+        :param label: True means that label attribute should be among them.
+        :type label: bool
+        """
+        #we are preserving original attribute order
+        return [a for a in self.dataset.attributes \
+                if self._attributesSet[a][Experiment.AttributeSettings.USE] and (label or a!=self._label)]
     
-  
     @property
     def dataset(self):
         """
         Loaded dataset.
         """
         return self._dataset
+    
+    
+class ExperimentRunner(QThread):
+    """
+    Runs experiment in it's own thread.
+    """
+    
+    numberOfSteps = Signal(int)
+    """Signalizes that we now know the number of steps. Parameter is number of steps."""
+    
+    step = Signal()
+    """Next step finished"""
+    
+    actInfo = Signal(str)
+    """Sends information about what thread is doing now."""
+    
+    def __init__(self, experiment:Experiment):
+        """
+        Initialization of experiment runner.
+        
+        :param experiment: Run that experiment.
+        :type experiment: Experiment
+        """
+        QThread.__init__(self)
+        
+        self._experiment=experiment
+        
+    def run(self):
+        """
+        Run the experiment.
+        """
+        #TODO: MULTILANGUAGE
+        self.actInfo.emit("dataset reading") 
+        #ok, lets first read the data
+        data, labels=self._experiment.dataset.toNumpyArray([
+            self._experiment.attributesThatShouldBeUsed(False),
+            [self._experiment.label]
+            ])
+        
+        labels=labels.ravel()   #we need row vector       
+        #extractors mapping
+        extMap=[self._experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR) \
+                for a in self._experiment.attributesThatShouldBeUsed(False)]
+        
+        #create storage for results
+        steps=self._experiment.evaluationMethod.numOfSteps(data,labels)
+        self.numberOfSteps.emit(steps+1)    #reading
+        
+        resultsStorage=Results(steps)
+        self.step.emit() 
+        for c in self._experiment.classifiers:
+            self.actInfo.emit("testing {} {}/{}".format(c.getName(), 1, steps))
+            for step, (predicted, labels) in enumerate(self._experiment.evaluationMethod.run(c, data, labels, extMap)):
+                 
+                if resultsStorage.steps[step].labels is None:
+                    #because it does not make much sense to have true labels stored for each predictions
+                    #we store labels just once for each validation step
+                    resultsStorage.steps[step].labels=labels
+                resultsStorage.steps[step].addResults(c, predicted)
+                self.step.emit()
+                if step+2<=steps:
+                    #TODO: MULTILANGUAGE
+                    self.actInfo.emit("testing {} {}/{}".format(c.getName(), step+2, steps))
+        
+        
+        

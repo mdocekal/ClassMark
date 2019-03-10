@@ -78,4 +78,7 @@ class Hashing(FeatureExtractor):
             self._createVectorizer()
             return self._vectorizer.transform(data)
         
+    def fitAndExtract(self, data, labels=None):
+        return self._vectorizer.fit_transform(data,labels)
+        
         

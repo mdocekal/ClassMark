@@ -286,7 +286,21 @@ class FeatureExtractor(Plugin):
         :param data: Original data for features extraction.
         :type data: ArrayLike
         :return: Extracted features.
-        :rtype: ArrayLike
+        :rtype: scipy.sparse matrix
+        """
+        pass
+    
+    @abstractmethod
+    def fitAndExtract(self, data, labels=None):
+        """
+        Should be the same as calling fit and than extract on the same data.
+        
+        :param data:Original data for features extraction.
+        :type data: ArrayLike
+        :param labels: Labels for preparation.
+        :type labels: ArrayLike
+        :return: Extracted features.
+        :rtype: scipy.sparse matrix
         """
         pass
 

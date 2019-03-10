@@ -15,6 +15,10 @@ from builtins import isinstance
 from PySide2.QtCore import QThread, Signal, QObject
 from .results import Results
 
+import pandas as pd
+from sklearn.metrics import precision_recall_fscore_support, classification_report, accuracy_score
+from sklearn.utils.multiclass import unique_labels
+
 class ClassifierSlot(object):
     """
     Slot that stores informations about classifier that should be tested. 
@@ -365,7 +369,7 @@ class ExperimentRunner(QThread):
         for c in self._experiment.classifiers:
             self.actInfo.emit("testing {} {}/{}".format(c.getName(), 1, steps))
             for step, (predicted, labels) in enumerate(self._experiment.evaluationMethod.run(c, data, labels, extMap)):
-                 
+ 
                 if resultsStorage.steps[step].labels is None:
                     #because it does not make much sense to have true labels stored for each predictions
                     #we store labels just once for each validation step
@@ -376,5 +380,19 @@ class ExperimentRunner(QThread):
                     #TODO: MULTILANGUAGE
                     self.actInfo.emit("testing {} {}/{}".format(c.getName(), step+2, steps))
         
+                self.writeConfMat(predicted, labels)
+
+                print(classification_report(labels, predicted))
+                print("accuracy\t{}".format(accuracy_score(labels, predicted)))
+                print("\n\n")
         
         
+    @staticmethod
+    def writeConfMat(predicted, labels):
+
+        pd.set_option('display.expand_frame_repr', False)
+        pd.set_option('display.max_rows', None)
+        pd.set_option('display.max_columns', None)
+        pd.set_option('display.max_colwidth', len(max(predicted, key=len)) if len(max(predicted, key=len))>len(max(labels, key=len)) else len(max(labels, key=len)))
+        
+        print(str(pd.crosstab(pd.Series(labels), pd.Series(predicted), rownames=['Real'], colnames=['Predicted'], margins=True)))

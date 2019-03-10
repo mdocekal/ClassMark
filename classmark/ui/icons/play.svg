@@ -29,8 +29,8 @@
      id="namedview11"
      showgrid="false"
      inkscape:zoom="0.29734127"
-     inkscape:cx="225.33031"
-     inkscape:cy="400.21353"
+     inkscape:cx="383.93493"
+     inkscape:cy="395.87265"
      inkscape:window-x="0"
      inkscape:window-y="28"
      inkscape:window-maximized="1"
@@ -38,15 +38,26 @@
   <defs
      id="defs860">
     <linearGradient
+       id="linearGradient854">
+      <stop
+         style="stop-color:#000000;stop-opacity:1"
+         offset="0"
+         id="stop850" />
+      <stop
+         style="stop-color:#000000;stop-opacity:0.015625"
+         offset="1"
+         id="stop852" />
+    </linearGradient>
+    <linearGradient
        id="linearGradient1430">
       <stop
          id="stop1426"
          offset="0"
-         style="stop-color:#116800;stop-opacity:1" />
+         style="stop-color:#000000;stop-opacity:1" />
       <stop
          id="stop1428"
          offset="1"
-         style="stop-color:#44aa00;stop-opacity:1" />
+         style="stop-color:#44aa00;stop-opacity:0.034375" />
     </linearGradient>
     <linearGradient
        gradientUnits="userSpaceOnUse"
@@ -56,6 +67,35 @@
        x1="-0.93528229"
        id="linearGradient1432"
        xlink:href="#linearGradient1430" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient854"
+       id="linearGradient856"
+       gradientUnits="userSpaceOnUse"
+       x1="-0.30607712"
+       y1="191.47301"
+       x2="34.048424"
+       y2="191.47301" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient854"
+       id="linearGradient884"
+       gradientUnits="userSpaceOnUse"
+       x1="-0.30607712"
+       y1="191.47301"
+       x2="34.048424"
+       y2="191.47301"
+       gradientTransform="rotate(120,82.199891,191.73363)" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient854"
+       id="linearGradient884-2"
+       gradientUnits="userSpaceOnUse"
+       x1="-0.30607712"
+       y1="191.47301"
+       x2="34.048424"
+       y2="191.47301"
+       gradientTransform="rotate(-120,82.199889,191.73364)" />
   </defs>
   <metadata
      id="metadata863">
@@ -73,8 +113,22 @@
      transform="translate(0,-87)"
      id="layer1">
     <path
+       style="opacity:0.99999999;fill:#44aa00;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.75052512;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="path838"
+       d="m 194.559,191.73363 -168.538664,97.30584 0,-194.611685 z" />
+    <path
        d="m 194.559,191.73363 -168.538664,97.30584 0,-194.611685 z"
        id="path1411"
-       style="opacity:0.98000004;fill:url(#linearGradient1432);fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.75052512;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+       style="opacity:0.98000004;fill:url(#linearGradient856);fill-opacity:1.0;fill-rule:nonzero;stroke:#000000;stroke-width:1.75048329;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+    <path
+       style="opacity:0.98000004;fill:url(#linearGradient884);fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.75048327;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="path882"
+       d="m 26.020331,289.03947 3e-6,-194.611687 L 194.559,191.73363 Z"
+       inkscape:connector-curvature="0" />
+    <path
+       style="opacity:0.98000004;fill:url(#linearGradient884-2);fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.75048316;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="path882-2"
+       d="M 26.02033,94.42779 194.559,191.73363 26.02032,289.03948 Z"
+       inkscape:connector-curvature="0" />
   </g>
 </svg>

@@ -9,15 +9,14 @@ Module for experiment representation and actions.
 from ..data.data_set import DataSet
 from enum import Enum
 from _collections import OrderedDict
-from ..core.plugins import CLASSIFIERS, FEATURE_EXTRACTORS
+from ..core.plugins import Plugin, CLASSIFIERS, FEATURE_EXTRACTORS
 from ..core.validation import Validator
 from builtins import isinstance
-from PySide2.QtCore import QThread, Signal, QObject
+from PySide2.QtCore import QThread, Signal
 from .results import Results
 
 import pandas as pd
-from sklearn.metrics import precision_recall_fscore_support, classification_report, accuracy_score
-from sklearn.utils.multiclass import unique_labels
+from sklearn.metrics import classification_report, accuracy_score
 
 class ClassifierSlot(object):
     """
@@ -367,23 +366,24 @@ class ExperimentRunner(QThread):
         resultsStorage=Results(steps)
         self.step.emit() 
         for c in self._experiment.classifiers:
+            print(c.getName(), ", ".join( a.name+"="+str(a.value.getName()+":"+", ".join([pa.name+"->"+str(pa.value) for pa in a.value.getAttributes()]) if isinstance(a.value,Plugin) else a.value) for a in c.getAttributes()))
             self.actInfo.emit("testing {} {}/{}".format(c.getName(), 1, steps))
-            for step, (predicted, labels) in enumerate(self._experiment.evaluationMethod.run(c, data, labels, extMap)):
+            for step, (predicted, realLabels) in enumerate(self._experiment.evaluationMethod.run(c, data, labels, extMap)):
  
                 if resultsStorage.steps[step].labels is None:
                     #because it does not make much sense to have true labels stored for each predictions
                     #we store labels just once for each validation step
-                    resultsStorage.steps[step].labels=labels
+                    resultsStorage.steps[step].labels=realLabels
                 resultsStorage.steps[step].addResults(c, predicted)
                 self.step.emit()
                 if step+2<=steps:
                     #TODO: MULTILANGUAGE
                     self.actInfo.emit("testing {} {}/{}".format(c.getName(), step+2, steps))
         
-                self.writeConfMat(predicted, labels)
+                self.writeConfMat(predicted, realLabels)
 
-                print(classification_report(labels, predicted))
-                print("accuracy\t{}".format(accuracy_score(labels, predicted)))
+                print(classification_report(realLabels, predicted))
+                print("accuracy\t{}".format(accuracy_score(realLabels, predicted)))
                 print("\n\n")
         
         

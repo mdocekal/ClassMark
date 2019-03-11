@@ -187,6 +187,9 @@ class ExperimentSection(WidgetManager):
         self._experimentRunner.step.connect(self._incExperimentProgressBar)
         self._experimentRunner.actInfo.connect(self._widget.experimentActInfo.setText)
         
+        #set the progress bar
+        self._widget.experimentProgressBar.setValue(0)
+        
         #change the page
         self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_RUNNING.value)
         

@@ -16,9 +16,7 @@ from PySide2.QtWidgets import QWidget, QComboBox, QCheckBox,QLineEdit,QHBoxLayou
 from builtins import isinstance
 from typing import List
 from ..core.plugins import PluginAttribute
-from functools import partial
 
-    
 class IconName(Enum):
     """
     There are some frequently used icon names.
@@ -112,6 +110,26 @@ class AttributesWidgetManager(WidgetManager):
     This manager could help you create attributes widget for your plugin, if you do not want
     to do it on your own from scratch.
     """
+    
+    class WNormalize(QWidget):
+        """
+        Widget for normalization settings.
+        Settings are stored
+        """
+        
+        def __init__(self, a, parent=None):
+            """
+            Initialization of normalization widget.
+            
+            :param a:The attribute.
+            :type a: PluginAttribute
+            :param parent: Parent widget.
+            :type parent: QWidget
+            """
+            super().__init__(parent)
+            self._a=a
+            
+        
     
     class WGroup(QWidget):
         """
@@ -227,6 +245,7 @@ class AttributesWidgetManager(WidgetManager):
                     PluginAttribute.PluginAttributeType.VALUE:self._createValueType,
                     PluginAttribute.PluginAttributeType.SELECTABLE:self._createSelectableType,
                     PluginAttribute.PluginAttributeType.GROUP_VALUE:self._createGroupValueType,
+                    PluginAttribute.PluginAttributeType.SELECTABLE_PLUGIN:self._createSelectablePluginType,
                     }[a.type](a))
 
         self._widget.setLayout(mainLayout)
@@ -328,4 +347,74 @@ class AttributesWidgetManager(WidgetManager):
     
         return self._createWidget(a, self.WGroup(a))
     
+    
+    def _createSelectablePluginType(self, a:PluginAttribute):
+        """
+        Creates widget for attribute of NORMALIZE type.
+        
+        :param a: The attribute.
+        :type a: PluginAttribute
+        :return: Widget for attribute.
+        :rtype: QWidget
+        """
+        
+        attrW=QWidget(self._widget)
+        attrW.setStyleSheet("border: palette(base);");
+        attrLayout=QVBoxLayout(attrW)
+        attrLayout.setMargin(0)
+        attrW.setLayout(attrLayout)
+        
+        inputW=QComboBox()
+        inputW.addItems([None if n is None else n.getName() for n in a.selVals])
+        
+        inputW.currentTextChanged.connect(self._pluginSelected(a, attrLayout))
+        
+        if a.value is not None:
+            inputW.setCurrentText(str(a.value.getName()))
+        
+        resW=self._createWidget(a, inputW)
+        resW.layout().addWidget(attrW)
+        return resW
+    
+    def _pluginSelected(self, a, attrLayout):
+        """
+        Partial for new plugin select event.
+        
+        :param a: The attribute for which we are setting plugin.
+        :type a: PluginAttribute
+        :param attrLayout: Layout where the attributes of selected plugin will be added.
+        :type attrLayout: QLayout
+        :return: Callable that sets the new plugin and hides old.
+        :rtype: Callable[[str],None]
+        """
+        
+        def perform(pluginName):
+            #remove old
+            child=attrLayout.takeAt(0)
+            while child:
+                child.widget().deleteLater()
+                child=attrLayout.takeAt(0)
+                
+            if pluginName is None or pluginName=="":
+                a.setValue(None)
+            else:
+                for x in a.selVals:
+                    if x is None:
+                        continue
+                        
+                    if x.getName()==pluginName:
+                        #create the plugin and set it
+                        a.setValue(x())
+        
+                        hasOwnWidget=a.value.getAttributesWidget(attrLayout)
+                
+                        if hasOwnWidget is not None:
+                            attrLayout.addWidget(hasOwnWidget)
+                        else:
+                            if len(a.value.getAttributes())>0:
+                                self.manager=AttributesWidgetManager(a.value.getAttributes(), attrLayout.parentWidget())
+                                attrLayout.addWidget(self.manager.widget)
+                        
+                        break                
+        return perform
         

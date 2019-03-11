@@ -26,8 +26,14 @@ class PluginAttribute(object):
         """If you have attribute when user should choose one choice from multiple choices, than
         this is the type you are looking for. In UI appears as combo box."""
         
-        GROUP_VALUE=3
+        SELECTABLE_PLUGIN=3
+        """When you have attribute that can contain one from one kind of plugins, than use that type of attribute.
+        In UI appears as combo box and widget with attributes of actualy selected plugin."""
+        
+        GROUP_VALUE=4
         """Same as value, but user could increase number of inputs."""
+        
+        
     
     def __init__(self, name, t, valT=None, selVals:List[str]=[]):
         """
@@ -39,13 +45,14 @@ class PluginAttribute(object):
         :type t: PluginAttributeType
         :param valT: Type of attribute value. Could be used for type controls and 
             auto type conversion. None means any type. Attribute value that is None or empty string
-            is allways ok reregardless valT.
+            is always ok regardless valT.
         :type valT: Type
         :param selVals: Values for combobox if SELECTABLE type is used.
         :type selVals: List[str]
         """
         self._name=name
         self._type=t
+        #TODO: control if valT inherites from Plugin in case of SELECTABLE_PLUGIN
         self._valT=valT
         self._value=None
         self._selVals=selVals
@@ -129,7 +136,7 @@ class PluginAttribute(object):
             else:
                 self._value[index]=None
         else:
-            
+            #TODO: Troubles with numbers when writing minus values because minus alone is not number
             if index is None:
                 if self.type==PluginAttribute.PluginAttributeType.GROUP_VALUE:
                     self._value=[x if x is None else self._valT(x) for x in nVal]

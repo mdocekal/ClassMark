@@ -56,7 +56,7 @@ class Validator(Plugin):
             """
             #feature extraction for training set
             trainLabels=labels[trainIndices]
-            trainFeatures=self._featuresStep(data, trainIndices, extMap, trainLabels)
+            trainFeatures=self._featuresStep(data[trainIndices], extMap, trainLabels)
 
             #train classifier
             classifier.train(trainFeatures, trainLabels)
@@ -66,39 +66,56 @@ class Validator(Plugin):
             del trainLabels
             
             #feature extraction for test set
-            testFeatures=self._featuresStep(data, testIndices, extMap)
+            testFeatures=self._featuresStep(data[testIndices], extMap)
 
             #predict the labels
             predictedLabels=classifier.predict(testFeatures)
             
             yield (predictedLabels, labels[testIndices])
             
-    def _featuresStep(self, data:np.array, useSamples, extMap:List[FeatureExtractor], labels:np.array=None):
+    def _featuresStep(self, data:np.array,extMap:List[FeatureExtractor], labels:np.array=None):
         """
         Extracting features step.
         
         :param data: Samples for extraction.
         :type data: np.array
-        :param useSamples: Indices of samples that should be used.
-        :type useSamples:array-like int
-        :param extMap:
-        :type extMap:
+        :param extMap: Index of a FeatureExtractor, in that list corresponds
+            to column, in data matrix, to which the extractor will be used.
+        :type extMap: List[FeatureExtractor]
         :param labels: Labels for labeled samples.
         :type labels: np.array
         """
         features=None
+        
+        #because hstack is quite costly operation and Pass can work on multiple attributes at once,
+        #than lets make groups of attribute that should use Pass.
+        concatenatePass=[]
         for i,extractor in enumerate(extMap):
+            if extractor.getName()=="Pass":
+                concatenatePass.append(i)
+                continue
+            elif len(concatenatePass)>0:
+                actF=extractor.fitAndExtract(data[:,None,[concatenatePass]],labels) 
+            else:
+                actF=extractor.fitAndExtract(data[:,None,i],labels) 
             """
             self.actStepDesc.emit("Extracting features from {} samples with {} for attribute {}".format(
                 useSamples.shape[0], extractor.getName()))
                 """
-            actF=extractor.fitAndExtract(data[useSamples,None,i],labels) 
             #append the features to make one shared vector
             features= actF if features is None else hstack([features,actF])
+
             #self.subStep.emit()
+            
+        if len(concatenatePass)>0:
+            extractor=extMap[concatenatePass[0]]
+            if len(concatenatePass)==len(extMap):
+                features=extractor.fitAndExtract(data,labels)
+            else:
+                features=extractor.fitAndExtract(data[:,None,[concatenatePass]],labels) 
+            
         return features
     
-    @abstractmethod
     def step(self):
         """
         Run one step of validation process.
@@ -179,12 +196,6 @@ class ValidatorStratifiedKFold(Validator):
     def getInfo():
         return ""
     
-    def step(self):
-        """
-        Run one step of validation process.
-        """
-        pass
-    
     @property
     def results(self):
         """
@@ -211,6 +222,19 @@ class ValidatorKFold(Validator):
         
         self._folds=PluginAttribute("Folds", PluginAttribute.PluginAttributeType.VALUE, int)
         self._folds.value=folds
+        
+        self._shuffle=PluginAttribute("Shuffle", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
+        self._shuffle.value=False
+        
+        self._randomSeed=PluginAttribute("Shuffle - random seed", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._randomSeed.value=None
+        
+    @property
+    def splitter(self):
+        self._spliter=KFold(n_splits=self._folds.value,
+                                      shuffle=self._shuffle.value,
+                                      random_state=self._randomSeed.value)
+        return self._spliter.split
     
     @staticmethod
     def getName():
@@ -224,17 +248,6 @@ class ValidatorKFold(Validator):
     def getInfo():
         return ""
     
-    def run(self):
-        """
-        Run whole validation process.
-        """
-        pass
-
-    def step(self):
-        """
-        Run one step of validation process.
-        """
-        pass
     
     @property
     def results(self):
@@ -244,13 +257,18 @@ class ValidatorKFold(Validator):
         pass
     
     def numOfSteps(self, data:np.array=None, labels:np.array=None):
-        return self._folds   
+        return self._folds.value
 
 class ValidatorLeaveOneOut(Validator):
     """
     Validation process that uses LeaveOneOut for getting
     train and test sets.
     """
+    
+    @property
+    def splitter(self):
+        self._spliter=LeaveOneOut()
+        return self._spliter.split
     
     @staticmethod
     def getName():
@@ -263,19 +281,7 @@ class ValidatorLeaveOneOut(Validator):
     @staticmethod
     def getInfo():
         return ""
-    
-    def run(self):
-        """
-        Run whole validation process.
-        """
-        pass
 
-    def step(self):
-        """
-        Run one step of validation process.
-        """
-        pass
-    
     @property
     def results(self):
         """

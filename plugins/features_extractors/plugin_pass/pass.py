@@ -7,13 +7,15 @@ Feature extractor plugin for ClassMark.
 """
 from classmark.core.plugins import FeatureExtractor
 
-from scipy.sparse import csr_matrix
+from scipy.sparse import csc_matrix
 
 class Pass(FeatureExtractor):
     """
     Pass feature extractor plugin for ClassMark.
     This extractor just returns the input data in scipy.sparse matrix (float) format.
 
+    Because this is default plugin, than ClassMark uses optimization which counts on that this
+    extractor does not have any attributes and can work on multiple attributes at once.
     """
     
     @staticmethod
@@ -51,7 +53,7 @@ class Pass(FeatureExtractor):
         :rtype: scipy.sparse.spmatrix
         """
 
-        return csr_matrix(data, dtype=float)
+        return csc_matrix(data, dtype=float)
 
     def fitAndExtract(self, data, labels=None):
         return self.extract(data)

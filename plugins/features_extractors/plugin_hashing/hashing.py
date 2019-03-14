@@ -24,18 +24,10 @@ class Hashing(FeatureExtractor):
         :type nFeatures: int
         """
         
-        self._nonNegative=PluginAttribute("Non negative", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
-        self._nonNegative.value=nonNegative
         self._nFeatures=PluginAttribute("Number of features", PluginAttribute.PluginAttributeType.VALUE, int)
         self._nFeatures.value=nFeatures
     
         self._vectorizer=None
-        
-    def _createVectorizer(self):
-        """
-        Creates hashing vectorizer.
-        """
-        self._vectorizer=HashingVectorizer(non_negative=self._nonNegative,n_features=self._nFeatures)
         
     @staticmethod
     def getName():
@@ -49,6 +41,12 @@ class Hashing(FeatureExtractor):
     def getInfo():
         return ""
     
+    def _initExt(self):
+        """
+        Creates and initializes extractor according to current attributes values.
+        """
+        self._ext=HashingVectorizer(n_features=self._nFeatures.value)
+    
     def fit(self, data, labels=None):
         """
         This function is there only for compatibility with FeatureExtractor.
@@ -60,7 +58,7 @@ class Hashing(FeatureExtractor):
         :param labels: It does not matter.
         :type labels: It does not matter.
         """
-        pass
+        self._initExt()
 
     def extract(self, data):
         """
@@ -71,14 +69,11 @@ class Hashing(FeatureExtractor):
         :return: Converted data.
         :rtype: scipy.sparse matrix
         """
-        try:
-            return self._vectorizer.transform(data)
-        except AttributeError:
-            #vectorizer is probably not created yet.
-            self._createVectorizer()
-            return self._vectorizer.transform(data)
+        return self._ext.transform(data)
+
         
     def fitAndExtract(self, data, labels=None):
-        return self._vectorizer.fit_transform(data,labels)
+        self._initExt()
+        return self._ext.fit_transform(data,labels)
         
         

@@ -8,6 +8,7 @@ Module for experiment representation and actions.
 
 from ..data.data_set import DataSet
 from enum import Enum
+import time
 from _collections import OrderedDict
 from ..core.plugins import Plugin, CLASSIFIERS, FEATURE_EXTRACTORS
 from ..core.validation import Validator
@@ -290,12 +291,22 @@ class Experiment(object):
         :type t: Experiment.AttributeSettings
         :param val: New value.
         :type val: bool | Plugin
+        :raise KeyError: When the name of attribute is uknown.
         """
         
         if t == Experiment.AttributeSettings.LABEL:
             self._label= attribute if val else None
         else:
             self._attributesSet[attribute][t]=val
+            
+        if t == Experiment.AttributeSettings.PATH:
+            #we must inform the dataset object
+            if val:
+                self._dataset.addPathAttribute(attribute)
+            else:
+                self._dataset.removePathAttribute(attribute)
+            
+            
         
 
     def attributesThatShouldBeUsed(self, label:bool=True):
@@ -361,15 +372,19 @@ class ExperimentRunner(QThread):
         
         #create storage for results
         steps=self._experiment.evaluationMethod.numOfSteps(data,labels)
-        self.numberOfSteps.emit(steps+1)    #reading
+        self.numberOfSteps.emit(len(self._experiment.classifiers)*(steps)+1)    #+1 reading
         
+        #TODO catch memory error
         resultsStorage=Results(steps)
         self.step.emit() 
         for c in self._experiment.classifiers:
             print(c.getName(), ", ".join( a.name+"="+str(a.value.getName()+":"+", ".join([pa.name+"->"+str(pa.value) for pa in a.value.getAttributes()]) if isinstance(a.value,Plugin) else a.value) for a in c.getAttributes()))
             self.actInfo.emit("testing {} {}/{}".format(c.getName(), 1, steps))
+            start = time.time()
+            startProc=time.process_time()
             for step, (predicted, realLabels) in enumerate(self._experiment.evaluationMethod.run(c, data, labels, extMap)):
- 
+                end = time.time()
+                endProc=time.process_time()
                 if resultsStorage.steps[step].labels is None:
                     #because it does not make much sense to have true labels stored for each predictions
                     #we store labels just once for each validation step
@@ -384,7 +399,11 @@ class ExperimentRunner(QThread):
 
                 print(classification_report(realLabels, predicted))
                 print("accuracy\t{}".format(accuracy_score(realLabels, predicted)))
+                print("Time:",end-start)
+                print("Process time:",endProc-startProc)
                 print("\n\n")
+                start = time.time()
+                startProc=time.process_time()
         
         
     @staticmethod

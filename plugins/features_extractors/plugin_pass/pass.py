@@ -47,15 +47,23 @@ class Pass(FeatureExtractor):
         """
         This extractor just returns the input data in scipy.sparse matrix (float) format.
         
+        This is special feature extractor that is able to process multiple attributes at once.
+        
         :param data: Original data for features extraction.
         :type data: ArrayLike
         :return: Converted data.
         :rtype: scipy.sparse.spmatrix
         """
-
-        return csc_matrix(data, dtype=float)
+        if data.ndim==1:
+            #just one attribute
+            return csc_matrix(data[:,None], dtype=float)    #[:,None] to create column vector
+        else:
+            return csc_matrix(data, dtype=float)
 
     def fitAndExtract(self, data, labels=None):
+        """
+        This is special feature extractor that is able to process multiple attributes at once.
+        """
         return self.extract(data)
 
         

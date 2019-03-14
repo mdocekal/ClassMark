@@ -95,6 +95,7 @@ class MinMaxScalerPlugin(BaseNormalizer):
     
     def fitTransform(self, data):
         self._scaler = MinMaxScaler(feature_range=(self._min.value, self._max.value))
+        print(data.shape)
         if isinstance(data,spmatrix):
             #because it throws error otherwise
             data=data.toarray()

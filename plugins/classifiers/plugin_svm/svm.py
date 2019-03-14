@@ -36,6 +36,7 @@ class SVM(Classifier):
         self._normalizer=PluginAttribute("Normalize", PluginAttribute.PluginAttributeType.SELECTABLE_PLUGIN, None,
                                          [None, NormalizerPlugin, MinMaxScalerPlugin, StandardScalerPlugin, RobustScalerPlugin])
         self._normalizer.value=normalizer
+        
     @staticmethod
     def getName():
         return "Support Vector Machines"

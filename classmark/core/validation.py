@@ -56,7 +56,7 @@ class Validator(Plugin):
             """
             #feature extraction for training set
             trainLabels=labels[trainIndices]
-            trainFeatures=self._featuresStep(data[trainIndices], extMap, trainLabels)
+            trainFeatures=self._featuresStep(data[trainIndices], extMap, trainLabels, fit=True)
 
             #train classifier
             classifier.train(trainFeatures, trainLabels)
@@ -73,7 +73,7 @@ class Validator(Plugin):
             
             yield (predictedLabels, labels[testIndices])
             
-    def _featuresStep(self, data:np.array,extMap:List[FeatureExtractor], labels:np.array=None):
+    def _featuresStep(self, data:np.array,extMap:List[FeatureExtractor], labels:np.array=None, fit=False):
         """
         Extracting features step.
         
@@ -84,6 +84,8 @@ class Validator(Plugin):
         :type extMap: List[FeatureExtractor]
         :param labels: Labels for labeled samples.
         :type labels: np.array
+        :param fit: Should do fit step ("train" on input).
+        :type fit: bool
         """
         features=None
         
@@ -95,9 +97,16 @@ class Validator(Plugin):
                 concatenatePass.append(i)
                 continue
             elif len(concatenatePass)>0:
-                actF=extractor.fitAndExtract(data[:,None,[concatenatePass]],labels) 
+                if fit:
+                    actF=extractor.fitAndExtract(data[:,[concatenatePass]],labels) 
+                else:
+                    actF=extractor.extract(data[:,[concatenatePass]]) 
+                concatenatePass=[]
             else:
-                actF=extractor.fitAndExtract(data[:,None,i],labels) 
+                if fit:
+                    actF=extractor.fitAndExtract(data[:,i],labels) 
+                else:
+                    actF=extractor.extract(data[:,i]) 
             """
             self.actStepDesc.emit("Extracting features from {} samples with {} for attribute {}".format(
                 useSamples.shape[0], extractor.getName()))
@@ -110,9 +119,15 @@ class Validator(Plugin):
         if len(concatenatePass)>0:
             extractor=extMap[concatenatePass[0]]
             if len(concatenatePass)==len(extMap):
-                features=extractor.fitAndExtract(data,labels)
+                if fit:
+                    features=extractor.fitAndExtract(data,labels)
+                else:
+                    features=extractor.extract(data)
             else:
-                features=extractor.fitAndExtract(data[:,None,[concatenatePass]],labels) 
+                if fit:
+                    features=extractor.fitAndExtract(data[:,[concatenatePass]],labels)
+                else:
+                    features=extractor.extract(data[:,[concatenatePass]])
             
         return features
     

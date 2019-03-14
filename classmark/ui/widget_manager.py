@@ -293,7 +293,7 @@ class AttributesWidgetManager(WidgetManager):
         :return: Widget for attribute.
         :rtype: QWidget
         """
-
+ 
         inputW=QCheckBox()
         inputW.setCheckState(Qt.Checked if a.value else Qt.Unchecked)
         inputW.stateChanged.connect(a.setValue)
@@ -359,7 +359,7 @@ class AttributesWidgetManager(WidgetManager):
         """
         
         attrW=QWidget(self._widget)
-        attrW.setStyleSheet("border: palette(base);");
+
         attrLayout=QVBoxLayout(attrW)
         attrLayout.setMargin(0)
         attrW.setLayout(attrLayout)
@@ -403,8 +403,9 @@ class AttributesWidgetManager(WidgetManager):
                         continue
                         
                     if x.getName()==pluginName:
-                        #create the plugin and set it
-                        a.setValue(x())
+                        if pluginName!=a.value.getName():
+                            #create the new plugin and set it
+                            a.setValue(x())
         
                         hasOwnWidget=a.value.getAttributesWidget(attrLayout)
                 

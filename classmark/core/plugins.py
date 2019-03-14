@@ -272,6 +272,17 @@ class FeatureExtractor(Plugin):
     Abstract class that defines feature extractor type plugin and its interface.
     """
     
+    class DataTypes(Enum):
+        """
+        Data types that should be passed to extract methods.
+        All this types of data will be wrapped in numpy array.
+        """
+        
+        STRING=0        #default
+        IMAGE_RGB=1     #np.array with red channel first
+        IMAGE_BGR=2     #np.array with blue channel first
+
+    
     @abstractmethod
     def fit(self, data, labels=None):
         """
@@ -291,8 +302,15 @@ class FeatureExtractor(Plugin):
         Extract features from given data.
         
         :param data: Original data for features extraction.
-        :type data: ArrayLike
+            In numpy array:
+                example: ["first document", "second document"]
+        :type data: np.array
         :return: Extracted features.
+            Example:
+                [
+                [1,1,0],    first document features
+                [0,1,1]    second document features
+                ]
         :rtype: scipy.sparse matrix
         """
         pass
@@ -303,13 +321,28 @@ class FeatureExtractor(Plugin):
         Should be the same as calling fit and than extract on the same data.
         
         :param data:Original data for features extraction.
-        :type data: ArrayLike
+            In numpy array:
+                example: ["first document", "second document"]
+        :type data: np.array
         :param labels: Labels for preparation.
         :type labels: ArrayLike
         :return: Extracted features.
+            Example:
+                [
+                [1,1,0],    first document features
+                [0,1,1]    second document features
+                ]
         :rtype: scipy.sparse matrix
         """
         pass
+    
+
+    def expDataType(self):
+        """
+        Expected data type for extraction.
+        Overwrite this method if you want to use different data type.
+        """
+        return self.DataTypes.STRING
 
 
 CLASSIFIERS={entry_point.name: entry_point.load() \

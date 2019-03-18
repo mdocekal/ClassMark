@@ -10,6 +10,7 @@ import os
 import csv
 import numpy as np
 from typing import List
+from idlelib.iomenu import encoding
 
 class Sample(object):
     """
@@ -37,7 +38,7 @@ class LazyTextFileReader(str):
         """
         Get content of the file.
         """
-        with open(self._filePath, "r") as fileToRead:
+        with open(self._filePath, "r", encoding="utf-8") as fileToRead:
             return fileToRead.read()
 
     def __repr__(self):
@@ -67,7 +68,7 @@ class DataSet(object):
         self._folder=os.path.dirname(filePath)
         self._pathAttributes=set()  #attributes that points to content in different file
         #load just the attributes.
-        with open(filePath, "r") as opF:
+        with open(filePath, "r", encoding="utf-8") as opF:
             reader = csv.DictReader(opF)
             self._attributes=reader.fieldnames
             
@@ -115,7 +116,7 @@ class DataSet(object):
         """
         Iterate over each sample.
         """
-        with open(self._filePath, "r") as opF:
+        with open(self._filePath, "r", encoding="utf-8") as opF:
             reader = csv.DictReader(opF)
             for sample in reader:
                 #convert the path attributes

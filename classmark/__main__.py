@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 Created on 19. 12. 2018
 ClassMark is a classifier benchmark.

@@ -249,9 +249,9 @@ class Classifier(Plugin):
         Train classifier on provided data.
         
         :param data: Data that will be used for training.
-        :type data: ArrayLike
+        :type data: scipy.sparse matrix
         :param labels: Labels for the training data.
-        :type labels: ArrayLike
+        :type labels: np.array
         """
         pass
     
@@ -261,7 +261,7 @@ class Classifier(Plugin):
         Predict label on provided data.
         
         :param data: Data for classification.
-        :type data: ArrayLike
+        :type data: scipy.sparse matrix
         :return: Predicted labels.
         :rtype: ArrayLike
         """

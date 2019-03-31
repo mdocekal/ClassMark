@@ -12,9 +12,10 @@ from classmark.core.preprocessing import BaseNormalizer, NormalizerPlugin,\
 from sklearn.model_selection import StratifiedShuffleSplit
 from inspect import getmembers, isfunction
 from . import functions
-
+from typing import Callable, List, Iterable, Any
 import random
 import numpy as np
+
 
 class CEEF(Classifier):
     """
@@ -29,7 +30,7 @@ class CEEF(Classifier):
         
         :param normalizer: Normalizer used for input data. If none than normalization/scalling is omitted.
         :type normalizer: None | BaseNormalizer
-        :param generations: Maximum number of gnerations.
+        :param generations: Maximum number of generations.
         :type generations: int
         :param population: Population size.
         :type population: int
@@ -91,25 +92,19 @@ class CEEF(Classifier):
         self.actData=data
         self.actLabels=labels
         #get classes
-        classes=np.unique(labels)
+        classes=list(np.unique(labels))
 
         for run in range(self._runs.value):
             #run the evolution for each class
             
-            for c in classes:
-                indices=[]
-                outerIndices=[]
-                for i in train:
-                    if labels[i]==c:
-                        indices.append(i)
-                    else:
-                        outerIndices.append(i)
+            #create initial population
+            population=[Individual.createInit(self, classes, train)]
+            
+            #evaluate
+            popScores=[ i.score(test) for i in population]
+            
                 
-                #create initial population
-                population=[Individual.createInit(data,indices,outerIndices) for _ in range(self._population.value)]
                 
-                #evaluate 
-                    
         #reference is no longer needed
         self.actData=None
         self.actLabels=None
@@ -117,9 +112,95 @@ class CEEF(Classifier):
     def predict(self, data):
         pass
     
-    
 class Individual(object):
     """
+    Representation of one individual in population.
+    An individual is classifier.
+    
+    Each individual is composed by series of genes that are grouped together into a groups of genes that represents
+    function for each class.
+    """
+    
+    def __init__(self, parent:CEEF, classes:List[Any]):
+        """
+        Initialization of individual.
+        
+        :param parent: The parent classifier.
+        :type parent: CEEF
+        :param classes: Classes for classifier training.
+        :type classes: List[Any]
+        """
+        self._score=None
+        self._classes=classes
+        self._parent=parent
+        self._funGenes=[]
+        
+    @classmethod
+    def createInit(cls, parent:CEEF, classes:List[Any], train:np.array):
+        """
+        Creates individual for initial population.
+        
+        :param parent: The parent classifier.
+        :type parent: CEEF
+        :param classes: Classes for classifier training.
+        :type classes: List[Any]
+        :param train: Indices of samples that should be used for training.
+            Indices must corresponds to parent.actData and parent.actLabels arrays.
+        :type train:np.array
+        :return: The new individual.
+        :rtype: Individual
+        """
+        
+        theNewSelf=cls(parent,classes)
+        
+        #let's add fun genes for each class
+        for c in classes:
+            indices=[]
+            outerIndices=[]
+            for i in train:
+                if parent.actLabels[i]==c:
+                    indices.append(i)
+                else:
+                    outerIndices.append(i)
+        
+            theNewSelf._funGenes.append(FunGenes.createInit(parent,indices,outerIndices))
+            
+    @property
+    def score(self, indices):
+        """
+        Fitness of that individual.
+        
+        :param indices: Indices of samples, in parents actData and actLabels member, that will be used for evaluation.
+        :type indices: np.array
+        """
+        if self._score is None:
+            self._score=0
+            #ok we do not have it yet so lets calc it
+            for sampleInd in indices:
+                if self.predict(self._parent.actData[sampleInd])==self._parent.actLabels[sampleInd]:
+                    self._score+=1
+        
+        
+        return self._score
+    
+    def predict(self, sample):
+        """
+        Predicts class for given sample according to actual chromosome.
+        
+        :param sample: The data sample.
+        :type sample: np.array
+        :return: Predicted class.
+        :rtype: Any
+        """
+        predicted = np.empty(len(self._funGenes))
+        for i, fg in enumerate(self._funGenes):
+            predicted[i] = fg.fenotype(sample)
+        return self._classes[np.argmax(predicted)]
+            
+    
+class FunGenes(object):
+    """
+    Genes of 
     Representation of one individual in population.
     An individual is function for some class.
     
@@ -136,9 +217,9 @@ class Individual(object):
         """
         super().__init__("There is no free sample that can fill empty slot.")
     
-    def __init__(self, parent:CEEF, classDataIndices, outerIndices):
+    def __init__(self, parent:CEEF, classDataIndices, outerIndices, function:Callable[[List[np.array],List[float]],float]=None):
         """
-        Initializes individual for initial population.
+        Initializes genes.
         
         :param parent: The parent classifier.
         :type parent: CEEF
@@ -146,11 +227,16 @@ class Individual(object):
         :type classDataIndices: List[int]
         :param outerIndices: Indices of others classes samples.
         :type outerIndices: List[int]
+        :param function: Function that should be used for estimating likelihood. None means
+            that you just want select randomly one of FUNCTIONS
+        :type function: Callable[[List[np.array],List[float]],float]
         """
-        self._score=None
         self._parent=parent
         self._classDataIndices=classDataIndices
         self._outerIndices=outerIndices
+        
+        self._fun=random.choice(self.FUNCTIONS) if function is None else function
+
         
         self._classSamples=[]
         self._classSamplesVal=[]
@@ -158,6 +244,7 @@ class Individual(object):
         self._outerSamples=[]
         self._outerSamplesVal=[]
 
+        self._fenotypeGenerated=None
 
     @classmethod
     def createInit(cls, parent:CEEF, classDataIndices,outerIndices):
@@ -170,10 +257,11 @@ class Individual(object):
         :type classDataIndices: List[int]
         :param outerIndices: Indices of others classes samples.
         :type outerIndices: List[int]
+        :return: The genes.
+        :rtype: FunGenes
         """
         
         self=cls(parent,classDataIndices,outerIndices)
-        self._fun=random.choice(self.FUNCTIONS)
         
         #individuals in initial population haves
         #at least one class sample and one outer sample
@@ -213,8 +301,8 @@ class Individual(object):
         :type classSamples: bool
         :raise CanNotFillSlotException: This exception raises when there is no free sample that can fill empty slot.
         """
-        slots=self._classSamples if classSamples else self._outerSamples
-        slotsVal=self._classSamplesVal if classSamples else self._outerSamplesVal
+        slots, slotsVal=self._classSamples, self._classSamplesVal if classSamples else self._outerSamples, self._outerSamplesVal
+
         for _ in range(n):
             #select one
             actSel=self._selectUniqueSample(slots, classSamples)
@@ -230,6 +318,8 @@ class Individual(object):
         :param classSamples: True means select from class samples. False means outer samples.
         :type classSamples: bool
         :raise CanNotFillSlotException: This exception raises when there is no free sample that can fill empty slot.
+        :return: selected sample
+        :rtype: np.array
         """
         indicies=self._classDataIndices if classSamples else self._outerIndices
         sel=random.randrange(indicies.shape[0])
@@ -257,15 +347,25 @@ class Individual(object):
         
         :param sample: The sample.
         :type sample: np.array()
-        :param classSamples: True means fill with class samples. False means outer samples.
+        :param classSamples: True means fill with class samples. False means outer samples (always returns zero).
         :type classSamples: bool
+        :return: Number of occurrences of sample but for classSamples=False returns 0.
+        :rtype: int
         """
-        indicies=self._classDataIndices if classSamples else self._outerIndices
-        return sum(1 for i in indicies if np.allclose(self._parent.actData[i].todense(),sample))
+        if not classSamples:
+            return 0
+
+        return sum(1 for i in self._classDataIndices if np.allclose(self._parent.actData[i].todense(),sample))
     
-    def mutate(self):
+    def mutate(self, m:int):
         """
         Performs mutation. (randomly selects one mutation or none)
+        
+        :param m: Maximum number of mutations that can be performed on
+            that genes.
+        :type m: int
+        :return: Number of mutations actually performed.
+        :rtype: int
         """
         
         mutK=[
@@ -277,13 +377,15 @@ class Individual(object):
             ]
         
         #reload the mutations counter
-        self._mutations=random.randint(0,self._parent._maxMutations.value)
+        self._mutations=random.randint(0,m)
         
+        numPer=self._mutations
         while self._mutations>0:
             #select one of mutation kind
             mutK[random.randrange(len(mutK))]()
         
-        
+        return numPer
+    
     def _mutateClassSamples(self):
         """
         Mutates class samples.
@@ -370,28 +472,16 @@ class Individual(object):
         
     
     @property
-    def score(self, indices):
+    def fenotype(self):
         """
-        Fitness of that individual.
-        
-        :param indices: Indices of samples, in parents actData and actLabels member, that will be used for evaluation.
-        :type indices: np.array
+        Fenotype of that individual.
         """
-        if self._score is not None:
-            return self._score
         
-        #ok we do not have it yet so lets calc it
-        
-        
-        
-        return self._score
-    @property
-    def fenotyp(self):
-        """
-        Fenotyp of that individual.
-        """
+        if self._fenotypeGenerated is None:
+            self._fenotypeGenerated=self._fun(self._classSamples+self._outerSamples,
+                self._classSamplesVal+self._outerSamplesVal)
 
-        return self._fun(self._classSamples+self._outerSamples,
-                         self._classSamplesVal+self._outerSamplesVal)
+        return self._fenotypeGenerated
+
         
     

@@ -20,9 +20,9 @@ def fLinInterExtWithConst(data, vals, c=0):
     (every value outside is considered to be c).
     
     :param data: Coords for interpolation.
-    :type data:
+    :type data: List[np.array]
     :param vals: Values on given coords.
-    :type vals:
+    :type vals: List[float]
     :param c: Constant for extrapolation.
     :type c: float
     """
@@ -36,9 +36,9 @@ def fLinInterExtNearest(data, vals):
     known value.
     
     :param data: Coords for interpolation.
-    :type data:
+    :type data: List[np.array]
     :param vals: Values on given coords.
-    :type vals:
+    :type vals: List[float]
     """
 
     f = LinearNDInterpolator(data, vals)
@@ -63,9 +63,9 @@ def fNearest2x2FromEachClass(data, vals):
     
     
     :param data: Coords for interpolation.
-    :type data:
+    :type data: List[np.array]
     :param vals: Values on given coords.
-    :type vals:
+    :type vals: List[float]
     """
     #nearest 2x2 (from each class) interpolate
     classData=[x for i, x in enumerate(data) if vals[i]!=0]
@@ -109,9 +109,9 @@ def fLinInterExtNearest2x2(data, vals):
     Outer class must have values of 0 and actual class must have non zero values.
     
     :param data: Coords for interpolation.
-    :type data:
+    :type data: List[np.array]
     :param vals: Values on given coords.
-    :type vals:
+    :type vals: List[float]
     """
 
     f = LinearNDInterpolator(data, vals)
@@ -134,9 +134,9 @@ def fNearest2x2FromEachClass2AtAll(data, vals):
     Outer class must have values of 0 and actual class must have non zero values.
     
     :param data: Coords for interpolation.
-    :type data:
+    :type data: List[np.array]
     :param vals: Values on given coords.
-    :type vals:
+    :type vals: List[float]
     """
 
     classData=[x for i, x in enumerate(data) if vals[i]!=0]
@@ -184,9 +184,9 @@ def fLinInterExtNearest2x2FromEachClass2AtAll(data, vals):
     Outer class must have values of 0 and actual class must have non zero values.
     
     :param data: Coords for interpolation.
-    :type data:
+    :type data: List[np.array]
     :param vals: Values on given coords.
-    :type vals:
+    :type vals: List[float]
     """
 
     f = LinearNDInterpolator(data, vals)

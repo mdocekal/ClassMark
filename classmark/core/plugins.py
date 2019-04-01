@@ -35,7 +35,7 @@ class PluginAttribute(object):
         
         
     
-    def __init__(self, name, t, valT=None, selVals:List[str]=[]):
+    def __init__(self, name, t, valT=None, selVals:List[Any]=[]):
         """
         Creates new attribute of an plugin.
         
@@ -48,7 +48,7 @@ class PluginAttribute(object):
             is always ok regardless valT.
         :type valT: Type
         :param selVals: Values for combobox if SELECTABLE type is used.
-        :type selVals: List[str]
+        :type selVals: List[Any]
         """
         self._name=name
         self._type=t

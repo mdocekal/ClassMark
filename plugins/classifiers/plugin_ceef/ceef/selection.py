@@ -38,7 +38,7 @@ class Selector(ABC):
         """
         pass
         
-def Rulete(Selector):
+class Rulete(Selector):
     """
     Rulete selector
     """
@@ -60,7 +60,7 @@ def Rulete(Selector):
         
         return res
 
-def Rank(Selector):
+class Rank(Selector):
     """
     Rank selection.
     """

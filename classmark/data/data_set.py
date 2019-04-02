@@ -10,7 +10,6 @@ import os
 import csv
 import numpy as np
 from typing import List
-from idlelib.iomenu import encoding
 
 class Sample(object):
     """

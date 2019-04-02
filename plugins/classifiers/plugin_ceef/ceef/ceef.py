@@ -15,6 +15,7 @@ from typing import List
 from .selection import Selector, Rulete, Rank
 import random
 import copy
+import numpy as np
 
 
 
@@ -70,7 +71,7 @@ class CEEF(Classifier):
         self._population=PluginAttribute("Population size", PluginAttribute.PluginAttributeType.VALUE, int)
         self._population.value=population
         
-        self._selectionMethod=PluginAttribute("Selection method", PluginAttribute.PluginAttributeType.SELECTABLE, Selector,
+        self._selectionMethod=PluginAttribute("Selection method", PluginAttribute.PluginAttributeType.SELECTABLE, None,
                                               list(self.SELECTION_METHODS.keys()))
         self._selectionMethod.value=selectionMethod
 
@@ -123,7 +124,7 @@ class CEEF(Classifier):
             self._evolvedCls=max(population, key=lambda i: i.score)
             
             generations=1
-            while (self._stopAccuracy.value is None or self._stopAccuracy.value<theBestSolution.score) and \
+            while (self._stopAccuracy.value is None or self._stopAccuracy.value<self._evolvedCls.score) and \
                    self._generations.value<=generations:
                 
                     #get new population (in elitistic fashion)
@@ -166,7 +167,7 @@ class CEEF(Classifier):
                 newIndividual=Individual.crossover(theChosenOnes)
             else:
                 #ok no crossover just choose one
-                newIndividual=copy.copy(random.choice(theChosenOnes))
+                newIndividual=copy.deepcopy(random.choice(theChosenOnes))
                 
             #lets do the mutation
             newIndividual.mutate(self._maxMutations.value)
@@ -176,5 +177,10 @@ class CEEF(Classifier):
         
         
     def predict(self, data):
-        pass
+        predicted=np.empty(data.shape[0])
+        
+        for i, sample in enumerate(data):
+            predicted[i]=self._evolvedCls.predict(sample.todense().A1)
+            print(predicted[i])
+        return predicted
     

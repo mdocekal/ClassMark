@@ -14,5 +14,5 @@ setup(name='ClassMarkPluginClassifierCEEF',
     version='1.0dev',
     description='CEEF classifier plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.classifiers': 'ceef = ceef:CEEF'}
+    entry_points={'classmark.plugins.classifiers': 'ceef = ceef.ceef:CEEF'}
 )

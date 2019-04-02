@@ -11,7 +11,7 @@ from .evo_data_set import EvoDataSet
 import numpy as np
 import random
 from . import functions
-from typing import Callable, List, Any
+from typing import Callable, List
 
 class Individual(object):
     """
@@ -58,9 +58,11 @@ class Individual(object):
                     indices.append(i)
                 else:
                     outerIndices.append(i)
-        
+            indices=np.array(indices)
+            outerIndices=np.array(outerIndices)
             theNewSelf._funGenes.append(FunGenes.createInit(dataSet,indices,outerIndices,maxMutations))
-            
+        return theNewSelf
+    
     @property
     def score(self):
         """
@@ -73,7 +75,7 @@ class Individual(object):
             self._score=0
             #ok we do not have it yet so lets calc it
             for sampleInd in self._dataSet.testIndices:
-                if self.predict(self._dataSet.data[sampleInd])==self._dataSet.labels[sampleInd]:
+                if self.predict(self._dataSet.data[sampleInd].todense().A1)==self._dataSet.labels[sampleInd]:
                     self._score+=1
         
             if self._dataSet.testIndices.shape[0]>0:
@@ -92,7 +94,7 @@ class Individual(object):
         predicted = np.empty(len(self._funGenes))
         for i, fg in enumerate(self._funGenes):
             predicted[i] = fg.fenotype(sample)
-        return self._classes[np.argmax(predicted)]
+        return self._dataSet.classes[np.argmax(predicted)]
             
     @classmethod      
     def crossover(cls, individuals):
@@ -118,10 +120,14 @@ class Individual(object):
         """
         Performs mutation.
         
+        Also invalidates some internal members.
+        
         :param m: Maximum number of mutations that can be performed on
             that individual.
         :type m: int
         """
+        
+        self._score=None
         
         #randomly selects number of mutations
         actM=random.randint(0,m)
@@ -136,14 +142,12 @@ class Individual(object):
     
 class FunGenes(object):
     """
-    Genes of 
-    Representation of one individual in population.
-    An individual is function for some class.
+    Genes of likely function of on class.
     
-    Each individual is composed from n data samples and compound function.
+    Each FunGenes is composed from n data samples and compound function.
     """
     
-    FUNCTIONS=[o for o in getmembers(functions) if isfunction(o[1])]
+    FUNCTIONS=[o for _,o in getmembers(functions) if isfunction(o)]
     """Functions that are useful for estimating 
     likelihood that given vector is in a class."""
     
@@ -151,7 +155,8 @@ class FunGenes(object):
         """
         This exception raises when there is no free sample that can fill empty slot.
         """
-        super().__init__("There is no free sample that can fill empty slot.")
+        def __init__(self):
+            super().__init__("There is no free sample that can fill empty slot.")
     
     def __init__(self, dataSet:EvoDataSet, classDataIndices, outerIndices, function:Callable[[List[np.array],List[float]],float]=None):
         """
@@ -185,7 +190,7 @@ class FunGenes(object):
     @classmethod
     def createInit(cls, dataSet:EvoDataSet, classDataIndices,outerIndices, maxSlots):
         """
-        Creates individual for initial population.
+        Creates funGenes for initial population.
         
         :param dataSet: Data set that will be used for evolution and evaluation of solution.
         :type dataSet: EvoDataSet
@@ -240,7 +245,7 @@ class FunGenes(object):
         :type classSamples: bool
         :raise CanNotFillSlotException: This exception raises when there is no free sample that can fill empty slot.
         """
-        slots, slotsVal=self._classSamples, self._classSamplesVal if classSamples else self._outerSamples, self._outerSamplesVal
+        slots, slotsVal=(self._classSamples, self._classSamplesVal) if classSamples else (self._outerSamples, self._outerSamplesVal)
 
         for _ in range(n):
             #select one
@@ -262,13 +267,13 @@ class FunGenes(object):
         """
         indicies=self._classDataIndices if classSamples else self._outerIndices
         sel=random.randrange(indicies.shape[0])
-        actSel=self._dataSet.data[indicies[sel]].todense()
+        actSel=self._dataSet.data[indicies[sel]].todense().A1   #.A1 matrix to vector conversion
         if any(True for x in t if np.allclose(actSel,x)):
             #not unique sample
             #find next that is free
             tmpSel=(sel+1)%indicies.shape[0]
             while tmpSel!=sel:
-                actSel=self._dataSet.data[indicies[tmpSel]].todense()
+                actSel=self._dataSet.data[indicies[tmpSel]].todense().A1   #.A1 matrix to vector conversion
                 if not any(True for x in t if np.allclose(actSel,x)):
                     #unique
                     break
@@ -362,12 +367,15 @@ class FunGenes(object):
         """
         Performs mutation. (randomly selects one mutation or none)
         
+        Also invalidates some internal members.
+        
         :param m: Maximum number of mutations that can be performed on
             that genes.
         :type m: int
         :return: Number of mutations actually performed.
         :rtype: int
         """
+        self._fenotypeGenerated=None
         
         mutK=[
             self.mutateClassSamples,
@@ -470,6 +478,8 @@ class FunGenes(object):
         """
         self._mutations-=1
         self._fun=random.choice(self.FUNCTIONS)
+        #TODO: not all functions are suitable
+        #LinearNDInterpolator  cipy.spatial.qhull.QhullError: QH6214 qhull input error: not enough points(3) to construct initial simplex (need 6)
         
     
     @property
@@ -477,7 +487,7 @@ class FunGenes(object):
         """
         Fenotype of that individual.
         """
-        
+
         if self._fenotypeGenerated is None:
             self._fenotypeGenerated=self._fun(self._classSamples+self._outerSamples,
                 self._classSamplesVal+self._outerSamplesVal)

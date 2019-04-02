@@ -44,10 +44,32 @@ def fLinInterExtNearest(data, vals):
     f = LinearNDInterpolator(data, vals)
     fn=NearestNDInterpolator(data, vals)
 
-    def res(x,y):
-        v=f(x,y)
+    def res(p):
+        v=f(p)
         if math.isnan(v):
-            return fn(x,y)
+            """
+            TODO:
+            Traceback (most recent call last):
+  File "/home/windionleaf/Development/python/ClassMark/classmark/core/experiment.py", line 385, in run
+    for step, (predicted, realLabels) in enumerate(self._experiment.evaluationMethod.run(c, data, labels, extMap)):
+  File "/home/windionleaf/Development/python/ClassMark/classmark/core/validation.py", line 62, in run
+    classifier.train(trainFeatures, trainLabels)
+  File "/home/windionleaf/Development/python/ClassMark/plugins/classifiers/plugin_ceef/ceef/ceef.py", line 124, in train
+    self._evolvedCls=max(population, key=lambda i: i.score)
+  File "/home/windionleaf/Development/python/ClassMark/plugins/classifiers/plugin_ceef/ceef/ceef.py", line 124, in <lambda>
+    self._evolvedCls=max(population, key=lambda i: i.score)
+  File "/home/windionleaf/Development/python/ClassMark/plugins/classifiers/plugin_ceef/ceef/individual.py", line 78, in score
+    if self.predict(self._dataSet.data[sampleInd].todense().A1)==self._dataSet.labels[sampleInd]:
+  File "/home/windionleaf/Development/python/ClassMark/plugins/classifiers/plugin_ceef/ceef/individual.py", line 96, in predict
+    predicted[i] = fg.fenotype(sample)
+  File "/home/windionleaf/Development/python/ClassMark/plugins/classifiers/plugin_ceef/ceef/functions.py", line 50, in res
+    return fn(p)
+  File "/home/windionleaf/.local/lib/python3.6/site-packages/scipy/interpolate/ndgriddata.py", line 81, in __call__
+    return self.values[i]
+TypeError: only integer scalar arrays can be converted to a scalar index
+
+            """
+            return fn(p)
         else:
             return v
     return res
@@ -68,19 +90,32 @@ def fNearest2x2FromEachClass(data, vals):
     :type vals: List[float]
     """
     #nearest 2x2 (from each class) interpolate
-    classData=[x for i, x in enumerate(data) if vals[i]!=0]
-    outerData=[x for i, x in enumerate(data) if vals[i]==0]
+    classData=[]
+    classDataInd=[]
+    outerData=[]
+    outerDataInd=[]
+    for i, x in enumerate(data):
+        if vals[i]!=0:
+            classData.append(x)
+            classDataInd.append(i)
+        else:
+            outerData.append(x)
+            outerDataInd.append(i)
+
 
     fnClass=cKDTree(classData)
+    del classData
+    
     fnOuter=cKDTree(outerData)
-
-    def res(x,y):
+    del outerData
+    
+    def res(p):
         #check the nearest
-        p=[x,y]
+
         dC, iC=fnClass.query(p,2)
         dO, _=fnOuter.query(p,2)
 
-        valuesC=[vals[data.index(classData[i])] for i in iC]
+        valuesC=[vals[classDataInd[i]] for i in iC]
 
         numerator=0
         denominator=0
@@ -116,10 +151,10 @@ def fLinInterExtNearest2x2(data, vals):
 
     f = LinearNDInterpolator(data, vals)
     fN= fNearest2x2FromEachClass(data, vals)
-    def res(x,y):
-        v=f(x,y)
+    def res(p):
+        v=f(p)
         if math.isnan(v):
-            return fN(x,y)
+            return fN(p)
         else:
             return v
     return res
@@ -139,30 +174,46 @@ def fNearest2x2FromEachClass2AtAll(data, vals):
     :type vals: List[float]
     """
 
-    classData=[x for i, x in enumerate(data) if vals[i]!=0]
-    outerData=[x for i, x in enumerate(data) if vals[i]==0]
-    fnAll=cKDTree(data)
-    fnClass=cKDTree(classData)
-    fnOuter=cKDTree(outerData)
 
-    def res(x,y):
+    classData=[]
+    classDataInd=[]
+    outerData=[]
+    outerDataInd=[]
+    for i, x in enumerate(data):
+        if vals[i]!=0:
+            classData.append(x)
+            classDataInd.append(i)
+        else:
+            outerData.append(x)
+            outerDataInd.append(i)
+            
+    fnAll=cKDTree(data)
+    
+    fnClass=cKDTree(classData)
+    del classData
+    
+    fnOuter=cKDTree(outerData)
+    del outerData
+    
+    
+
+    def res(p):
         #check the nearest
-        p=[x,y]
         numerator=0
         denominator=0
         DA, IA = fnAll.query(p,2)
-        DA=list(DA)
-        IA=list(IA)
+        DA=DA.tolist()
+        IA=IA.tolist()
 
         dC, iC=fnClass.query(p,2)
         for d,i in zip(dC, iC):
             DA.append(d)
-            IA.append(data.index(classData[i]))
+            IA.append(classDataInd[i])
 
         dO, ic=fnOuter.query(p,2)
         for d,i in zip(dO, ic):
             DA.append(d)
-            IA.append(data.index(outerData[i]))
+            IA.append(outerDataInd[i])
 
         for dA, iA in zip(DA, IA):
             if dA==0:
@@ -191,10 +242,10 @@ def fLinInterExtNearest2x2FromEachClass2AtAll(data, vals):
 
     f = LinearNDInterpolator(data, vals)
     fN= fNearest2x2FromEachClass2AtAll(data, vals)
-    def res(x,y):
-        v=f(x,y)
+    def res(p):
+        v=f(p)
         if math.isnan(v):
-            return fN(x,y)
+            return fN(p)
         else:
             return v
     return res

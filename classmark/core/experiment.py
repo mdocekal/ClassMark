@@ -394,7 +394,7 @@ class ExperimentRunner(QThread):
                 if step+2<=steps:
                     #TODO: MULTILANGUAGE
                     self.actInfo.emit("testing {} {}/{}".format(c.getName(), step+2, steps))
-        
+                
                 self.writeConfMat(predicted, realLabels)
 
                 print(classification_report(realLabels, predicted))

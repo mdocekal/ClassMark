@@ -70,7 +70,7 @@ class Validator(Plugin):
 
             #predict the labels
             predictedLabels=classifier.predict(testFeatures)
-            
+
             yield (predictedLabels, labels[testIndices])
             
     def _featuresStep(self, data:np.array,extMap:List[FeatureExtractor], labels:np.array=None, fit=False):

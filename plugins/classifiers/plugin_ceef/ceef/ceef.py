@@ -27,8 +27,8 @@ class CEEF(Classifier):
     SELECTION_METHODS={"RANK":Rank(), "RULETE":Rulete()}
     
     def __init__(self, normalizer:BaseNormalizer=None, generations:int=1000, stopAccuracy:float=None, \
-                 population:int=5, selectionMethod:Selector=Rank(), runs:int=1, randomSeed:int=None, maxMutations=5, \
-                 crossoverProb:float=0.75, testSetSize:float=0.25):
+                 population:int=5, selectionMethod:Selector="RANK", runs:int=1, randomSeed:int=None, maxMutations=5, \
+                 crossoverProb:float=0.75, testSetSize:float=0.1):
         """
         Classifier initialization.
         
@@ -112,37 +112,38 @@ class CEEF(Classifier):
         
         #let's create train and test set
         dataset=EvoDataSet(data, labels,self._testSetSize.value,self._randomSeed.value)
-
+        self.trainedClasses=dataset.classes
+        
         for run in range(self._runs.value):
             #run the evolution for each class
             
             #create initial population
-            population=[Individual.createInit(dataset, self._maxMutations.value)]
+            population=[Individual.createInit(dataset, self._maxMutations.value) for _ in range(self._population.value)]
             
             #evaluate
             #set the best as the result
             self._evolvedCls=max(population, key=lambda i: i.score)
             
             generations=1
-            while (self._stopAccuracy.value is None or self._stopAccuracy.value<self._evolvedCls.score) and \
-                   self._generations.value<=generations:
+            while (self._stopAccuracy.value is None or self._stopAccuracy.value>self._evolvedCls.score) and \
+                   self._generations.value>=generations:
+                print(self._evolvedCls.score)
+                #get new population (in elitistic fashion)
+                #    performs steps:
+                #        selection
+                #        crossover
+                #        mutation
+                #        replacement
+                population=self._generateNewPopulation(population)
                 
-                    #get new population (in elitistic fashion)
-                    #    performs steps:
-                    #        selection
-                    #        crossover
-                    #        mutation
-                    #        replacement
-                    population=self._generateNewPopulation(population)
-                    
-                    #evaluate
-                    actBest=max(population, key=lambda i: i.score)
-                    
-                    if actBest.score>=self._evolvedCls.score:
-                        #new best one
-                        self._evolvedCls=actBest
-                    
-        
+                #evaluate
+                actBest=max(population, key=lambda i: i.score)
+                
+                if actBest.score>=self._evolvedCls.score:
+                    #new best one
+                    self._evolvedCls=actBest
+                
+                generations+=1
                 
     def _generateNewPopulation(self, population:List[Individual]):
         """
@@ -154,6 +155,7 @@ class CEEF(Classifier):
         :return: New population
         :rtype: List[Individual]
         """
+        print("_generateNewPopulation enter")
         selMethod=self.SELECTION_METHODS[self._selectionMethod.value]
         
         newPopulation=[self._evolvedCls]
@@ -162,7 +164,7 @@ class CEEF(Classifier):
             theChosenOnes=selMethod(population,2)   #we are selecting two parents
             
             #crossover
-            if random.uniform(0,1)<=self._crossoverProb:
+            if random.uniform(0,1)<=self._crossoverProb.value:
                 #the crossover is requested
                 newIndividual=Individual.crossover(theChosenOnes)
             else:
@@ -173,14 +175,14 @@ class CEEF(Classifier):
             newIndividual.mutate(self._maxMutations.value)
             
             newPopulation.append(newIndividual)
-        
-        
+        print("_generateNewPopulation leave")
+        return newPopulation
         
     def predict(self, data):
-        predicted=np.empty(data.shape[0])
+        predicted=np.empty(data.shape[0], dtype=self.trainedClasses.dtype)
         
         for i, sample in enumerate(data):
             predicted[i]=self._evolvedCls.predict(sample.todense().A1)
-            print(predicted[i])
+
         return predicted
     

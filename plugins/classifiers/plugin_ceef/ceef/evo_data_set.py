@@ -29,10 +29,12 @@ class EvoDataSet(object):
         :type randomSeed: int
         """
         self._data=data
+        
         self._labels=labels
         self._train, self._test=next(StratifiedShuffleSplit(test_size=testSize, random_state=randomSeed).split(data, labels))
-        self._classes=list(np.unique(labels))
-        
+        self._classes=np.unique(labels)
+        self._testData=self._data[self._test].A
+        self._testLabels=self._labels[self._test]
     @property
     def data(self):
         """
@@ -59,7 +61,7 @@ class EvoDataSet(object):
         All classes/labels.
         
         :return: classes
-        :rtype: List[Any]
+        :rtype: np.array
         """
         return self._classes
         
@@ -75,12 +77,22 @@ class EvoDataSet(object):
         return self._train
     
     @property
-    def testIndices(self):
+    def testData(self):
         """
-        Indices of test set.
+        All data that should be used for testing.
         
-        :return: indices
-        :rtype: np.array
+        :return: Data in test set.
+        :rtype data:np.array
         """
         
-        return self._test
+        return self._testData
+    @property
+    def testLabels(self):
+        """
+        All labels that should be used for testing.
+        
+        :return: Labels in test set.
+        :rtype data:np.array
+        """
+        
+        return self._testLabels

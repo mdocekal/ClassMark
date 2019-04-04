@@ -12,6 +12,8 @@ import numpy as np
 import random
 from . import functions
 from typing import Callable, List
+from scipy.sparse import csr_matrix
+import time
 
 class Individual(object):
     """
@@ -51,6 +53,7 @@ class Individual(object):
         
         #let's add fun genes for each class
         for c in dataSet.classes:
+
             indices=[]
             outerIndices=[]
             for i in dataSet.trainIndices:
@@ -60,7 +63,9 @@ class Individual(object):
                     outerIndices.append(i)
             indices=np.array(indices)
             outerIndices=np.array(outerIndices)
+
             theNewSelf._funGenes.append(FunGenes.createInit(dataSet,indices,outerIndices,maxMutations))
+
         return theNewSelf
     
     @property
@@ -72,29 +77,41 @@ class Individual(object):
         :rtype: float
         """
         if self._score is None:
+            print("CALC score enter")
             self._score=0
-            #ok we do not have it yet so lets calc it
-            for sampleInd in self._dataSet.testIndices:
-                if self.predict(self._dataSet.data[sampleInd].todense().A1)==self._dataSet.labels[sampleInd]:
-                    self._score+=1
+            #ok, we do not have it yet so lets calc it
+            predicted=self.predict(self._dataSet.testData)
+            
+            self._score=np.sum(predicted == self._dataSet.testLabels)
         
-            if self._dataSet.testIndices.shape[0]>0:
-                self._score/=self._dataSet.testIndices.shape[0]
+            if self._dataSet.testData.shape[0]>0:
+                self._score/=self._dataSet.testData.shape[0]
+            
+            print("CALC score leave")
         return self._score
     
-    def predict(self, sample):
+    def predict(self, samples):
         """
-        Predicts class for given sample according to actual chromosome.
+        Predicts class for given samples according to actual chromosome.
         
-        :param sample: The data sample.
-        :type sample: np.array
-        :return: Predicted class.
-        :rtype: Any
+        :param samples: The data samples.
+        :type samples: np.array
+        :return: Predicted classes for samples.
+        :rtype: np.array
         """
-        predicted = np.empty(len(self._funGenes))
+        predicted=np.empty(samples.shape[0], self._dataSet.classes.dtype)
+        
+        funVals=np.empty((len(self._funGenes),samples.shape[0]))
+
         for i, fg in enumerate(self._funGenes):
-            predicted[i] = fg.fenotype(sample)
-        return self._dataSet.classes[np.argmax(predicted)]
+            funVals[i] = fg.fenotype(samples)
+            
+        funVals=funVals.T   #for better iteration
+        
+        for i, row in enumerate(funVals):
+            predicted[i]=self._dataSet.classes[np.argmax(row)]
+
+        return predicted
             
     @classmethod      
     def crossover(cls, individuals):
@@ -109,7 +126,7 @@ class Individual(object):
         
         theNewSib=cls(individuals[0]._dataSet)
         
-        for fi in range(len(individuals._funGenes)):
+        for fi in range(len(individuals[0]._funGenes)):
             #for each fun gene
             theNewSib._funGenes.append(FunGenes.crossover([i._funGenes[fi] for i in individuals]))
             
@@ -131,9 +148,14 @@ class Individual(object):
         
         #randomly selects number of mutations
         actM=random.randint(0,m)
+
+        order=[o for o in range(len(self._funGenes))]
+        random.shuffle(order)
         
-        for fG in random.shuffle(self._funGenes):
+        for o in order:
             #we are iterating f. genes in random order
+            fG=self._funGenes[o]
+            
             actM-=fG.mutate(actM)
             if actM<=0:
                 #maximal number of mutations exceeded
@@ -183,7 +205,7 @@ class FunGenes(object):
         self._classSamplesVal=[]
         
         self._outerSamples=[]
-        self._outerSamplesVal=[]
+        #no need to store values of outer samples because be default all have zero
 
         self._fenotypeGenerated=None
 
@@ -224,14 +246,14 @@ class FunGenes(object):
             #if we have at least one than it is ok
             if len(self._classSamples)==0:
                 raise e
-            
+
         try:
             self._addNewSlots(numberOfOuterSlots, False)
         except self.CanNotFillSlotException as e:
             #if we have at least one than it is ok
             if len(self._outerSamples)==0:
                 raise e
-        
+
         return self
         
             
@@ -245,14 +267,17 @@ class FunGenes(object):
         :type classSamples: bool
         :raise CanNotFillSlotException: This exception raises when there is no free sample that can fill empty slot.
         """
-        slots, slotsVal=(self._classSamples, self._classSamplesVal) if classSamples else (self._outerSamples, self._outerSamplesVal)
+
+        slots=self._classSamples if classSamples else self._outerSamples
 
         for _ in range(n):
             #select one
             actSel=self._selectUniqueSample(slots, classSamples)
             slots.append(actSel)
-            slotsVal.append(self._occurences(actSel,classSamples))
+            if classSamples:
+                self._classSamplesVal.append(1)
                     
+
     def _selectUniqueSample(self, t, classSamples):
         """
         Selects unique sample.
@@ -265,6 +290,7 @@ class FunGenes(object):
         :return: selected sample
         :rtype: np.array
         """
+
         indicies=self._classDataIndices if classSamples else self._outerIndices
         sel=random.randrange(indicies.shape[0])
         actSel=self._dataSet.data[indicies[sel]].todense().A1   #.A1 matrix to vector conversion
@@ -282,9 +308,11 @@ class FunGenes(object):
             if tmpSel==sel:
                 #couldn't get unique
                 raise self.CanNotFillSlotException()
-        
+
         return actSel
         
+    '''
+    TODO: DELETE
     def _occurences(self, sample,classSamples):
         """
         Counts occurrences of given sample in class data.
@@ -296,10 +324,23 @@ class FunGenes(object):
         :return: Number of occurrences of sample but for classSamples=False returns 0.
         :rtype: int
         """
+        
+
         if not classSamples:
             return 0
+ 
+        
+        sampleSparse=csr_matrix(sample)
 
-        return sum(1 for i in self._classDataIndices if np.allclose(self._dataSet.data[i].todense(),sample))
+        res=0
+        for i in self._classDataIndices:
+            act=self._dataSet.data[i]
+            if sampleSparse.nnz==act.nnz:
+                res+=1
+
+        return res
+    '''
+    
     
     @classmethod      
     def crossover(cls, funGenes):
@@ -332,7 +373,7 @@ class FunGenes(object):
                 #parent with shorter part of chromosome was chosen
                 #just skip it
                 pass
-            
+        
         #now the crossover for outer samples
         maxLength=max( len(f._outerSamples) for f in funGenes)
         for i in range(maxLength):
@@ -344,7 +385,6 @@ class FunGenes(object):
                     continue
                     
                 newSib._outerSamples.append(parentForGene._outerSamples[i])
-                newSib._outerSamplesVal.append(parentForGene._outerSamplesVal[i])
             except IndexError:
                 #parent with shorter part of chromosome was chosen
                 #just skip it
@@ -352,6 +392,8 @@ class FunGenes(object):
             
         return newSib
     
+    '''
+    TODO:REMOVE
     @classmethod
     def _slotsCrossover(cls, classSamples, *funGenes):
         """
@@ -362,6 +404,8 @@ class FunGenes(object):
         :param funGenes: FunGenes for crossover.
         :type funGenes: FunGenes
         """
+        pass
+        '''
     
     def mutate(self, m:int):
         """
@@ -378,11 +422,11 @@ class FunGenes(object):
         self._fenotypeGenerated=None
         
         mutK=[
-            self.mutateClassSamples,
-            self.mutateOuterSamples,
-            self.mutateClassSamplesSlots,
-            self.mutateOuterSamplesSlots,
-            self.mutateFunction
+            self._mutateClassSamples,
+            self._mutateOuterSamples,
+            self._mutateClassSamplesSlots,
+            self._mutateOuterSamplesSlots,
+            self._mutateFunction
             ]
         
         #reload the mutations counter
@@ -416,11 +460,11 @@ class FunGenes(object):
         :type classSamples: bool
         """
         samples=self._classSamples if classSamples else self._outerSamples
-        samplesVal=self._classSamplesVal if classSamples else self._outerSamplesVal
-        
+
         #we select the maximum according to number of slots
         #because we are trying to minimize chance, that one slot will be mutated multiple times.
         maxMut=len(samples) if self._mutations>len(samples) else self._mutations
+
         
         mut=random.randint(1,maxMut)
         for _ in range(mut):
@@ -431,7 +475,8 @@ class FunGenes(object):
                 
                 #overwrite
                 samples[sel]=changeTo
-                samplesVal[sel]=self._occurences(changeTo,classSamples)
+                if classSamples:
+                    self._classSamplesVal[sel]=1
             except self.CanNotFillSlotException:
                 #ok we are out of data
                 break
@@ -458,20 +503,33 @@ class FunGenes(object):
         """
         
         slots=self._classSamples if classSamples else self._outerSamples
+
+        maxMut=min(self._mutations,len(slots)-1)
+        if maxMut==0:
+            #ok nevermind maybe later
+            return
         
-        mut=random.randint(1,self._mutations)
+        mut=random.randint(1,maxMut)
+        
+        
+        self._mutations-=mut
         
         if len(slots)==1 or random.randint(0,1)==1:
             #add
-            self._addNewSlots(mut, classSamples)
+            try:
+                self._addNewSlots(mut, classSamples)
+            except self.CanNotFillSlotException as e:
+                #not enought new data
+                return
+            
         else:
-            slotsVal=self._classSamplesVal if classSamples else self._outerSamplesVal
             #remove
             for _ in range(mut):
                 i=random.randrange(len(slots))
                 del slots[i]
-                del slotsVal[i]
-    
+                if classSamples:
+                    del self._classSamplesVal[i]
+  
     def _mutateFunction(self):
         """
         Changes actual function.
@@ -489,8 +547,8 @@ class FunGenes(object):
         """
 
         if self._fenotypeGenerated is None:
-            self._fenotypeGenerated=self._fun(self._classSamples+self._outerSamples,
-                self._classSamplesVal+self._outerSamplesVal)
+            self._fenotypeGenerated=self._fun(np.array(self._classSamples),np.array(self._outerSamples),
+                np.array(self._classSamplesVal))
 
         return self._fenotypeGenerated
 

@@ -12,7 +12,9 @@ This module could be used for auto importing in a way:
 from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
 from scipy.spatial import cKDTree
 import math
+import numpy as np
 
+'''
 def fLinInterExtWithConst(data, vals, c=0):
     """
     Performs linear interpolation inside convex hull that is defined be
@@ -73,68 +75,61 @@ TypeError: only integer scalar arrays can be converted to a scalar index
         else:
             return v
     return res
-
-def fNearest2x2FromEachClass(data, vals):
+'''
+def fNearest2x2FromEachClass(classData, outerData, classVals):
     """
     Finds two nearest from each class and performs weighted average of their values.
     As weight is used distance. If distance from some data sample is zero than it's
     value is returned. Beware that if there is multiple samples with zero distance
     than zero value(outer) haves priority. 
     
-    Outer class must have values of 0 and actual class must have non zero values.
+    Outer class have values of 0 (by default) and actual class must have non zero values.
     
     
-    :param data: Coords for interpolation.
-    :type data: List[np.array]
-    :param vals: Values on given coords.
-    :type vals: List[float]
+    :param classData: Class coords for interpolation.
+    :type classData: np.array
+    :param outerData: Outer coords for interpolation.
+    :type outerData: np.array
+    :param classVals: Values on class coords.
+    :type classVals: np.array
     """
     #nearest 2x2 (from each class) interpolate
-    classData=[]
-    classDataInd=[]
-    outerData=[]
-    outerDataInd=[]
-    for i, x in enumerate(data):
-        if vals[i]!=0:
-            classData.append(x)
-            classDataInd.append(i)
-        else:
-            outerData.append(x)
-            outerDataInd.append(i)
-
 
     fnClass=cKDTree(classData)
-    del classData
+    fnClassMaxNeigh=1 if classData.shape[0]<2 else 2
     
     fnOuter=cKDTree(outerData)
-    del outerData
+    fnOuterMaxNeigh=1 if outerData.shape[0]<2 else 2
     
     def res(p):
         #check the nearest
 
-        dC, iC=fnClass.query(p,2)
-        dO, _=fnOuter.query(p,2)
+        dC, iC=fnClass.query(p,fnClassMaxNeigh)
+        dO, _=fnOuter.query(p,fnOuterMaxNeigh)
 
-        valuesC=[vals[classDataInd[i]] for i in iC]
+        values=np.hstack((classVals[iC],np.zeros_like(dO)))
+        del iC
+        distances=np.hstack((dC,dO))
 
-        numerator=0
-        denominator=0
-        for d in dO:
-            if d==0:
-                return 0
-            denominator+=1/d
-        for i, d in enumerate(dC):
-            if d==0:
-                return valuesC[i]
-            x=1/d
-            numerator+=valuesC[i]*x
-            denominator+=x
-
-        return numerator/denominator
-
+        with np.errstate(divide='ignore',invalid='ignore'):
+            #we want to detect zero distance values
+            #this values will show as inf in 1/distances and nans in avg
+            distances=1./distances
+            avg=np.average(values, axis=1, weights=distances)
+            
+            #find problems, if exists
+            problems=np.where(np.isnan(avg))
+            if problems[0].shape[0]>0:
+                problemCols=np.where(np.isinf(distances[problems]))
+                
+                #change the nans with values of the problematic points
+                avg[problems]=values[problems][problemCols]
+            
+            return avg
+        
     return res
 
-
+'''
 def fLinInterExtNearest2x2(data, vals):
     """
     Performs linear interpolation inside convex hull that is defined be
@@ -159,8 +154,8 @@ def fLinInterExtNearest2x2(data, vals):
             return v
     return res
 
-
-def fNearest2x2FromEachClass2AtAll(data, vals):
+'''
+def fNearest2x2FromEachClass2AtAll(classData, outerData, classVals):
     """
     Finds two nearest from each class, two at all and performs weighted average of their values.
     As weight is used distance. If distance from some data sample is zero than it's
@@ -168,64 +163,56 @@ def fNearest2x2FromEachClass2AtAll(data, vals):
     
     Outer class must have values of 0 and actual class must have non zero values.
     
-    :param data: Coords for interpolation.
-    :type data: List[np.array]
-    :param vals: Values on given coords.
-    :type vals: List[float]
+    :param classData: Class coords for interpolation.
+    :type classData: np.array
+    :param outerData: Outer coords for interpolation.
+    :type outerData: np.array
+    :param classVals: Values on class coords.
+    :type classVals: np.array
     """
 
 
-    classData=[]
-    classDataInd=[]
-    outerData=[]
-    outerDataInd=[]
-    for i, x in enumerate(data):
-        if vals[i]!=0:
-            classData.append(x)
-            classDataInd.append(i)
-        else:
-            outerData.append(x)
-            outerDataInd.append(i)
-            
-    fnAll=cKDTree(data)
+  
+    fnAll=cKDTree(np.vstack((classData,outerData)))
+    valsAll=np.hstack((classVals,np.zeros(outerData.shape[0])))
+    fnAllMaxNeigh=1 if valsAll.shape[0]<2 else 2
     
     fnClass=cKDTree(classData)
-    del classData
+    fnClassMaxNeigh=1 if classData.shape[0]<2 else 2
     
     fnOuter=cKDTree(outerData)
-    del outerData
+    fnOuterMaxNeigh=1 if outerData.shape[0]<2 else 2
     
-    
-
     def res(p):
         #check the nearest
-        numerator=0
-        denominator=0
-        DA, IA = fnAll.query(p,2)
-        DA=DA.tolist()
-        IA=IA.tolist()
 
-        dC, iC=fnClass.query(p,2)
-        for d,i in zip(dC, iC):
-            DA.append(d)
-            IA.append(classDataInd[i])
-
-        dO, ic=fnOuter.query(p,2)
-        for d,i in zip(dO, ic):
-            DA.append(d)
-            IA.append(outerDataInd[i])
-
-        for dA, iA in zip(DA, IA):
-            if dA==0:
-                return vals[iA]
-            x=1/dA
-            numerator+=x*vals[iA]
-            denominator+=x
-
-        return numerator/denominator
+        DA, IA = fnAll.query(p,fnAllMaxNeigh)
+        dC, iC=fnClass.query(p,fnClassMaxNeigh)
+        dO, _=fnOuter.query(p,fnOuterMaxNeigh)
+        
+        values=np.hstack((valsAll[IA],classVals[iC],np.zeros_like(dO)))
+        del iC
+        del IA
+        distances=np.hstack((DA,dC,dO))
+        
+        with np.errstate(divide='ignore',invalid='ignore'):
+            #we want to detect zero distance values
+            #this values will show as inf in 1/distances and nans in avg
+            distances=1./distances
+            avg=np.average(values, axis=1, weights=distances)
+            
+            #find problems, if exists
+            problems=np.where(np.isnan(avg))
+            if problems[0].shape[0]>0:
+                problemCols=np.where(np.isinf(distances[problems]))
+                
+                #change the nans with values of the problematic points
+                avg[problems]=values[problems][problemCols]
+            
+            return avg
 
     return res
-
+'''
 def fLinInterExtNearest2x2FromEachClass2AtAll(data, vals):
     """
     Performs linear interpolation inside convex hull that is defined be
@@ -249,3 +236,4 @@ def fLinInterExtNearest2x2FromEachClass2AtAll(data, vals):
         else:
             return v
     return res
+'''

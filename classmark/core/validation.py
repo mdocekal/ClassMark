@@ -125,11 +125,13 @@ class Validator(Plugin):
                     features=extractor.extract(data)
             else:
                 if fit:
-                    features=extractor.fitAndExtract(data[:,[concatenatePass]],labels)
+                    actF=extractor.fitAndExtract(data[:,[concatenatePass]],labels)
                 else:
-                    features=extractor.extract(data[:,[concatenatePass]])
+                    actF=extractor.extract(data[:,[concatenatePass]])
+                    
+                features= actF if features is None else hstack([features,actF])
             
-        return features
+        return features.tocsr()
     
     def step(self):
         """

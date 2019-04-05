@@ -15,7 +15,7 @@ class EvoDataSet(object):
     """
 
 
-    def __init__(self, data, labels, testSize, randomSeed):
+    def __init__(self, data, labels, testSize, randomSeed, nChanges=0):
         """
         Initializes dataset for evolution.
         
@@ -27,14 +27,26 @@ class EvoDataSet(object):
         :type testSize: float
         :param randomSeed:If not None than fixed seed is used.
         :type randomSeed: int
+        :param nChanges: How many times you will be changing the test set.
+        :type nChanges: int
         """
         self._data=data
         
         self._labels=labels
-        self._train, self._test=next(StratifiedShuffleSplit(test_size=testSize, random_state=randomSeed).split(data, labels))
         self._classes=np.unique(labels)
-        self._testData=self._data[self._test].A
-        self._testLabels=self._labels[self._test]
+        
+        #n_splits=nChanges+1    because we are using change at initialization
+        self._shuffler=StratifiedShuffleSplit(n_splits=nChanges+1, test_size=testSize, random_state=randomSeed).split(data, labels)
+        self.changeTestSet()
+        
+    def changeTestSet(self):
+        """
+        Randomly selects new samples for testing.
+        """
+        _, test=next(self._shuffler)
+        self._testData=self._data[test].A
+        self._testLabels=self._labels[test]
+        
     @property
     def data(self):
         """
@@ -64,17 +76,6 @@ class EvoDataSet(object):
         :rtype: np.array
         """
         return self._classes
-        
-    @property
-    def trainIndices(self):
-        """
-        Indices of train set.
-        
-        :return: indices
-        :rtype: np.array
-        """
-        
-        return self._train
     
     @property
     def testData(self):

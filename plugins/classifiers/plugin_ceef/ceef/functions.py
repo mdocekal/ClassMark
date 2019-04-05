@@ -76,6 +76,21 @@ TypeError: only integer scalar arrays can be converted to a scalar index
             return v
     return res
 '''
+def fNearest(classData, outerData, classVals):
+    """
+    Linear interpolation according to nearest neighbour.
+    
+    :param classData: Class coords for interpolation.
+    :type classData: np.array
+    :param outerData: Outer coords for interpolation.
+    :type outerData: np.array
+    :param classVals: Values on class coords.
+    :type classVals: np.array
+    """
+    f=NearestNDInterpolator(np.vstack((classData,outerData)), np.hstack((classVals,np.full(outerData.shape[0], -1))))
+
+    return f
+    
 def fNearest2x2FromEachClass(classData, outerData, classVals):
     """
     Finds two nearest from each class and performs weighted average of their values.
@@ -105,9 +120,17 @@ def fNearest2x2FromEachClass(classData, outerData, classVals):
         #check the nearest
 
         dC, iC=fnClass.query(p,fnClassMaxNeigh)
+        if fnClassMaxNeigh==1:
+            #we need col vectors
+            dC=dC[:, np.newaxis]
+            iC=iC[:, np.newaxis]
+            
         dO, _=fnOuter.query(p,fnOuterMaxNeigh)
+        if fnOuterMaxNeigh==1:
+            #we need col vectors
+            dO=dO[:, np.newaxis]
 
-        values=np.hstack((classVals[iC],np.zeros_like(dO)))
+        values=np.hstack((classVals[iC],np.full_like(dO, -1)))
         del iC
         distances=np.hstack((dC,dO))
 
@@ -115,15 +138,35 @@ def fNearest2x2FromEachClass(classData, outerData, classVals):
             #we want to detect zero distance values
             #this values will show as inf in 1/distances and nans in avg
             distances=1./distances
+            
+            """
+            Traceback (most recent call last):
+  File "/home/windionleaf/Development/python/ClassMark/classmark/core/experiment.py", line 385, in run
+    for step, (predicted, realLabels) in enumerate(self._experiment.evaluationMethod.run(c, data, labels, extMap)):
+  File "/home/windionleaf/Development/python/ClassMark/classmark/core/validation.py", line 72, in run
+    predictedLabels=classifier.predict(testFeatures)
+  File "/home/windionleaf/Development/python/ClassMark/plugins/classifiers/plugin_ceef/ceef/ceef.py", line 185, in predict
+    predicted[i]=self._evolvedCls.predict(sample.todense().A1)
+  File "/home/windionleaf/Development/python/ClassMark/plugins/classifiers/plugin_ceef/ceef/individual.py", line 105, in predict
+    funVals[i] = fg.fenotype(samples)
+  File "/home/windionleaf/Development/python/ClassMark/plugins/classifiers/plugin_ceef/ceef/functions.py", line 126, in res
+    avg=np.average(values, axis=1, weights=distances)
+  File "/home/windionleaf/.local/lib/python3.6/site-packages/numpy/lib/function_base.py", line 419, in average
+    scl = wgt.sum(axis=axis, dtype=result_dtype)
+  File "/home/windionleaf/.local/lib/python3.6/site-packages/numpy/core/_methods.py", line 36, in _sum
+    return umr_sum(a, axis, dtype, out, keepdims, initial)
+numpy.AxisError: axis 1 is out of bounds for array of dimension 1
+
+            """
             avg=np.average(values, axis=1, weights=distances)
             
             #find problems, if exists
             problems=np.where(np.isnan(avg))
             if problems[0].shape[0]>0:
-                problemCols=np.where(np.isinf(distances[problems]))
+                problemsCols=(problems[0],np.array(np.argmax(np.isinf(distances[problems]),axis=1)))    #we are interested in the first only
                 
                 #change the nans with values of the problematic points
-                avg[problems]=values[problems][problemCols]
+                avg[problems]=values[problemsCols]
             
             return avg
         
@@ -174,7 +217,7 @@ def fNearest2x2FromEachClass2AtAll(classData, outerData, classVals):
 
   
     fnAll=cKDTree(np.vstack((classData,outerData)))
-    valsAll=np.hstack((classVals,np.zeros(outerData.shape[0])))
+    valsAll=np.hstack((classVals,np.full(outerData.shape[0], -1)))
     fnAllMaxNeigh=1 if valsAll.shape[0]<2 else 2
     
     fnClass=cKDTree(classData)
@@ -187,10 +230,23 @@ def fNearest2x2FromEachClass2AtAll(classData, outerData, classVals):
         #check the nearest
 
         DA, IA = fnAll.query(p,fnAllMaxNeigh)
+        if fnAllMaxNeigh==1:
+            #we need col vectors
+            DA=DA[:, np.newaxis]
+            IA=IA[:, np.newaxis]
+            
         dC, iC=fnClass.query(p,fnClassMaxNeigh)
+        if fnClassMaxNeigh==1:
+            #we need col vectors
+            dC=dC[:, np.newaxis]
+            iC=iC[:, np.newaxis]
+            
         dO, _=fnOuter.query(p,fnOuterMaxNeigh)
+        if fnOuterMaxNeigh==1:
+            #we need col vectors
+            dO=dO[:, np.newaxis]
         
-        values=np.hstack((valsAll[IA],classVals[iC],np.zeros_like(dO)))
+        values=np.hstack((valsAll[IA],classVals[iC],np.full_like(dO,-1)))
         del iC
         del IA
         distances=np.hstack((DA,dC,dO))
@@ -204,10 +260,9 @@ def fNearest2x2FromEachClass2AtAll(classData, outerData, classVals):
             #find problems, if exists
             problems=np.where(np.isnan(avg))
             if problems[0].shape[0]>0:
-                problemCols=np.where(np.isinf(distances[problems]))
-                
+                problemsCols=(problems[0],np.array(np.argmax(np.isinf(distances[problems]),axis=1)))    #we are interested in the first only
                 #change the nans with values of the problematic points
-                avg[problems]=values[problems][problemCols]
+                avg[problems]=values[problemsCols]
             
             return avg
 

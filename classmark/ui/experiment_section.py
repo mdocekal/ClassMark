@@ -175,6 +175,8 @@ class ExperimentSection(WidgetManager):
         
         #experiment start events
         self._widget.startExperimentButton.clicked.connect(self._experimentStarts)
+        #experiment stop event
+        self._widget.stopExperimentButton.clicked.connect(self._experimentStops)
         
     def _experimentStarts(self):
         """
@@ -194,6 +196,12 @@ class ExperimentSection(WidgetManager):
         self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_RUNNING.value)
         
         self._experimentRunner.start()
+        
+    def _experimentStops(self):
+        """
+        Experiment was stopped by the user.
+        """
+        self._experimentRunner.requestInterruption()
         
     def _incExperimentProgressBar(self):
         """

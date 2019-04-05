@@ -10,10 +10,9 @@ from inspect import getmembers, isfunction
 from .evo_data_set import EvoDataSet
 import numpy as np
 import random
+import copy
 from . import functions
 from typing import Callable, List
-from scipy.sparse import csr_matrix
-import time
 
 class Individual(object):
     """
@@ -36,15 +35,17 @@ class Individual(object):
         self._funGenes=[]
         
     @classmethod
-    def createInit(cls, dataSet:EvoDataSet, maxMutations):
+    def createInit(cls, dataSet:EvoDataSet, maxMutations, maxStartSlots):
         """
         Creates individual for initial population.
-        
+
         :param dataSet: Data set that will be used for evolution and evaluation of solution.
         :type dataSet: EvoDataSet
         :param maxMutations: Maximal number of mutations used in init.
             Is used for determination of maximal number of sample slots for FunGenes.
         :type maxMutations: int
+        :param maxStartSlots: Maximum number of slots for start. (minimal is always 1)
+        :type maxStartSlots: int
         :return: The new individual.
         :rtype: Individual
         """
@@ -54,20 +55,31 @@ class Individual(object):
         #let's add fun genes for each class
         for c in dataSet.classes:
 
-            indices=[]
-            outerIndices=[]
-            for i in dataSet.trainIndices:
-                if dataSet.labels[i]==c:
-                    indices.append(i)
-                else:
-                    outerIndices.append(i)
-            indices=np.array(indices)
-            outerIndices=np.array(outerIndices)
+            indices=np.where(dataSet.labels==c)[0]
+            outerIndices=np.where(dataSet.labels!=c)[0]
 
             theNewSelf._funGenes.append(FunGenes.createInit(dataSet,indices,outerIndices,maxMutations))
 
         return theNewSelf
     
+    def __copy__(self):
+        """
+        Makes copy of itself.
+        
+        :return: Copy of this.
+        :rtype: Individual
+        """
+        c=type(self)(self._dataSet)
+        c._funGenes=[copy.copy(f) for f in self._funGenes]
+        
+        return c
+        
+    def invalidateScore(self):
+        """
+        Invalidates score.
+        """
+        self._score=None
+        
     @property
     def score(self):
         """
@@ -76,8 +88,8 @@ class Individual(object):
         :return: Returns accuracy on given test set.
         :rtype: float
         """
+
         if self._score is None:
-            print("CALC score enter")
             self._score=0
             #ok, we do not have it yet so lets calc it
             predicted=self.predict(self._dataSet.testData)
@@ -86,8 +98,7 @@ class Individual(object):
         
             if self._dataSet.testData.shape[0]>0:
                 self._score/=self._dataSet.testData.shape[0]
-            
-            print("CALC score leave")
+
         return self._score
     
     def predict(self, samples):
@@ -120,8 +131,8 @@ class Individual(object):
         
         :param individuals: Individuals for crossover.
         :type individuals: List[Individual]
-        :return: Sibling of its parents.
-        :rtype: Individual
+        :return: Children of their parents.
+        :rtype: [Individual]
         """
         
         theNewSib=cls(individuals[0]._dataSet)
@@ -187,9 +198,9 @@ class FunGenes(object):
         :param dataSet: Data set that will be used for evolution and evaluation of solution.
         :type dataSet: EvoDataSet
         :param classDataIndices: Indices of current class samples.
-        :type classDataIndices: List[int]
+        :type classDataIndices: np.array indices
         :param outerIndices: Indices of others classes samples.
-        :type outerIndices: List[int]
+        :type outerIndices: np.array indices
         :param function: Function that should be used for estimating likelihood. None means
             that you just want select randomly one of FUNCTIONS
         :type function: Callable[[List[np.array],List[float]],float]
@@ -209,6 +220,19 @@ class FunGenes(object):
 
         self._fenotypeGenerated=None
 
+    def __copy__(self):
+        """
+        Makes copy of itself.
+        
+        :return: Copy of this.
+        :rtype: Individual
+        """
+        c=type(self)(self._dataSet,self._classDataIndices,self._outerIndices,self._fun)
+        c._classSamples=self._classSamples[:]
+        c._classSamplesVal=self._classSamplesVal[:]
+        c._outerSamples=self._outerSamples[:]
+        return c
+    
     @classmethod
     def createInit(cls, dataSet:EvoDataSet, classDataIndices,outerIndices, maxSlots):
         """
@@ -217,9 +241,9 @@ class FunGenes(object):
         :param dataSet: Data set that will be used for evolution and evaluation of solution.
         :type dataSet: EvoDataSet
         :param classDataIndices: Indices of current class samples.
-        :type classDataIndices: List[int]
+        :type classDataIndices: np.array indices
         :param outerIndices: Indices of others classes samples.
-        :type outerIndices: List[int]
+        :type outerIndices: np.array indices
         :param maxSlots: Maximum number of initial class and outer slots. Minimal is one slot.
             So at least 2 slots will be always created (one for each).
         :type maxSlots: int
@@ -231,7 +255,7 @@ class FunGenes(object):
         
         #individuals in initial population haves
         #at least one class sample and one outer sample
-        
+
         if maxSlots<2:
             #at least one
             numberOfClassSlots=1
@@ -239,6 +263,7 @@ class FunGenes(object):
         else:
             numberOfClassSlots=random.randint(1,maxSlots)
             numberOfOuterSlots=random.randint(1,maxSlots)
+
         
         try:
             self._addNewSlots(numberOfClassSlots, True)
@@ -290,7 +315,7 @@ class FunGenes(object):
         :return: selected sample
         :rtype: np.array
         """
-
+        
         indicies=self._classDataIndices if classSamples else self._outerIndices
         sel=random.randrange(indicies.shape[0])
         actSel=self._dataSet.data[indicies[sel]].todense().A1   #.A1 matrix to vector conversion
@@ -426,6 +451,7 @@ class FunGenes(object):
             self._mutateOuterSamples,
             self._mutateClassSamplesSlots,
             self._mutateOuterSamplesSlots,
+            self._mutateClassSampleValue,
             self._mutateFunction
             ]
         
@@ -435,7 +461,7 @@ class FunGenes(object):
         numPer=self._mutations
         while self._mutations>0:
             #select one of mutation kind
-            mutK[random.randrange(len(mutK))]()
+            random.choice(mutK)()
         
         return numPer
     
@@ -530,6 +556,21 @@ class FunGenes(object):
                 if classSamples:
                     del self._classSamplesVal[i]
   
+    def _mutateClassSampleValue(self):
+        """
+        Mutates value of random class sample.
+        """
+
+        mut=random.randint(1,self._mutations)
+        for _ in range(mut):
+            self._mutations-=1
+            sel=random.randrange(len(self._classSamples))
+            
+            change=random.uniform(-1,1)
+            
+            self._classSamplesVal[sel]=self._classSamplesVal[sel]+change
+
+            
     def _mutateFunction(self):
         """
         Changes actual function.

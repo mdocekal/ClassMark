@@ -403,7 +403,7 @@ class AttributesWidgetManager(WidgetManager):
                         continue
                         
                     if x.getName()==pluginName:
-                        if pluginName!=a.value.getName():
+                        if a.value is None or pluginName!=a.value.getName():
                             #create the new plugin and set it
                             a.setValue(x())
         

@@ -18,6 +18,8 @@ from .results import Results
 
 import pandas as pd
 from sklearn.metrics import classification_report, accuracy_score
+from multiprocessing import Process
+
 
 class ClassifierSlot(object):
     """
@@ -328,6 +330,7 @@ class Experiment(object):
         return self._dataset
     
     
+        
 class ExperimentRunner(QThread):
     """
     Runs experiment in it's own thread.
@@ -356,6 +359,18 @@ class ExperimentRunner(QThread):
     def run(self):
         """
         Run the experiment.
+        """
+        p = Process(target=self.work)
+        p.start()
+        while not self.isInterruptionRequested() and p.is_alive():
+            time.sleep(1)
+            
+        if p.is_alive() and self.isInterruptionRequested():
+            p.terminate()
+        
+    def work(self):
+        """
+        The actual work of that thread
         """
         #TODO: MULTILANGUAGE
         self.actInfo.emit("dataset reading") 
@@ -404,7 +419,6 @@ class ExperimentRunner(QThread):
                 print("\n\n")
                 start = time.time()
                 startProc=time.process_time()
-        
         
     @staticmethod
     def writeConfMat(predicted, labels):

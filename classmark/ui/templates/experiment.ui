@@ -240,8 +240,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>532</width>
-                <height>592</height>
+                <width>531</width>
+                <height>611</height>
                </rect>
               </property>
               <property name="autoFillBackground">
@@ -526,7 +526,11 @@
                  </widget>
                 </item>
                 <item>
-                 <widget class="QTableView" name="tableView"/>
+                 <widget class="QTableView" name="dataStatsClassTable">
+                  <attribute name="verticalHeaderVisible">
+                   <bool>false</bool>
+                  </attribute>
+                 </widget>
                 </item>
                </layout>
               </widget>
@@ -542,8 +546,8 @@
                     <rect>
                      <x>0</x>
                      <y>0</y>
-                     <width>691</width>
-                     <height>172</height>
+                     <width>571</width>
+                     <height>137</height>
                     </rect>
                    </property>
                    <property name="sizePolicy">
@@ -719,7 +723,11 @@
                 </widget>
                </item>
                <item>
-                <widget class="QTableView" name="tableView_2"/>
+                <widget class="QTableView" name="tableView_2">
+                 <attribute name="verticalHeaderVisible">
+                  <bool>false</bool>
+                 </attribute>
+                </widget>
                </item>
               </layout>
              </widget>
@@ -794,8 +802,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>495</width>
-                <height>549</height>
+                <width>392</width>
+                <height>565</height>
                </rect>
               </property>
               <property name="mouseTracking">
@@ -921,8 +929,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>581</width>
-                <height>592</height>
+                <width>683</width>
+                <height>611</height>
                </rect>
               </property>
               <property name="autoFillBackground">

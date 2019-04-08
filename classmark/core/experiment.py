@@ -15,13 +15,14 @@ from ..core.validation import Validator
 from builtins import isinstance
 from PySide2.QtCore import QThread, Signal
 from .results import Results
-
+from typing import Any, Dict
 import numpy as np
 import pandas as pd
 from sklearn.metrics import classification_report, accuracy_score
 from multiprocessing import Process
 from sklearn.feature_selection import chi2
 from ..core.utils import sparseMatVariance
+import copy
 
 class ClassifierSlot(object):
     """
@@ -53,12 +54,144 @@ class ExperimentDataStatistics(object):
     """
     
     def __init__(self):
-        self.classSamples={}
-        self.numberOfSamples=0
-        self.attributesFeatures={}
-        self.attributesAVGFeatureVariance={}
-        self.attributesAVGFeatureChiSquare={}
+        self._classSamples={}
+        self._classActivity={}
+        self._classes=[]    #just to give order to the classes
+        self._attributesFeatures={}
+        self._attributesAVGFeatureVariance={}
+        self._attributesAVGFeatureChiSquare={}
         
+    def isActive(self,c):
+        """
+        Determines if given class is active.
+        
+        :param c: Class for check.
+        :type c: Any
+        :return: True active. False otherwise.
+        :rtype: bool
+        """
+        
+        return self._classActivity[c]
+    
+    def deactivateClass(self,c):
+        """
+        Deactivating a class means that this class is hidden and is no longer
+        in properties like classes, classSamples,numberOfSamples, numberOfSamples,
+        maxSamplesInClass and minSamplesInClass.
+        
+        :param c: Class from classes.
+        :type c: Any
+        """
+        
+        self._classActivity[c]=False
+        
+    def activateClass(self, c):
+        """
+        Activate class c.
+        
+        :param c: Class from classes.
+        :type c: Any
+        """
+        self._classActivity[c]=True
+        
+    @property
+    def classes(self):
+        """
+        Gives list of all classes.
+        
+        :return: classes
+        :rtype: List[Any]
+        """
+        
+        return [c for c in self._classes  if self._classActivity[c]]
+        
+    @property
+    def classSamples(self):
+        """
+        Number of samples per class in form of dict where key is the class and value
+        is the number of samples.
+        """
+        return { c:v for c,v in self._classSamples.items() if self._classActivity[c] }
+    
+    @classSamples.setter
+    def classSamples(self, newCS:Dict[Any, int]):
+        """
+        Set new class samples.
+        
+        :param newCS: New number of samples per class.
+        :type newCS: Dict[Any, int]
+        """
+        
+        self._classSamples=newCS
+        self._classActivity={c:True for c in newCS}
+        self._classes=list(newCS.keys())
+        
+    def changeSamplesInClass(self,c,n):
+        """
+        Changes number of samples per class.
+        
+        :param c: The class.
+        :type c: Any
+        :param n: New number of samples in class.
+        :type n: int
+        """
+        self._classSamples[c]=n
+        
+    @property
+    def numberOfSamples(self):
+        """
+        Number of samples in whole data set.
+        Is calculated from classSamples.
+        """
+        
+        return sum( v for c,v in self._classSamples if self._classActivity[c])
+        
+    @property
+    def maxSamplesInClass(self):
+        """
+        Gives maximal number of samples in class and also returns the class itself.
+        
+        :return: maximal number of samples in class and that class
+        :rtype: Tuple[int, Any]
+        """
+        
+        mC=max([ c for c in self._classSamples if self._classActivity[c]], 
+                key=lambda x: self._classSamples[x])
+        return (self._classSamples[mC],mC)
+    
+    @property
+    def minSamplesInClass(self):
+        """
+        Gives minimal number of samples in class and also returns the class itself.
+        
+        :return: minimal number of samples in class and that class
+        :rtype: Tuple[int, Any]
+        """
+        
+        mC=min([ c for c in self._classSamples if self._classActivity[c]], 
+                key=lambda x: self._classSamples[x])
+        return (self._classSamples[mC],mC)
+        
+    @property
+    def attributesFeatures(self):
+        """
+        Number of features for every attribute.
+        """
+        return self._attributesFeatures
+    
+    @property
+    def attributesAVGFeatureVariance(self):
+        """
+        Average variance of features for each attribute.
+        """
+        return self._attributesAVGFeatureVariance
+    
+    @property
+    def attributesAVGFeatureChiSquare(self):
+        """
+        Average Chi^2 of features for each attribute.
+        """
+        return self._attributesAVGFeatureChiSquare
     
 class Experiment(object):
     """
@@ -99,16 +232,40 @@ class Experiment(object):
         #TODO: loading
         
         self._dataStats=None
-
+        self._origDataStats=None
+        
+    @property    
+    def dataStats(self):
+        """
+        The data stats. Working copy of original data stats.
+        
+        :return: Actual stats.
+        :rtype: ExperimentDataStatistics | None
+        """
+        return self._dataStats
+    
+    @property
+    def origDataStats(self):
+        """
+        Original data stats. Maybe you are looking for working copy 
+        of data stats that you can get with dataStats.
+        
+        :return: Original data stats.
+        :rtype: ExperimentDataStatistics | None
+        """
+        return copy.copy(self._origDataStats)
+    
     def setDataStats(self, stats):
         """
-        Set the data stats.
+        Set the data stats. This method overrides working copy
+        and original data stats.
         
         :param stats: New stats.
         :type stats: ExperimentDataStatistics
         """
         
-        self._dataStats=stats
+        self._dataStats=copy.deepcopy(stats)
+        self._origDataStats=stats
         
         
     def _loadPlugins(self):
@@ -412,19 +569,22 @@ class ExperimentStatsRunner(ExperimentBackgroundWorker):
         if self.isInterruptionRequested():
             return
         
+        classSamples={}
         
-        for actClass, actClassSamples in np.unique(labels, return_counts=True):
+        classes, samples=np.unique(labels, return_counts=True)
+        
+        for actClass, actClassSamples in zip(classes, samples):
             if self.isInterruptionRequested():
                 return
-            statsExp.classSamples[actClass]=actClassSamples
-            
-            
+            classSamples[actClass]=actClassSamples
+ 
+        statsExp.classSamples=classSamples
         #extractors mapping
         extMap=[(a, self._experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR)) \
                 for a in self._experiment.attributesThatShouldBeUsed(False)]
         
         self.step.emit() 
-        self.actInfo.emit("attributes statistics") 
+        self.actInfo.emit("attributes") 
         #get the attributes values
         for i,(attr,extractor) in enumerate(extMap):
             if self.isInterruptionRequested():

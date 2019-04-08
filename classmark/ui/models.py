@@ -15,7 +15,7 @@ class TableClassStatsModel(QAbstractTableModel):
 
     """
     
-    NUM_COL=3
+    NUM_COL=4
     """Number of columns in table."""
     
     COLL_CLASS_NAME=0
@@ -26,6 +26,9 @@ class TableClassStatsModel(QAbstractTableModel):
     
     COLL_SAMPLES_ORIG=2
     """Index of column with original number of samples in that class."""
+    
+    COLL_USE=3
+    """Index of use column."""
     
     
     def __init__(self, parent, experiment:Experiment):
@@ -60,9 +63,9 @@ class TableClassStatsModel(QAbstractTableModel):
         
     def rowCount(self, parent=None):
         try:
-            return len(self._experiment.dataset.attributes)
-        except AttributeError:
-            #probably no assigned data set
+            return len(self._experiment.dataStats.classes)
+        except (AttributeError, TypeError):
+            #probably no assigned data stats
             return 0
     
     def columnCount(self, parent=None):
@@ -78,6 +81,10 @@ class TableClassStatsModel(QAbstractTableModel):
         :rtype: PySide2.QtCore.Qt.ItemFlags
         """
         f= Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        
+        if index.column() in {self.COLL_USE}:
+            f|=Qt.ItemIsUserCheckable
+            
         if index.column() in {self.COLL_SAMPLES}:
             f|=Qt.ItemIsEditable
 
@@ -97,35 +104,30 @@ class TableClassStatsModel(QAbstractTableModel):
 
         if not index.isValid():
             return False
+        #class name on current row
+        className=self._experiment.dataStats.classes[index.row()]
         
-        #attribute name on current row
-        attributeName=self._experiment.dataset.attributes[index.row()]
-        
-        if role == Qt.CheckStateRole and index.column() in {self.COLL_USE, self.COLL_PATH}:
+        if role == Qt.CheckStateRole and index.column() in {self.COLL_USE}:
             #checkbox change
-            changeSetting=Experiment.AttributeSettings.USE if index.column()==self.COLL_USE else Experiment.AttributeSettings.PATH
-            
+
             if value ==Qt.Checked:
-                self._experiment.setAttributeSetting(attributeName, changeSetting, True)
+                self._experiment.dataStats.activateClass(className)
             else:
-                self._experiment.setAttributeSetting(attributeName, changeSetting, False)
+                self._experiment.dataStats.deactivateClass(className)
         
         elif role==Qt.EditRole:
-            if index.column() == self.COLL_LABEL:
-                #radio button
-                self._experiment.label=attributeName
-            elif index.column() == self.COLL_FEATURE_EXTRACTION:
-                if self._experiment.getAttributeSetting(attributeName, 
-                        Experiment.AttributeSettings.FEATURE_EXTRACTOR).getName()!=value:
-                    #we are interested only if there is a change
-                    self._experiment.setAttributeSetting(attributeName, 
-                        Experiment.AttributeSettings.FEATURE_EXTRACTOR, self._experiment.featuresExt[value]())
+            if index.column() == self.COLL_SAMPLES:
+                #new number of samples
+                try:
+                    iVal=int(value)
+                except ValueError:
+                    pass
+                else:
+                    origVal=self._experiment.origDataStats.classSamples[className]
                     
-                    #Emit attributes click event, because we want to show to user actual feature extractor
-                    #attributes.
-                    if self._showExtractorAttr is not None:
-                        self._showExtractorAttr(index.row())
-                
+                    setVal=iVal if iVal<=origVal else origVal
+                    setVal=1 if setVal<1 else setVal
+                    self._experiment.dataStats.changeSamplesInClass(className,setVal)
                 
         
         self.dataChanged.emit(index, index)
@@ -146,32 +148,25 @@ class TableClassStatsModel(QAbstractTableModel):
         if not index.isValid():
             return None
         
-        #attribute name on current row
-        attributeName=self._experiment.dataset.attributes[index.row()]
+        #class name on current row
+        className=self._experiment.dataStats.classes[index.row()]
 
         if role == Qt.DisplayRole or role==Qt.EditRole:
-            if index.column()==self.COLL_ATTRIBUTE_NAME:
-                #attribute name
-                return attributeName
+            if index.column()==self.COLL_CLASS_NAME:
+                #class name
+                return str(className)
             
-            if index.column()==self.COLL_LABEL:
-                #Is on that index selected label?
-                return attributeName==self._experiment.label
+            if index.column()==self.COLL_SAMPLES:
+                return str(self._experiment.dataStats.classSamples[className])
             
-            if index.column()==self.COLL_FEATURE_EXTRACTION:
-
-                return self._experiment.getAttributeSetting(attributeName, 
-                                                            Experiment.AttributeSettings.FEATURE_EXTRACTOR).getName()
-        
+            if index.column()==self.COLL_SAMPLES_ORIG:
+                return str(self._experiment.origDataStats.classSamples[className])
+            
         if role ==Qt.CheckStateRole:
             if index.column()==self.COLL_USE:
                 #use column
-                return Qt.Checked if self._experiment.getAttributeSetting(attributeName, Experiment.AttributeSettings.USE) else Qt.Unchecked
+                return Qt.Checked if self._experiment.dataStats.isActive(className) else Qt.Unchecked
             
-            if index.column()==self.COLL_PATH:
-                #path column
-                return Qt.Checked if  self._experiment.getAttributeSetting(attributeName, Experiment.AttributeSettings.PATH) else Qt.Unchecked
-
         return None
         
     
@@ -194,7 +189,8 @@ class TableClassStatsModel(QAbstractTableModel):
                 return self._HEADERS[section]
             except AttributeError:
                 """Name of columns in table. Initialization is performed on demand."""
-                self._HEADERS=[self.tr("class"),self.tr("selected samples"),self.tr("original samples")]
+                self._HEADERS=[self.tr("class"),self.tr("selected samples"),self.tr("original samples"),
+                               self.tr("use")]
                 return self._HEADERS[section]
         
         return None

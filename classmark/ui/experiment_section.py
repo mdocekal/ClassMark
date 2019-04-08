@@ -10,10 +10,10 @@ from .widget_manager import WidgetManager, IconName, AttributesWidgetManager
 from .section_router import SectionRouter
 from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton
 from PySide2.QtCore import Qt
-from ..core.experiment import Experiment, ExperimentRunner, ExperimentStatsRunner
+from ..core.experiment import Experiment, ExperimentRunner, ExperimentStatsRunner, ExperimentDataStatistics
 from ..core.plugins import Classifier
 from .delegates import RadioButtonDelegate, ComboBoxDelegate
-from .models import TableDataAttributesModel
+from .models import TableDataAttributesModel, TableClassStatsModel
 from typing import Callable
 from functools import partial
 import copy
@@ -131,7 +131,7 @@ class ClassifierRowWidgetManager(WidgetManager):
         if self._propertyCallback is not None:
             self._propertyCallback(self.classifierSlot.classifier)
 
-        
+
 
 class ExperimentSection(WidgetManager):
     """
@@ -234,7 +234,7 @@ class ExperimentSection(WidgetManager):
         self._statsRunner.numberOfSteps.connect(self._widget.dataStatsRunProgressBar.setMaximum)
         self._statsRunner.step.connect(self._incDataStatsProgressBar)
         self._statsRunner.actInfo.connect(self._widget.dataStatsRunActInfo.setText)
-        self._statsRunner.calcStatsResult.connect(self._experiment.setDataStats)
+        self._statsRunner.calcStatsResult.connect(self._newDataStatsResults)
         
         #set the progress bar
         self._widget.dataStatsRunProgressBar.setValue(0)
@@ -256,12 +256,25 @@ class ExperimentSection(WidgetManager):
         """
         self._widget.dataStatsRunProgressBar.setValue(self._widget.dataStatsRunProgressBar.value()+1)
         
+    def _newDataStatsResults(self, stats:ExperimentDataStatistics):
+        """
+        We get new data stats.
+        
+        :param stats: The new stats.
+        :type stats: ExperimentDataStatistics
+        """
+        self._experiment.setDataStats(stats)
+        
+        #assign model to table view
+        self._widget.dataStatsClassTable.setModel(TableClassStatsModel(self._widget, self._experiment))
+                                  
+                                  
     def _dataStatsFinished(self):
         """
         Shows statistics.
         """
-        #show the data and classifiers tabs
-
+        
+        #show the data stats tab
         self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_RESULTS.value)
         
     def _initData(self):
@@ -311,6 +324,12 @@ class ExperimentSection(WidgetManager):
         #experiment stop event
         self._widget.stopDataStatsRunButton.clicked.connect(self._dataStatsStop)
         
+        #assign model to table view
+        self._widget.dataStatsClassTable.setModel(TableClassStatsModel(self._widget, 
+                                                                           self._experiment))
+        
+        self._setSecResModeForDataStatsTable()
+        
     def _initCls(self):
         """
         Initialization of classifiers tab.
@@ -334,8 +353,6 @@ class ExperimentSection(WidgetManager):
         """
         Initialization of results tab.
         """
-        
-               
         #experiment start events
         self._widget.startExperimentButton.clicked.connect(self._experimentStarts)
         #experiment stop event
@@ -499,6 +516,15 @@ class ExperimentSection(WidgetManager):
             self.manager=AttributesWidgetManager(plugin.getAttributes(), self._widget.dataPluginAttributesWidget)
             self._widget.dataPluginAttributesContent.addWidget(self.manager.widget)
             
+    def _setSecResModeForDataStatsTable(self):
+        """
+        Sets section resize mode for data stats table.
+        """
+        self._widget.dataStatsClassTable.horizontalHeader().setSectionResizeMode(TableClassStatsModel.COLL_CLASS_NAME,QHeaderView.Stretch);
+        self._widget.dataStatsClassTable.horizontalHeader().setSectionResizeMode(TableClassStatsModel.COLL_SAMPLES,QHeaderView.ResizeMode.ResizeToContents);
+        self._widget.dataStatsClassTable.horizontalHeader().setSectionResizeMode(TableClassStatsModel.COLL_SAMPLES_ORIG,QHeaderView.ResizeMode.ResizeToContents);
+        self._widget.dataStatsClassTable.horizontalHeader().setSectionResizeMode(TableClassStatsModel.COLL_USE,QHeaderView.ResizeMode.ResizeToContents);
+        
     def _setSecResModeForDataAttrTable(self):
         """
         Sets section resize mode for data attribute table.

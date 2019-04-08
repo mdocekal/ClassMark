@@ -9,7 +9,7 @@ Module for data set representation and actions.
 import os
 import csv
 import numpy as np
-from typing import List
+from typing import List, Dict
 
 class Sample(object):
     """
@@ -71,6 +71,19 @@ class DataSet(object):
             reader = csv.DictReader(opF)
             self._attributes=reader.fieldnames
             
+        self._subset=None   #determines if we want to use just subset
+        
+    def useSubset(self, subset:np.array):
+        """
+        Use just subset of samples.
+        
+        :param subset: Subset of samples. Contains indexes of samples
+            that should be used. Indexes must be sorted in ascending order.
+            None means that you do not want to use subset anymore
+        :type subset:np.array | None
+        """
+        self._subset=subset
+        
     def addPathAttribute(self, attr:str):
         """
         Marks attribute as path to different file whichs content shold be read and
@@ -117,15 +130,34 @@ class DataSet(object):
         """
         with open(self._filePath, "r", encoding="utf-8") as opF:
             reader = csv.DictReader(opF)
-            for sample in reader:
-                #convert the path attributes
-                for pA in self._pathAttributes:
-                    if not os.path.isabs(sample[pA]):
-                        #it is relative path so let's 
-                        #add as base folder of that data set
-                        sample[pA]=LazyTextFileReader(os.path.join(self._folder,sample[pA]))
-                        
-                yield sample
+            if self._subset is None:
+                for sample in reader:
+                    self._prepareSample(sample)
+                    yield sample
+            else:
+                #user wants just the subset
+                subIter=iter(self._subset)
+                nextFromSub=next(subIter)
+                for i, sample in reader:
+                    if i==nextFromSub:
+                        #we are in subset
+                        nextFromSub=next(subIter)
+                        self._prepareSample(sample)
+                        yield sample
+                    
+    def _prepareSample(self, sample:Dict[str,str]):
+        """
+        Makes all necessary preparation for sample.
+        
+        :param sample: Data sample.
+        :type sample: Dict[str,str]
+        """
+        #convert the path attributes
+        for pA in self._pathAttributes:
+            if not os.path.isabs(sample[pA]):
+                #it is relative path so let's 
+                #add as base folder of that data set
+                sample[pA]=LazyTextFileReader(os.path.join(self._folder,sample[pA]))
         
     def toNumpyArray(self, useOnly:List[List[str]]=[],):
         """

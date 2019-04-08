@@ -10,7 +10,7 @@ from .widget_manager import WidgetManager, IconName, AttributesWidgetManager
 from .section_router import SectionRouter
 from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton
 from PySide2.QtCore import Qt
-from ..core.experiment import Experiment, ExperimentRunner
+from ..core.experiment import Experiment, ExperimentRunner, ExperimentStatsRunner
 from ..core.plugins import Classifier
 from .delegates import RadioButtonDelegate, ComboBoxDelegate
 from .models import TableDataAttributesModel
@@ -148,6 +148,14 @@ class ExperimentSection(WidgetManager):
         PAGE_NO_RESULTS=0
         PAGE_RUNNING=1
         PAGE_RESULTS=2
+        
+    class DataStatsPage(Enum):
+        """
+        Pages in data stats tab.
+        """
+        PAGE_NO_RESULTS=0
+        PAGE_RUNNING=1
+        PAGE_RESULTS=2
 
 
     def __init__(self, sectionRouter:SectionRouter, parent=None, load=None):
@@ -171,12 +179,10 @@ class ExperimentSection(WidgetManager):
         
         
         self._initData()
+        self._initDataStats()
         self._initCls()
-        
-        #experiment start events
-        self._widget.startExperimentButton.clicked.connect(self._experimentStarts)
-        #experiment stop event
-        self._widget.stopExperimentButton.clicked.connect(self._experimentStops)
+        self._initRes()
+ 
         
     def _experimentStarts(self):
         """
@@ -210,11 +216,53 @@ class ExperimentSection(WidgetManager):
         self._widget.experimentProgressBar.setValue(self._widget.experimentProgressBar.value()+1)
         
     def _experimentFinished(self):
-        #show the data and classifiers tabs
+        """
+        Show the data and classifiers tabs
+        """
         
         #TODO: CHANGE TO RESULTS
         self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_NO_RESULTS.value)
+                
         
+    def _dataStatsStart(self):
+        """
+        Starts statistics calculation.
+        """
+        #create runner for 
+        self._statsRunner=ExperimentStatsRunner(copy.deepcopy(self._experiment))
+        self._statsRunner.finished.connect(self._dataStatsFinished)
+        self._statsRunner.numberOfSteps.connect(self._widget.dataStatsRunProgressBar.setMaximum)
+        self._statsRunner.step.connect(self._incDataStatsProgressBar)
+        self._statsRunner.actInfo.connect(self._widget.dataStatsRunActInfo.setText)
+        self._statsRunner.calcStatsResult.connect(self._experiment.setDataStats)
+        
+        #set the progress bar
+        self._widget.dataStatsRunProgressBar.setValue(0)
+        
+        #change the page
+        self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_RUNNING.value)
+        
+        self._statsRunner.start()
+    
+    def _dataStatsStop(self):
+        """
+        Stops statistics calculation.
+        """
+        self._statsRunner.requestInterruption()
+
+    def _incDataStatsProgressBar(self):
+        """
+        Increases progress bar for running experiment.
+        """
+        self._widget.dataStatsRunProgressBar.setValue(self._widget.dataStatsRunProgressBar.value()+1)
+        
+    def _dataStatsFinished(self):
+        """
+        Shows statistics.
+        """
+        #show the data and classifiers tabs
+
+        self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_RESULTS.value)
         
     def _initData(self):
         """
@@ -254,6 +302,15 @@ class ExperimentSection(WidgetManager):
         self._widget.comboBoxValidation.currentTextChanged.connect(self._showEvaluationMethodProperties)
         self._widget.validationPropertiesButton.clicked.connect(self._showEvaluationMethodProperties)
         
+    def _initDataStats(self):
+        """
+        Initialization of data stats tab.
+        """
+        #experiment start events
+        self._widget.startDataStatisticsCalculationButton.clicked.connect(self._dataStatsStart)
+        #experiment stop event
+        self._widget.stopDataStatsRunButton.clicked.connect(self._dataStatsStop)
+        
     def _initCls(self):
         """
         Initialization of classifiers tab.
@@ -272,6 +329,17 @@ class ExperimentSection(WidgetManager):
         
         #hide the plugin attributes header
         self._hideClassifierProperties()
+        
+    def _initRes(self):
+        """
+        Initialization of results tab.
+        """
+        
+               
+        #experiment start events
+        self._widget.startExperimentButton.clicked.connect(self._experimentStarts)
+        #experiment stop event
+        self._widget.stopExperimentButton.clicked.connect(self._experimentStops)
         
     def _hideClassifierProperties(self):
         """

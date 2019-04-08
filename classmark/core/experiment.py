@@ -16,10 +16,12 @@ from builtins import isinstance
 from PySide2.QtCore import QThread, Signal
 from .results import Results
 
+import numpy as np
 import pandas as pd
 from sklearn.metrics import classification_report, accuracy_score
 from multiprocessing import Process
-
+from sklearn.feature_selection import chi2
+from ..core.utils import sparseMatVariance
 
 class ClassifierSlot(object):
     """
@@ -44,7 +46,19 @@ class ClassifierSlot(object):
     def __hash__(self):
         return self._id
     
-
+    
+class ExperimentDataStatistics(object):
+    """
+    Data statistics of experiment.
+    """
+    
+    def __init__(self):
+        self.classSamples={}
+        self.numberOfSamples=0
+        self.attributesFeatures={}
+        self.attributesAVGFeatureVariance={}
+        self.attributesAVGFeatureChiSquare={}
+        
     
 class Experiment(object):
     """
@@ -83,6 +97,19 @@ class Experiment(object):
         #let's load the plugins that are now available
         self._loadPlugins()
         #TODO: loading
+        
+        self._dataStats=None
+
+    def setDataStats(self, stats):
+        """
+        Set the data stats.
+        
+        :param stats: New stats.
+        :type stats: ExperimentDataStatistics
+        """
+        
+        self._dataStats=stats
+        
         
     def _loadPlugins(self):
         """
@@ -328,14 +355,9 @@ class Experiment(object):
         Loaded dataset.
         """
         return self._dataset
-    
-    
+
         
-class ExperimentRunner(QThread):
-    """
-    Runs experiment in it's own thread.
-    """
-    
+class ExperimentBackgroundWorker(QThread):
     numberOfSteps = Signal(int)
     """Signalizes that we now know the number of steps. Parameter is number of steps."""
     
@@ -347,14 +369,86 @@ class ExperimentRunner(QThread):
     
     def __init__(self, experiment:Experiment):
         """
-        Initialization of experiment runner.
+        Initialization of background worker.
         
-        :param experiment: Run that experiment.
+        :param experiment: Work on that experiment.
         :type experiment: Experiment
         """
         QThread.__init__(self)
         
         self._experiment=experiment
+    
+
+class ExperimentStatsRunner(ExperimentBackgroundWorker):
+    """
+    Runs the stats calculation in it's own thread.
+    """
+
+    calcStatsResult = Signal(ExperimentDataStatistics)
+    """Sends calculated statistics."""
+    
+    def run(self):
+        """
+        Run the stat calculation.
+        """
+        statsExp=ExperimentDataStatistics()
+        #reading, samples, attributes
+        self.numberOfSteps.emit(3)
+        
+        #TODO: MULTILANGUAGE
+        self.actInfo.emit("dataset reading") 
+        if self.isInterruptionRequested():
+            return
+        #ok, lets first read the data
+        data, labels=self._experiment.dataset.toNumpyArray([
+            self._experiment.attributesThatShouldBeUsed(False),
+            [self._experiment.label]
+            ])
+        
+        labels=labels.ravel()   #we need row vector   
+        
+        self.step.emit()     
+        self.actInfo.emit("samples counting") 
+        if self.isInterruptionRequested():
+            return
+        
+        
+        for actClass, actClassSamples in np.unique(labels, return_counts=True):
+            if self.isInterruptionRequested():
+                return
+            statsExp.classSamples[actClass]=actClassSamples
+            
+            
+        #extractors mapping
+        extMap=[(a, self._experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR)) \
+                for a in self._experiment.attributesThatShouldBeUsed(False)]
+        
+        self.step.emit() 
+        self.actInfo.emit("attributes statistics") 
+        #get the attributes values
+        for i,(attr,extractor) in enumerate(extMap):
+            if self.isInterruptionRequested():
+                return
+            actF=extractor.fitAndExtract(data[:,i],labels).tocsc()
+            if self.isInterruptionRequested():
+                return
+            statsExp.attributesFeatures[attr]=actF.shape[1]
+            statsExp.attributesAVGFeatureChiSquare[attr]=np.average(chi2(actF, labels))
+            if self.isInterruptionRequested():
+                return
+            statsExp.attributesAVGFeatureVariance[attr]=np.average(np.array([sparseMatVariance(actF[:,c]) for c in range(actF.shape[1])]))
+            
+
+        self.step.emit() 
+        
+        self.calcStatsResult.emit(statsExp)
+        
+
+        
+class ExperimentRunner(ExperimentBackgroundWorker):
+    """
+    Runs experiment in it's own thread.
+    """
         
     def run(self):
         """

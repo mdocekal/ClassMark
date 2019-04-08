@@ -190,6 +190,7 @@ class AttributesWidgetManager(WidgetManager):
             if self._a.groupItemLabel:
                 #ok we have label for items
                 label=QLabel(self._a.groupItemLabel.format(i+1)+":", self.inputW)
+                label.setTextInteractionFlags(Qt.TextSelectableByMouse|Qt.TextSelectableByKeyboard)
                 label.setBuddy(actInp)
                 self.inputW.layout().addWidget(label)
                 
@@ -236,7 +237,9 @@ class AttributesWidgetManager(WidgetManager):
         mainLayout=QVBoxLayout(self._widget)
         mainLayout.setAlignment(Qt.AlignTop)
         if len(self._attributes)==0:
-            mainLayout.addWidget(QLabel(self.tr("No attributes."),self._widget))
+            label=QLabel(self.tr("No attributes."),self._widget)
+            label.setTextInteractionFlags(Qt.TextSelectableByMouse|Qt.TextSelectableByKeyboard)
+            mainLayout.addWidget(label)
         else:
             for a in self._attributes:
                 #create layout for this attribute
@@ -275,6 +278,7 @@ class AttributesWidgetManager(WidgetManager):
         w.setLayout(layout)
 
         label=QLabel(a.name+":", self._widget)
+        label.setTextInteractionFlags(Qt.TextSelectableByMouse|Qt.TextSelectableByKeyboard)
         label.setBuddy(inputW)
         
         

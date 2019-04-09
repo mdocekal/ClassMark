@@ -13,7 +13,7 @@ class TFIDF(FeatureExtractor):
     TF-IDF feature extractor plugin for ClassMark.
     """
     
-    def __init__(self, maxFeatures:int=None, caseSensitive:bool=False):
+    def __init__(self, maxFeatures:int=None, caseSensitive:bool=False, norm="l2"):
         """
         Feature extractor initialization.
         
@@ -21,6 +21,8 @@ class TFIDF(FeatureExtractor):
         :type maxFeatures: None | int
         :param caseSensitive: True means that we want to be case senstive.
         :type caseSensitive: bool
+        :param norm: Type of normalization.
+        :type norm: str|None
 
         """
         
@@ -29,6 +31,10 @@ class TFIDF(FeatureExtractor):
         
         self._caseSensitive=PluginAttribute("Case sensitive", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
         self._caseSensitive.value=caseSensitive
+        
+        self._norm=PluginAttribute("Normalization", PluginAttribute.PluginAttributeType.SELECTABLE, str,
+                                            [None,"l1","l2",])
+        self._norm.value=norm
     
     @staticmethod
     def getName():
@@ -46,7 +52,8 @@ class TFIDF(FeatureExtractor):
         """
         Creates and initializes extractor according to current attributes values.
         """
-        self._ext=TfidfVectorizer(max_features=self._maxFeatures.value,lowercase=not self._caseSensitive.value)
+        self._ext=TfidfVectorizer(max_features=self._maxFeatures.value,lowercase=not self._caseSensitive.value,
+                                  norm=self._norm.value)
     
     def fit(self, data, labels=None):
         self._initExt()

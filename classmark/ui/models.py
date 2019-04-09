@@ -9,6 +9,131 @@ from PySide2.QtCore import QAbstractTableModel, Qt
 from ..core.experiment import Experiment
 from typing import Callable
 
+class TableAttributesStatsModel(QAbstractTableModel):
+    """
+    Model for tableview that is for showing statistics of attributes.
+    """
+    
+    NUM_COL=3
+    """Number of columns in table."""
+    
+    COLL_ATTRIBUTE_NAME=0
+    """Index of attribute name column."""
+    
+    COLL_NUM_OF_FEATURES=1
+    """Index of column with number of features for attribute."""
+    
+    COLL_FEATURES_VARIANCE=2
+    """Index of column with features variance."""
+
+    
+    def __init__(self, parent, experiment:Experiment):
+        """
+        Initialization of model.
+        
+        :param parent: Parent widget.
+        :type parent: Widget
+        :param experiment: Experiment which attributes you want to show.
+        :type experiment: Experiment
+        """
+        QAbstractTableModel.__init__(self, parent)
+        self._experiment = experiment
+        
+    @property
+    def experiment(self):
+        """
+        Assigned experiment.
+        """
+        return self._experiment
+    
+    @experiment.setter
+    def experiment(self, experiment:Experiment):
+        """
+        Assign new experiment.
+        
+        :param experiment: New experiment that should be now used.
+        :type experiment: Experiment
+        """
+        self._experiment=experiment
+        self.beginResetModel()
+        
+    def rowCount(self, parent=None):
+        try:
+            return len(self._experiment.dataStats.attributes)
+        except (AttributeError, TypeError):
+            #probably no assigned data stats
+            return 0
+    
+    def columnCount(self, parent=None):
+        return self.NUM_COL
+    
+    def flags(self, index):
+        """
+        Determine flag for column on given index.
+        
+        :param index: Index containing row and col.
+        :type index: QModelIndex
+        :return: Flag for indexed cell.
+        :rtype: PySide2.QtCore.Qt.ItemFlags
+        """
+        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+ 
+
+    def data(self, index, role):
+        """
+        Getter for content of the table.
+        
+        :param index: Index containing row and col.
+        :type index: QModelIndex
+        :param role: Cell role.
+        :type role: int
+        :return: Data for indexed cell.
+        :rtype: object
+        """
+        
+        if not index.isValid():
+            return None
+
+        #class name on current row
+        attributeName=self._experiment.dataStats.attributes[index.row()]
+
+        if role == Qt.DisplayRole:
+            if index.column()==self.COLL_ATTRIBUTE_NAME:
+                return str(attributeName)
+            
+            if index.column()==self.COLL_NUM_OF_FEATURES:
+                return str(self.experiment.dataStats.attributesFeatures[attributeName])
+            
+            if index.column()==self.COLL_FEATURES_VARIANCE:
+                return str(self.experiment.dataStats.attributesAVGFeatureVariance[attributeName])
+
+        return None
+        
+    
+    def headerData(self, section, orientation, role):
+        """
+        Data for header cell.
+        
+        :param section: Header column.
+        :type section: PySide2.QtCore.int
+        :param orientation: Table orientation.
+        :type orientation: PySide2.QtCore.Qt.Orientation
+        :param role: Role of section.
+        :type role: PySide2.QtCore.int
+        :return: Data for indexed header cell.
+        :rtype: object
+        """
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            #we have horizontal header only.
+            try:
+                return self._HEADERS[section]
+            except AttributeError:
+                """Name of columns in table. Initialization is performed on demand."""
+                self._HEADERS=[self.tr("attribute"),self.tr("number of features"),self.tr("average features variance")]
+                return self._HEADERS[section]
+        
+        return None
+
 class TableClassStatsModel(QAbstractTableModel):
     """
     Model for tableview that is for showing statistics of classes.
@@ -63,7 +188,7 @@ class TableClassStatsModel(QAbstractTableModel):
         
     def rowCount(self, parent=None):
         try:
-            return len(self._experiment.dataStats.classes)
+            return len(self._experiment.origDataStats.classes)
         except (AttributeError, TypeError):
             #probably no assigned data stats
             return 0
@@ -105,7 +230,7 @@ class TableClassStatsModel(QAbstractTableModel):
         if not index.isValid():
             return False
         #class name on current row
-        className=self._experiment.dataStats.classes[index.row()]
+        className=self._experiment.origDataStats.classes[index.row()]
         
         if role == Qt.CheckStateRole and index.column() in {self.COLL_USE}:
             #checkbox change
@@ -114,20 +239,23 @@ class TableClassStatsModel(QAbstractTableModel):
                 self._experiment.dataStats.activateClass(className)
             else:
                 self._experiment.dataStats.deactivateClass(className)
+            
+            self.dataChanged.emit(index, self.COLL_SAMPLES)
         
         elif role==Qt.EditRole:
             if index.column() == self.COLL_SAMPLES:
-                #new number of samples
-                try:
-                    iVal=int(value)
-                except ValueError:
-                    pass
-                else:
-                    origVal=self._experiment.origDataStats.classSamples[className]
-                    
-                    setVal=iVal if iVal<=origVal else origVal
-                    setVal=1 if setVal<1 else setVal
-                    self._experiment.dataStats.changeSamplesInClass(className,setVal)
+                if self._experiment.dataStats.isActive(className):
+                    #new number of samples
+                    try:
+                        iVal=int(value)
+                    except ValueError:
+                        pass
+                    else:
+                        origVal=self._experiment.origDataStats.classSamples[className]
+                        
+                        setVal=iVal if iVal<=origVal else origVal
+                        setVal=1 if setVal<1 else setVal
+                        self._experiment.dataStats.changeSamplesInClass(className,setVal)
                 
         
         self.dataChanged.emit(index, index)
@@ -149,7 +277,7 @@ class TableClassStatsModel(QAbstractTableModel):
             return None
         
         #class name on current row
-        className=self._experiment.dataStats.classes[index.row()]
+        className=self._experiment.origDataStats.classes[index.row()]
 
         if role == Qt.DisplayRole or role==Qt.EditRole:
             if index.column()==self.COLL_CLASS_NAME:
@@ -157,7 +285,10 @@ class TableClassStatsModel(QAbstractTableModel):
                 return str(className)
             
             if index.column()==self.COLL_SAMPLES:
-                return str(self._experiment.dataStats.classSamples[className])
+                if self._experiment.dataStats.isActive(className):
+                    return str(self._experiment.dataStats.classSamples[className])
+                else:
+                    return 0
             
             if index.column()==self.COLL_SAMPLES_ORIG:
                 return str(self._experiment.origDataStats.classSamples[className])

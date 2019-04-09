@@ -9,11 +9,11 @@ Module for experiment section of the application.
 from .widget_manager import WidgetManager, IconName, AttributesWidgetManager
 from .section_router import SectionRouter
 from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton
-from PySide2.QtCore import Qt
+from PySide2.QtCore import Qt, QObject
 from ..core.experiment import Experiment, ExperimentRunner, ExperimentStatsRunner, ExperimentDataStatistics
 from ..core.plugins import Classifier
 from .delegates import RadioButtonDelegate, ComboBoxDelegate
-from .models import TableDataAttributesModel, TableClassStatsModel
+from .models import TableDataAttributesModel, TableClassStatsModel, TableAttributesStatsModel
 from typing import Callable
 from functools import partial
 import copy
@@ -132,6 +132,110 @@ class ClassifierRowWidgetManager(WidgetManager):
             self._propertyCallback(self.classifierSlot.classifier)
 
 
+class ExperimentSectionDataStatsTabWatcher(WidgetManager):
+    """
+    Watches changes in data stats tab and performs action that are needed to update UI.
+    """
+    
+    def __init__(self, widget, experiment:Experiment):
+        """
+        Initialization of the watcher.
+        
+        :param widget: UI
+        :type widget: QWidget
+        :param experiment: The experiment we are working on.
+        :type experiment: Experiment
+        """
+        super().__init__()
+        self._widget=widget
+        self._experiment=experiment
+        #lets observe experiment changes
+        self._experiment.registerObserver("NEW_DATA_STATS", self._newStats)
+        self._experiment.registerObserver("ATTRIBUTES_CHANGED", self._needRefresh)
+        self._experiment.registerObserver("NEW_DATA_SET", self._needRefresh)
+        
+        self._actStats=None
+        
+    def _newStats(self):
+        """
+        Experiment is using new stats.
+        """
+        #We need to register new observer.
+        if self._actStats is not None:
+            #but first unregister the old one
+            self._actStats.unregisterObserver("SAMPLES_CHANGED",self._samplesChanged)
+            
+        if self._experiment.dataStats is not None:
+            self._actStats=self._experiment.dataStats
+            self._actStats.registerObserver("SAMPLES_CHANGED",self._samplesChanged)
+        
+        self._allChange()
+    
+    def _allChange(self):
+        """
+        Update all.
+        """
+        #assign models to table views
+        self._widget.dataStatsClassTable.setModel(TableClassStatsModel(self._widget, self._experiment))
+        self._widget.dataStatsAttributesTable.setModel(TableAttributesStatsModel(self._widget, self._experiment))
+        
+        self._setSecResModeForDataStatsTables()
+        
+        self._samplesChanged()
+        
+        self._widget.tabDataStatsNeedRefreshLabel.hide()
+        
+    def _samplesChanged(self):
+        """
+        Update thinks correlated with samples.
+        """
+        if self._experiment.dataStats is None:
+            self._widget.numOfSamplesLabel.setText(self.tr("Loading"))
+            self._widget.numOfSelAttrLabel.setText(self.tr("Loading"))
+            self._widget.maxSamplesInClassLabel.setText(self.tr("Loading"))
+            self._widget.classWithMaxSamplesLabel.setText(self.tr("Loading"))
+            self._widget.minSamplesInClassLabel.setText(self.tr("Loading"))
+            self._widget.classWithMinSamplesLabel.setText(self.tr("Loading"))
+            self._widget.avgNumberOfClassSamplesLabel.setText(self.tr("Loading"))
+            self._widget.classSamplesStandardDeviationLabel.setText(self.tr("Loading"))
+        else:
+            self._widget.numOfSamplesLabel.setText(str(self._experiment.dataStats.numberOfSamples))
+            self._widget.numOfSelAttrLabel.setText(str(len(self._experiment.dataStats.attributes)))
+            
+            maxVal,maxC=self._experiment.dataStats.maxSamplesInClass
+            self._widget.maxSamplesInClassLabel.setText(str(maxVal))
+            self._widget.classWithMaxSamplesLabel.setText(str(maxC))
+            
+            minVal,minC=self._experiment.dataStats.minSamplesInClass
+            self._widget.minSamplesInClassLabel.setText(str(minVal))
+            self._widget.classWithMinSamplesLabel.setText(str(minC))
+            
+            self._widget.avgNumberOfClassSamplesLabel.setText(str(self._experiment.dataStats.AVGSamplesInClass))
+            self._widget.classSamplesStandardDeviationLabel.setText(str(self._experiment.dataStats.SDSamplesInClass))
+              
+        self._needRefresh()
+        
+    def _needRefresh(self):
+        """
+        Signalises user that she/he should consider refresh.
+        
+        """
+        self._widget.tabDataStatsNeedRefreshLabel.show()
+        
+    def _setSecResModeForDataStatsTables(self):
+        """
+        Sets section resize mode for data stats tables.
+        """
+        self._widget.dataStatsClassTable.horizontalHeader().setSectionResizeMode(TableClassStatsModel.COLL_CLASS_NAME,QHeaderView.Stretch);
+        self._widget.dataStatsClassTable.horizontalHeader().setSectionResizeMode(TableClassStatsModel.COLL_SAMPLES,QHeaderView.ResizeMode.ResizeToContents);
+        self._widget.dataStatsClassTable.horizontalHeader().setSectionResizeMode(TableClassStatsModel.COLL_SAMPLES_ORIG,QHeaderView.ResizeMode.ResizeToContents);
+        self._widget.dataStatsClassTable.horizontalHeader().setSectionResizeMode(TableClassStatsModel.COLL_USE,QHeaderView.ResizeMode.ResizeToContents);
+        
+        self._widget.dataStatsAttributesTable.horizontalHeader().setSectionResizeMode(TableAttributesStatsModel.COLL_ATTRIBUTE_NAME,QHeaderView.Stretch);
+        self._widget.dataStatsAttributesTable.horizontalHeader().setSectionResizeMode(TableAttributesStatsModel.COLL_NUM_OF_FEATURES,QHeaderView.ResizeMode.ResizeToContents);
+        self._widget.dataStatsAttributesTable.horizontalHeader().setSectionResizeMode(TableAttributesStatsModel.COLL_FEATURES_VARIANCE,QHeaderView.ResizeMode.ResizeToContents);
+
+    
 
 class ExperimentSection(WidgetManager):
     """
@@ -189,7 +293,8 @@ class ExperimentSection(WidgetManager):
         Starts the experiment.
         """
         #create runner for that experiment
-        self._experimentRunner=ExperimentRunner(copy.deepcopy(self._experiment))
+        
+        self._experimentRunner=ExperimentRunner(self._experiment)
         self._experimentRunner.finished.connect(self._experimentFinished)
         self._experimentRunner.numberOfSteps.connect(self._widget.experimentProgressBar.setMaximum)
         self._experimentRunner.step.connect(self._incExperimentProgressBar)
@@ -228,8 +333,9 @@ class ExperimentSection(WidgetManager):
         """
         Starts statistics calculation.
         """
+        self._experiment.setDataStats(None)
         #create runner for 
-        self._statsRunner=ExperimentStatsRunner(copy.deepcopy(self._experiment))
+        self._statsRunner=ExperimentStatsRunner(self._experiment)
         self._statsRunner.finished.connect(self._dataStatsFinished)
         self._statsRunner.numberOfSteps.connect(self._widget.dataStatsRunProgressBar.setMaximum)
         self._statsRunner.step.connect(self._incDataStatsProgressBar)
@@ -265,17 +371,17 @@ class ExperimentSection(WidgetManager):
         """
         self._experiment.setDataStats(stats)
         
-        #assign model to table view
-        self._widget.dataStatsClassTable.setModel(TableClassStatsModel(self._widget, self._experiment))
-                                  
-                                  
+        
     def _dataStatsFinished(self):
         """
         Shows statistics.
         """
         
         #show the data stats tab
-        self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_RESULTS.value)
+        if self._experiment.dataStats is None:
+            self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_NO_RESULTS.value)
+        else:
+            self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_RESULTS.value)
         
     def _initData(self):
         """
@@ -324,11 +430,9 @@ class ExperimentSection(WidgetManager):
         #experiment stop event
         self._widget.stopDataStatsRunButton.clicked.connect(self._dataStatsStop)
         
-        #assign model to table view
-        self._widget.dataStatsClassTable.setModel(TableClassStatsModel(self._widget, 
-                                                                           self._experiment))
-        
-        self._setSecResModeForDataStatsTable()
+        #add watcher for updating the view
+        self._dataStatsTabWatcher=ExperimentSectionDataStatsTabWatcher(self._widget, self._experiment)
+
         
     def _initCls(self):
         """
@@ -516,15 +620,7 @@ class ExperimentSection(WidgetManager):
             self.manager=AttributesWidgetManager(plugin.getAttributes(), self._widget.dataPluginAttributesWidget)
             self._widget.dataPluginAttributesContent.addWidget(self.manager.widget)
             
-    def _setSecResModeForDataStatsTable(self):
-        """
-        Sets section resize mode for data stats table.
-        """
-        self._widget.dataStatsClassTable.horizontalHeader().setSectionResizeMode(TableClassStatsModel.COLL_CLASS_NAME,QHeaderView.Stretch);
-        self._widget.dataStatsClassTable.horizontalHeader().setSectionResizeMode(TableClassStatsModel.COLL_SAMPLES,QHeaderView.ResizeMode.ResizeToContents);
-        self._widget.dataStatsClassTable.horizontalHeader().setSectionResizeMode(TableClassStatsModel.COLL_SAMPLES_ORIG,QHeaderView.ResizeMode.ResizeToContents);
-        self._widget.dataStatsClassTable.horizontalHeader().setSectionResizeMode(TableClassStatsModel.COLL_USE,QHeaderView.ResizeMode.ResizeToContents);
-        
+    
     def _setSecResModeForDataAttrTable(self):
         """
         Sets section resize mode for data attribute table.

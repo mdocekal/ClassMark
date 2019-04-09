@@ -240,8 +240,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>531</width>
-                <height>611</height>
+                <width>532</width>
+                <height>592</height>
                </rect>
               </property>
               <property name="autoFillBackground">
@@ -453,7 +453,7 @@
               </widget>
              </item>
              <item>
-              <widget class="QLabel" name="label_19">
+              <widget class="QLabel" name="tabDataStatsNeedRefreshLabel">
                <property name="styleSheet">
                 <string notr="true">color: #666</string>
                </property>
@@ -546,8 +546,8 @@
                     <rect>
                      <x>0</x>
                      <y>0</y>
-                     <width>571</width>
-                     <height>137</height>
+                     <width>649</width>
+                     <height>162</height>
                     </rect>
                    </property>
                    <property name="sizePolicy">
@@ -564,9 +564,6 @@
                       </property>
                       <property name="textInteractionFlags">
                        <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
-                      </property>
-                      <property name="buddy">
-                       <cstring>numOfSamplesSpinBox</cstring>
                       </property>
                      </widget>
                     </item>
@@ -620,16 +617,6 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="0" column="3">
-                     <widget class="QLabel" name="numOfSamplesLabel">
-                      <property name="styleSheet">
-                       <string notr="true">color: #666</string>
-                      </property>
-                      <property name="text">
-                       <string>Loading</string>
-                      </property>
-                     </widget>
-                    </item>
                     <item row="2" column="3">
                      <widget class="QLabel" name="classWithMaxSamplesLabel">
                       <property name="text">
@@ -649,9 +636,6 @@
                        <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
                       </property>
                      </widget>
-                    </item>
-                    <item row="0" column="1" colspan="2">
-                     <widget class="QSpinBox" name="numOfSamplesSpinBox"/>
                     </item>
                     <item row="4" column="0">
                      <widget class="QLabel" name="label_13">
@@ -703,6 +687,16 @@
                       </property>
                      </widget>
                     </item>
+                    <item row="0" column="1" colspan="3">
+                     <widget class="QLabel" name="numOfSamplesLabel">
+                      <property name="styleSheet">
+                       <string notr="true"/>
+                      </property>
+                      <property name="text">
+                       <string>Loading</string>
+                      </property>
+                     </widget>
+                    </item>
                    </layout>
                   </widget>
                  </widget>
@@ -723,7 +717,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QTableView" name="tableView_2">
+                <widget class="QTableView" name="dataStatsAttributesTable">
                  <attribute name="verticalHeaderVisible">
                   <bool>false</bool>
                  </attribute>
@@ -802,8 +796,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>392</width>
-                <height>565</height>
+                <width>495</width>
+                <height>549</height>
                </rect>
               </property>
               <property name="mouseTracking">
@@ -929,8 +923,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>683</width>
-                <height>611</height>
+                <width>581</width>
+                <height>592</height>
                </rect>
               </property>
               <property name="autoFillBackground">

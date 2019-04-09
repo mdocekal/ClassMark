@@ -7,6 +7,7 @@ Feature extractor plugin for ClassMark.
 """
 from classmark.core.plugins import FeatureExtractor, PluginAttribute
 from sklearn.feature_extraction.text import HashingVectorizer
+from telnetlib import SE
 
 class Hashing(FeatureExtractor):
     """
@@ -14,7 +15,7 @@ class Hashing(FeatureExtractor):
     Uses method called feature hashing.
     """
 
-    def __init__(self, nonNegative:bool=True, nFeatures:int=65536):
+    def __init__(self, nonNegative:bool=False, nFeatures:int=65536, norm="l2"):
         """
         Initialize Hashing features extractor.
         
@@ -22,10 +23,19 @@ class Hashing(FeatureExtractor):
         :type nonNegative: bool
         :param nFeatures: Number of features
         :type nFeatures: int
+        :param norm: Type of normalization.
+        :type norm: str|None
         """
+        
+        self._nonNegativ=PluginAttribute("Non negative values", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
+        self._nonNegativ.value=nonNegative
         
         self._nFeatures=PluginAttribute("Number of features", PluginAttribute.PluginAttributeType.VALUE, int)
         self._nFeatures.value=nFeatures
+        
+        self._norm=PluginAttribute("Normalization", PluginAttribute.PluginAttributeType.SELECTABLE, str,
+                                            [None,"l1","l2",])
+        self._norm.value=norm
     
         self._vectorizer=None
         
@@ -45,7 +55,8 @@ class Hashing(FeatureExtractor):
         """
         Creates and initializes extractor according to current attributes values.
         """
-        self._ext=HashingVectorizer(n_features=self._nFeatures.value)
+        self._ext=HashingVectorizer(n_features=self._nFeatures.value, non_negative=self._nonNegativ.value,
+                                    norm=self._norm.value)
     
     def fit(self, data, labels=None):
         """

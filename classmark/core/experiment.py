@@ -20,9 +20,9 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import classification_report, accuracy_score
 from multiprocessing import Process
-from sklearn.feature_selection import chi2
-from ..core.utils import sparseMatVariance
+from ..core.utils import sparseMatVariance, Observable
 import copy
+import statistics 
 
 class ClassifierSlot(object):
     """
@@ -48,19 +48,22 @@ class ClassifierSlot(object):
         return self._id
     
     
-class ExperimentDataStatistics(object):
+class ExperimentDataStatistics(Observable):
     """
     Data statistics of experiment.
     """
     
+
     def __init__(self):
+        super().__init__()
         self._classSamples={}
         self._classActivity={}
         self._classes=[]    #just to give order to the classes
+        self._attributes=[]
         self._attributesFeatures={}
         self._attributesAVGFeatureVariance={}
-        self._attributesAVGFeatureChiSquare={}
         
+    
     def isActive(self,c):
         """
         Determines if given class is active.
@@ -73,6 +76,17 @@ class ExperimentDataStatistics(object):
         
         return self._classActivity[c]
     
+    @Observable._event("SAMPLES_CHANGED")
+    def samplesChangeEvent(self):
+        """
+        Informs all observers that samples stats changed.
+        
+        This method should be called inside this class only. For others it is just for
+        observing.
+        """
+        pass
+
+    
     def deactivateClass(self,c):
         """
         Deactivating a class means that this class is hidden and is no longer
@@ -84,7 +98,8 @@ class ExperimentDataStatistics(object):
         """
         
         self._classActivity[c]=False
-        
+        self.samplesChangeEvent()
+
     def activateClass(self, c):
         """
         Activate class c.
@@ -93,6 +108,29 @@ class ExperimentDataStatistics(object):
         :type c: Any
         """
         self._classActivity[c]=True
+        self.samplesChangeEvent()
+        
+    @property
+    def attributes(self):
+        """
+        All attributes we have stats for.
+        
+        :return: List of attributes.
+        :rtype: List[str]
+        """
+        
+        return self._attributes
+    
+    @attributes.setter
+    def attributes(self, attr):
+        """
+        Set all attributes. Is used mainly for the order of these attributes.
+        
+        :param attr: List of attributes.
+        :type attr: List[str]
+        """
+        
+        self._attributes=attr
         
     @property
     def classes(self):
@@ -103,15 +141,25 @@ class ExperimentDataStatistics(object):
         :rtype: List[Any]
         """
         
-        return [c for c in self._classes  if self._classActivity[c]]
+        return self._classes
         
+    @property
+    def activeClasses(self):
+        """
+        Gives list of only active classes.
+        
+        :return: active classes
+        :rtype: List[Any]
+        """
+        return [c for c in self._classes  if self._classActivity[c]]
+    
     @property
     def classSamples(self):
         """
         Number of samples per class in form of dict where key is the class and value
         is the number of samples.
         """
-        return { c:v for c,v in self._classSamples.items() if self._classActivity[c] }
+        return { c:self._classSamples[c] for c in self.activeClasses}
     
     @classSamples.setter
     def classSamples(self, newCS:Dict[Any, int]):
@@ -125,6 +173,7 @@ class ExperimentDataStatistics(object):
         self._classSamples=newCS
         self._classActivity={c:True for c in newCS}
         self._classes=list(newCS.keys())
+        self.samplesChangeEvent()
         
     def changeSamplesInClass(self,c,n):
         """
@@ -136,6 +185,7 @@ class ExperimentDataStatistics(object):
         :type n: int
         """
         self._classSamples[c]=n
+        self.samplesChangeEvent()
         
     @property
     def numberOfSamples(self):
@@ -144,7 +194,7 @@ class ExperimentDataStatistics(object):
         Is calculated from classSamples.
         """
         
-        return sum( v for c,v in self._classSamples if self._classActivity[c])
+        return sum( self._classSamples[c] for c in self.activeClasses)
         
     @property
     def maxSamplesInClass(self):
@@ -155,8 +205,7 @@ class ExperimentDataStatistics(object):
         :rtype: Tuple[int, Any]
         """
         
-        mC=max([ c for c in self._classSamples if self._classActivity[c]], 
-                key=lambda x: self._classSamples[x])
+        mC=max(self.activeClasses, key=lambda x: self._classSamples[x])
         return (self._classSamples[mC],mC)
     
     @property
@@ -168,9 +217,31 @@ class ExperimentDataStatistics(object):
         :rtype: Tuple[int, Any]
         """
         
-        mC=min([ c for c in self._classSamples if self._classActivity[c]], 
-                key=lambda x: self._classSamples[x])
+        mC=min(self.activeClasses, key=lambda x: self._classSamples[x])
         return (self._classSamples[mC],mC)
+        
+    @property
+    def AVGSamplesInClass(self):
+        """
+        Average number of samples in class.
+        
+        :return: avg samples
+        :rtype: float
+        """
+        
+        return sum(self._classSamples[c] for c in self.activeClasses)/len(self.activeClasses)
+    
+    @property
+    def SDSamplesInClass(self):
+        """
+        Standard deviation of number of class samples.
+        
+        :return: SD of number of class samples
+        :rtype: float
+        """
+        if len(self.activeClasses)>1:
+            return statistics.stdev(self._classSamples[c] for c in self.activeClasses)
+        return 0
         
     @property
     def attributesFeatures(self):
@@ -179,6 +250,8 @@ class ExperimentDataStatistics(object):
         """
         return self._attributesFeatures
     
+    
+    
     @property
     def attributesAVGFeatureVariance(self):
         """
@@ -186,14 +259,8 @@ class ExperimentDataStatistics(object):
         """
         return self._attributesAVGFeatureVariance
     
-    @property
-    def attributesAVGFeatureChiSquare(self):
-        """
-        Average Chi^2 of features for each attribute.
-        """
-        return self._attributesAVGFeatureChiSquare
     
-class Experiment(object):
+class Experiment(Observable):
     """
     This class represents experiment.
     """
@@ -221,6 +288,7 @@ class Experiment(object):
         :type filePath: str| None
         :raise RuntimeError: When there is problem with plugins.
         """
+        super().__init__()
         self._dataset=None
         self._attributesSet={}
         self._label=None
@@ -233,6 +301,8 @@ class Experiment(object):
         
         self._dataStats=None
         self._origDataStats=None
+        
+        self._attributesThatShouldBeUsedCache={}
         
     @property    
     def dataStats(self):
@@ -255,6 +325,7 @@ class Experiment(object):
         """
         return copy.copy(self._origDataStats)
     
+    @Observable._event("NEW_DATA_STATS")
     def setDataStats(self, stats):
         """
         Set the data stats. This method overrides working copy
@@ -381,6 +452,7 @@ class Experiment(object):
         """
         return self._featuresExt
         
+    @Observable._event("NEW_DATA_SET")
     def loadDataset(self, filePath:str):
         """
         Loades dataset.
@@ -395,6 +467,8 @@ class Experiment(object):
                   self.AttributeSettings.FEATURE_EXTRACTOR:next(iter(self._featuresExt.values()))()} 
                           for name in self._dataset.attributes}
         self._label=None
+        self._dataStats=None
+        self._attributesThatShouldBeUsedCache={}
         
     @property
     def evaluationMethod(self):
@@ -467,6 +541,15 @@ class Experiment(object):
         
         return self._attributesSet[attribute][t]
         
+    @Observable._event("ATTRIBUTES_CHANGED")
+    def attributesChangedEvent(self):
+        """
+        This event exists for informing observers that some attribute is no longer used
+        or started to be used or when attribute is marked as label.
+        
+        """
+        pass
+        
     def setAttributeSetting(self, attribute:str,t, val):
         """
         Set attribute setting of given type.
@@ -493,7 +576,9 @@ class Experiment(object):
                 self._dataset.removePathAttribute(attribute)
             
             
-        
+        if t==Experiment.AttributeSettings.USE or t==Experiment.AttributeSettings.LABEL:
+            self._attributesThatShouldBeUsedCache={}
+            self.attributesChangedEvent()
 
     def attributesThatShouldBeUsed(self, label:bool=True):
         """
@@ -503,8 +588,15 @@ class Experiment(object):
         :type label: bool
         """
         #we are preserving original attribute order
-        return [a for a in self.dataset.attributes \
+        try:
+            return self._attributesThatShouldBeUsedCache[label]
+        except KeyError:
+            res=[a for a in self.dataset.attributes \
                 if self._attributesSet[a][Experiment.AttributeSettings.USE] and (label or a!=self._label)]
+            
+            self._attributesThatShouldBeUsedCache[label]=res
+        
+            return res
     
     @property
     def dataset(self):
@@ -549,8 +641,9 @@ class ExperimentStatsRunner(ExperimentBackgroundWorker):
         Run the stat calculation.
         """
         statsExp=ExperimentDataStatistics()
+        statsExp.attributes=self._experiment.attributesThatShouldBeUsed(False)
         #reading, samples, attributes
-        self.numberOfSteps.emit(3)
+        self.numberOfSteps.emit(2+len(statsExp.attributes))
         
         #TODO: MULTILANGUAGE
         self.actInfo.emit("dataset reading") 
@@ -558,7 +651,7 @@ class ExperimentStatsRunner(ExperimentBackgroundWorker):
             return
         #ok, lets first read the data
         data, labels=self._experiment.dataset.toNumpyArray([
-            self._experiment.attributesThatShouldBeUsed(False),
+            statsExp.attributes,
             [self._experiment.label]
             ])
         
@@ -584,22 +677,20 @@ class ExperimentStatsRunner(ExperimentBackgroundWorker):
                 for a in self._experiment.attributesThatShouldBeUsed(False)]
         
         self.step.emit() 
-        self.actInfo.emit("attributes") 
+        
         #get the attributes values
         for i,(attr,extractor) in enumerate(extMap):
+            self.actInfo.emit("attribute: "+attr) 
             if self.isInterruptionRequested():
                 return
             actF=extractor.fitAndExtract(data[:,i],labels).tocsc()
             if self.isInterruptionRequested():
                 return
             statsExp.attributesFeatures[attr]=actF.shape[1]
-            statsExp.attributesAVGFeatureChiSquare[attr]=np.average(chi2(actF, labels))
-            if self.isInterruptionRequested():
-                return
             statsExp.attributesAVGFeatureVariance[attr]=np.average(np.array([sparseMatVariance(actF[:,c]) for c in range(actF.shape[1])]))
+            self.step.emit() 
             
-
-        self.step.emit() 
+        self.actInfo.emit("Done") 
         
         self.calcStatsResult.emit(statsExp)
         

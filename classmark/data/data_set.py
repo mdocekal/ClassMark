@@ -83,7 +83,26 @@ class DataSet(object):
         :type subset:np.array | None
         """
         self._subset=subset
+    
+    def save(self, filePath, useOnly:List[str]=None):    
+        """
+        Saves data set.
         
+        :param filePath: Path to file.
+        :type filePath: str
+        :param useOnly: attributes filter
+        :type useOnly: List[str] | None
+        """
+        if useOnly is None:
+            useOnly=self._attributes
+        with open(filePath, "w", encoding="utf-8") as opF:
+            writter=csv.DictWriter(opF, useOnly)
+            writter.writeheader()
+            
+            for sample in self:
+                writter.writerow(sample)
+            
+    
     def addPathAttribute(self, attr:str):
         """
         Marks attribute as path to different file whichs content shold be read and
@@ -138,7 +157,8 @@ class DataSet(object):
                 #user wants just the subset
                 subIter=iter(self._subset)
                 nextFromSub=next(subIter)
-                for i, sample in reader:
+                print(len(self._subset))
+                for i, sample in enumerate(reader):
                     if i==nextFromSub:
                         #we are in subset
                         nextFromSub=next(subIter)
@@ -159,7 +179,7 @@ class DataSet(object):
                 #add as base folder of that data set
                 sample[pA]=LazyTextFileReader(os.path.join(self._folder,sample[pA]))
         
-    def toNumpyArray(self, useOnly:List[List[str]]=[],):
+    def toNumpyArray(self, useOnly:List[List[str]]=[]):
         """
         Stores all samples to numpy array.
         

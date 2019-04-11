@@ -212,11 +212,8 @@ class FunGenes(object):
         self._fun=random.choice(self.FUNCTIONS) if function is None else function
 
         
-        self._classSamples=[]
-        self._classSamplesVal=[]
-        
-        self._outerSamples=[]
-        #no need to store values of outer samples because be default all have zero
+        self._samplesSlots=[]
+        self._samplesSlotsVal=[]
 
         self._fenotypeGenerated=None
 
@@ -228,9 +225,8 @@ class FunGenes(object):
         :rtype: Individual
         """
         c=type(self)(self._dataSet,self._classDataIndices,self._outerIndices,self._fun)
-        c._classSamples=self._classSamples[:]
-        c._classSamplesVal=self._classSamplesVal[:]
-        c._outerSamples=self._outerSamples[:]
+        c._samplesSlots=self._samplesSlots[:]
+        c._samplesSlotsVal=self._samplesSlotsVal[:]
         return c
     
     @classmethod
@@ -244,8 +240,7 @@ class FunGenes(object):
         :type classDataIndices: np.array indices
         :param outerIndices: Indices of others classes samples.
         :type outerIndices: np.array indices
-        :param maxSlots: Maximum number of initial class and outer slots. Minimal is one slot.
-            So at least 2 slots will be always created (one for each).
+        :param maxSlots: Maximum number of initial slots for class and outer samples. Minimal is two slots.
         :type maxSlots: int
         :return: The genes.
         :rtype: FunGenes
@@ -269,14 +264,14 @@ class FunGenes(object):
             self._addNewSlots(numberOfClassSlots, True)
         except self.CanNotFillSlotException as e:
             #if we have at least one than it is ok
-            if len(self._classSamples)==0:
+            if len(self._samplesSlots)==0:
                 raise e
 
         try:
             self._addNewSlots(numberOfOuterSlots, False)
         except self.CanNotFillSlotException as e:
-            #if we have at least one than it is ok
-            if len(self._outerSamples)==0:
+            #if we have at least two than it is ok
+            if len(self._samplesSlots)<2:
                 raise e
 
         return self
@@ -293,15 +288,11 @@ class FunGenes(object):
         :raise CanNotFillSlotException: This exception raises when there is no free sample that can fill empty slot.
         """
 
-        slots=self._classSamples if classSamples else self._outerSamples
-
         for _ in range(n):
             #select one
-            actSel=self._selectUniqueSample(slots, classSamples)
-            slots.append(actSel)
-            if classSamples:
-                self._classSamplesVal.append(1)
-                    
+            self._samplesSlots.append(self._selectUniqueSample(slots, classSamples))
+            
+            self._samplesSlotsVal=1 if classSamples else -1
 
     def _selectUniqueSample(self, t, classSamples):
         """
@@ -375,7 +366,7 @@ class FunGenes(object):
         :param funGenes: FunGenes for crossover.
         :type funGenes: List[FunGenes]
         """
-        
+        #TODO:continue with crossover
 
         #let's create brand new and choose parent for function 
         newSib=cls(funGenes[0]._dataSet,funGenes[0]._classDataIndices, funGenes[0]._outerIndices,
@@ -410,6 +401,7 @@ class FunGenes(object):
                     continue
                     
                 newSib._outerSamples.append(parentForGene._outerSamples[i])
+                newSib._outerSamplesVal.append(parentForGene._outerSamplesVal[i])
             except IndexError:
                 #parent with shorter part of chromosome was chosen
                 #just skip it
@@ -447,11 +439,9 @@ class FunGenes(object):
         self._fenotypeGenerated=None
         
         mutK=[
-            self._mutateClassSamples,
-            self._mutateOuterSamples,
-            self._mutateClassSamplesSlots,
-            self._mutateOuterSamplesSlots,
-            self._mutateClassSampleValue,
+            self._mutateSample,
+            self._mutateSlots,
+            self._mutateSampleValue,
             self._mutateFunction
             ]
         
@@ -465,71 +455,36 @@ class FunGenes(object):
         
         return numPer
     
-    def _mutateClassSamples(self):
-        """
-        Mutates class samples.
-        """
-        self._mutateSample(True)
-        
     
-    def _mutateOuterSamples(self):
+    def _mutateSample(self):
         """
-        Mutates outer samples.
+        Mutates random sample.
         """
-        self._mutateSample(False)
-    
-    def _mutateSample(self, classSamples):
-        """
-        Mutates class or outer sample according to parameter.
-
-        :param classSamples: True means mutate class samples. False means outer samples.
-        :type classSamples: bool
-        """
-        samples=self._classSamples if classSamples else self._outerSamples
-
         #we select the maximum according to number of slots
         #because we are trying to minimize chance, that one slot will be mutated multiple times.
-        maxMut=len(samples) if self._mutations>len(samples) else self._mutations
+        maxMut=len(self._samplesSlots) if self._mutations>len(self._samplesSlots) else self._mutations
 
         
         mut=random.randint(1,maxMut)
         for _ in range(mut):
             try:
-                sel=random.randrange(len(samples))
-                changeTo=self._selectUniqueSample(samples, classSamples)
+                classSamples=bool(random.getrandbits(1))    #randomly chooses class sample or outer
+                sel=random.randrange(len(self._samplesSlots))
+                changeTo=self._selectUniqueSample(self._samplesSlots, classSamples)
                 self._mutations-=1
                 
                 #overwrite
-                samples[sel]=changeTo
-                if classSamples:
-                    self._classSamplesVal[sel]=1
+                self._samplesSlots[sel]=changeTo
+                self._samplesSlotsVal[sel]=1 if classSamples else -1
+
             except self.CanNotFillSlotException:
                 #ok we are out of data
                 break
-        
     
-    def _mutateClassSamplesSlots(self):
+    def _mutateSlots(self):
         """
-        Adds or removes slots for class samples.
+        Mutates (adds/removes) samples slots.
         """
-        self._mutateSlots(True)
-    
-    def _mutateOuterSamplesSlots(self):
-        """
-        Adds or removes slots for outer samples.
-        """
-        self._mutateSlots(False)
-    
-    def _mutateSlots(self, classSamples):
-        """
-        Mutates (adds/removes) class or outer sample slots according to parameter.
-
-        :param classSamples: True means mutate class samples slots. False means outer samples slots.
-        :type classSamples: bool
-        """
-        
-        slots=self._classSamples if classSamples else self._outerSamples
-
         maxMut=min(self._mutations,len(slots)-1)
         if maxMut==0:
             #ok nevermind maybe later
@@ -537,13 +492,12 @@ class FunGenes(object):
         
         mut=random.randint(1,maxMut)
         
-        
         self._mutations-=mut
         
         if len(slots)==1 or random.randint(0,1)==1:
             #add
             try:
-                self._addNewSlots(mut, classSamples)
+                self._addNewSlots(mut, bool(random.getrandbits(1))) #randomly selects outer or class sample
             except self.CanNotFillSlotException as e:
                 #not enought new data
                 return
@@ -552,24 +506,23 @@ class FunGenes(object):
             #remove
             for _ in range(mut):
                 i=random.randrange(len(slots))
-                del slots[i]
-                if classSamples:
-                    del self._classSamplesVal[i]
-  
-    def _mutateClassSampleValue(self):
-        """
-        Mutates value of random class sample.
-        """
+                del self._samplesSlots[i]
+                del self._samplesSlotsVal[i]
 
+            
+    def _mutateSampleValue(self):
+        """
+        Mutates value of random sample.
+
+        """
         mut=random.randint(1,self._mutations)
         for _ in range(mut):
             self._mutations-=1
-            sel=random.randrange(len(self._classSamples))
+            sel=random.randrange(len(self._samplesSlotsVal))
             
             change=random.uniform(-1,1)
             
-            self._classSamplesVal[sel]=self._classSamplesVal[sel]+change
-
+            self._samplesSlotsVal[sel]=self._samplesSlotsVal[sel]+change
             
     def _mutateFunction(self):
         """
@@ -588,8 +541,8 @@ class FunGenes(object):
         """
 
         if self._fenotypeGenerated is None:
-            self._fenotypeGenerated=self._fun(np.array(self._classSamples),np.array(self._outerSamples),
-                np.array(self._classSamplesVal))
+            self._fenotypeGenerated=self._fun(np.array(self._samplesSlots),
+                                              np.array(self._samplesSlotsVal))
 
         return self._fenotypeGenerated
 

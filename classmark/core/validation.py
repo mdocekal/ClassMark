@@ -13,6 +13,8 @@ from typing import List, Callable
 from .plugins import Plugin, PluginAttribute, Classifier, FeatureExtractor
 from PySide2.QtCore import Signal
 from sklearn.model_selection import StratifiedKFold, LeaveOneOut, KFold
+from enum import Enum
+import time
 
 class EvaluationMethod(object):
     """
@@ -31,12 +33,43 @@ class Validator(Plugin):
     actStepDesc=Signal(str)
     """Is emitted when step begins and sends description of actual step."""
     
+    
+    class TimeDuration(Enum):
+        """
+        All time durations that are measure inside one step.
+        """
+        FEATURE_EXTRACTION_TRAIN=0
+        """Duration of feature extracting for train set measured with time.time()."""
+        
+        FEATURE_EXTRACTION_TRAIN_PROC=1
+        """Duration of feature extracting for train set measured with time.process_time()."""
+        
+        TRAINING=2
+        """Duration of training measured with time.time()."""
+        
+        TRAINING_PROC=3
+        """Duration of training measured with time.process_time()."""
+        
+        FEATURE_EXTRACTION_TEST=4
+        """Duration of feature extracting for test set measured with time.time()."""
+        
+        FEATURE_EXTRACTION_TEST_PROC=5
+        """Duration of feature extracting for test set measured with time.process_time()."""
+        
+        TEST=6
+        """Duration of testing measured with time.time()."""
+        
+        TEST_PROC=7
+        """Duration of testing measured with time.process_time()."""
+        
+        
 
     def run(self, classifier:Classifier, data:np.array, labels:np.array, extMap:List[FeatureExtractor]):
         """
         Run whole validation process on given classifier with
-        given data. It is implemented as generator that provides predicted labels and real labels for test set on the
+        given data. It is implemented as generator that provides predicted labels, real labels and times for train/test set on the
         end of validation step.
+        
         
         :param classifier: Classifier you want to test.
         :type classifier: Classifier
@@ -47,31 +80,57 @@ class Validator(Plugin):
         :param extMap: Index of a FeatureExtractor, in that list corresponds
             to column, in data matrix, to which the extractor will be used.
         :type extMap: List[FeatureExtractor]
+        :return: Generator of tuple Tuple[predictedLabels,realLabels, dict of times]
+        :rtype: Iterator[Tuple[np.array,np.array,Dict[TimeDuration, float]]]
         """
         
         for trainIndices, testIndices in self.splitter(data, labels):
+            s=time.time()
             """
             self.actInfo.emit("Extracting features {} on samples. Step {}/{}.".format(
                 trainIndices.shape[0],classifier.getName(), step+1, self.numOfSteps(data, labels)))
             """
             #feature extraction for training set
             trainLabels=labels[trainIndices]
-            trainFeatures=self._featuresStep(data[trainIndices], extMap, trainLabels, fit=True)
 
+            times={self.TimeDuration.FEATURE_EXTRACTION_TRAIN:time.time(),
+                   self.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC:time.process_time()}
+            
+            trainFeatures=self._featuresStep(data[trainIndices], extMap, trainLabels, fit=True)
+            
+            times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]=time.process_time()-times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]
+            times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN]=time.time()-times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN]
+            
+
+            times[self.TimeDuration.TRAINING]=time.time()
+            times[self.TimeDuration.TRAINING_PROC]=time.process_time()
             #train classifier
             classifier.train(trainFeatures, trainLabels)
-            
+
+            times[self.TimeDuration.TRAINING_PROC]=time.process_time()-times[self.TimeDuration.TRAINING_PROC]
+            times[self.TimeDuration.TRAINING]=time.time()-times[self.TimeDuration.TRAINING]
+
             #free memory
             del trainFeatures
             del trainLabels
-            
+
+            times[self.TimeDuration.FEATURE_EXTRACTION_TEST]=time.time()
+            times[self.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]=time.process_time()
             #feature extraction for test set
             testFeatures=self._featuresStep(data[testIndices], extMap)
+            
+            times[self.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]=time.process_time()-times[self.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]
+            times[self.TimeDuration.FEATURE_EXTRACTION_TEST]=time.time()-times[self.TimeDuration.FEATURE_EXTRACTION_TEST]
 
+            times[self.TimeDuration.TEST]=time.time()
+            times[self.TimeDuration.TEST_PROC]=time.process_time()
             #predict the labels
             predictedLabels=classifier.predict(testFeatures)
+            
+            times[self.TimeDuration.TEST_PROC]=time.process_time()-times[self.TimeDuration.TEST_PROC]
+            times[self.TimeDuration.TEST]=time.time()-times[self.TimeDuration.TEST]
 
-            yield (predictedLabels, labels[testIndices])
+            yield (predictedLabels, labels[testIndices], times)
             
     def _featuresStep(self, data:np.array,extMap:List[FeatureExtractor], labels:np.array=None, fit=False):
         """

@@ -76,38 +76,36 @@ TypeError: only integer scalar arrays can be converted to a scalar index
             return v
     return res
 '''
-def fNearest(classData, outerData, classVals):
+def fNearest(samples, samplesVals):
     """
     Linear interpolation according to nearest neighbour.
     
-    :param classData: Class coords for interpolation.
-    :type classData: np.array
-    :param outerData: Outer coords for interpolation.
-    :type outerData: np.array
-    :param classVals: Values on class coords.
-    :type classVals: np.array
+    :param samples: Coords for interpolation.
+    :type samples: np.array
+    :param samplesVals: Values on class coords.
+    :type samplesVals: np.array
     """
-    f=NearestNDInterpolator(np.vstack((classData,outerData)), np.hstack((classVals,np.full(outerData.shape[0], -1))))
+    f=NearestNDInterpolator(samples, samplesVals)
 
     return f
     
-def fNearest2x2FromEachClass(classData, outerData, classVals):
+def fNearest2x2FromEachClass(samples, samplesVals):
     """
-    Finds two nearest from each class and performs weighted average of their values.
+    Finds two nearest from class and two from outer samples and performs weighted average of their values.
     As weight is used distance. If distance from some data sample is zero than it's
     value is returned. Beware that if there is multiple samples with zero distance
     than zero value(outer) haves priority. 
     
-    Outer class have values of 0 (by default) and actual class must have non zero values.
-    
-    
-    :param classData: Class coords for interpolation.
-    :type classData: np.array
-    :param outerData: Outer coords for interpolation.
-    :type outerData: np.array
-    :param classVals: Values on class coords.
-    :type classVals: np.array
+    Outer class have values that are equal or smaller than 0 (by default) and actual class must have values greater than zero.
+
+    :param samples: Coords for interpolation.
+    :type samples: np.array
+    :param samplesVals: Values on class coords.
+    :type samplesVals: np.array
     """
+    
+    classData=samples[np.where(samplesVals>0)]
+    outerData=samples[np.where(samplesVals<=0)]
     #nearest 2x2 (from each class) interpolate
 
     fnClass=cKDTree(classData)
@@ -130,7 +128,6 @@ def fNearest2x2FromEachClass(classData, outerData, classVals):
             #we need col vectors
             dO=dO[:, np.newaxis]
 
-        values=np.hstack((classVals[iC],np.full_like(dO, -1)))
         del iC
         distances=np.hstack((dC,dO))
 
@@ -158,7 +155,7 @@ def fNearest2x2FromEachClass(classData, outerData, classVals):
 numpy.AxisError: axis 1 is out of bounds for array of dimension 1
 
             """
-            avg=np.average(values, axis=1, weights=distances)
+            avg=np.average(samplesVals, axis=1, weights=distances)
             
             #find problems, if exists
             problems=np.where(np.isnan(avg))
@@ -166,7 +163,7 @@ numpy.AxisError: axis 1 is out of bounds for array of dimension 1
                 problemsCols=(problems[0],np.array(np.argmax(np.isinf(distances[problems]),axis=1)))    #we are interested in the first only
                 
                 #change the nans with values of the problematic points
-                avg[problems]=values[problemsCols]
+                avg[problems]=samplesVals[problemsCols]
             
             return avg
         
@@ -198,27 +195,31 @@ def fLinInterExtNearest2x2(data, vals):
     return res
 
 '''
-def fNearest2x2FromEachClass2AtAll(classData, outerData, classVals):
+def fNearest2x2FromEachClass2AtAll(samples, samplesVals):
     """
-    Finds two nearest from each class, two at all and performs weighted average of their values.
+    Finds two nearest from each class(outer and act. class), two at all and performs weighted average of their values.
     As weight is used distance. If distance from some data sample is zero than it's
     value is returned.
     
-    Outer class must have values of 0 and actual class must have non zero values.
-    
-    :param classData: Class coords for interpolation.
-    :type classData: np.array
-    :param outerData: Outer coords for interpolation.
-    :type outerData: np.array
-    :param classVals: Values on class coords.
-    :type classVals: np.array
+    Outer class have values that are equal or smaller than 0 (by default) and actual class must have values greater than zero.
+
+    :param samples: Coords for interpolation.
+    :type samples: np.array
+    :param samplesVals: Values on class coords.
+    :type samplesVals: np.array
     """
 
-
+    cInd=np.where(samplesVals>0)
+    classData=samples[cInd]
+    classVals=samplesVals[cInd]
+    
+    oInd=np.where(samplesVals<=0)
+    outerData=samples[oInd]
+    outerVals=outerVals[oInd]
   
-    fnAll=cKDTree(np.vstack((classData,outerData)))
-    valsAll=np.hstack((classVals,np.full(outerData.shape[0], -1)))
-    fnAllMaxNeigh=1 if valsAll.shape[0]<2 else 2
+    fnAll=cKDTree(samples)
+    samplesVals=np.hstack((classVals,np.full(outerData.shape[0], -1)))
+    fnAllMaxNeigh=1 if samplesVals.shape[0]<2 else 2
     
     fnClass=cKDTree(classData)
     fnClassMaxNeigh=1 if classData.shape[0]<2 else 2
@@ -246,7 +247,7 @@ def fNearest2x2FromEachClass2AtAll(classData, outerData, classVals):
             #we need col vectors
             dO=dO[:, np.newaxis]
         
-        values=np.hstack((valsAll[IA],classVals[iC],np.full_like(dO,-1)))
+        values=np.hstack((samplesVals[IA],classVals[iC],np.full_like(dO,-1)))
         del iC
         del IA
         distances=np.hstack((DA,dC,dO))

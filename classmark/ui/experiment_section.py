@@ -151,8 +151,6 @@ class ExperimentSectionDataStatsTabWatcher(WidgetManager):
         self._experiment=experiment
         #lets observe experiment changes
         self._experiment.registerObserver("NEW_DATA_STATS", self._newStats)
-        self._experiment.registerObserver("ATTRIBUTES_CHANGED", self._needRefresh)
-        self._experiment.registerObserver("NEW_DATA_SET", self._needRefresh)
         
         self._actStats=None
         
@@ -183,8 +181,6 @@ class ExperimentSectionDataStatsTabWatcher(WidgetManager):
         
         self._samplesChanged()
         
-        self._widget.tabDataStatsNeedRefreshLabel.hide()
-        
     def _samplesChanged(self):
         """
         Update thinks correlated with samples.
@@ -213,14 +209,6 @@ class ExperimentSectionDataStatsTabWatcher(WidgetManager):
             self._widget.avgNumberOfClassSamplesLabel.setText(str(self._experiment.dataStats.AVGSamplesInClass))
             self._widget.classSamplesStandardDeviationLabel.setText(str(self._experiment.dataStats.SDSamplesInClass))
               
-        self._needRefresh()
-        
-    def _needRefresh(self):
-        """
-        Signalises user that she/he should consider refresh.
-        
-        """
-        self._widget.tabDataStatsNeedRefreshLabel.show()
         
     def _setSecResModeForDataStatsTables(self):
         """
@@ -293,8 +281,11 @@ class ExperimentSection(WidgetManager):
         Starts the experiment.
         """
         #create runner for that experiment
+        useExperiment=copy.copy(self._experiment)
+        useExperiment.setDataStats(None)
+        useExperiment.clearObservers()
         
-        self._experimentRunner=ExperimentRunner(self._experiment)
+        self._experimentRunner=ExperimentRunner(useExperiment)
         self._experimentRunner.finished.connect(self._experimentFinished)
         self._experimentRunner.numberOfSteps.connect(self._widget.experimentProgressBar.setMaximum)
         self._experimentRunner.step.connect(self._incExperimentProgressBar)
@@ -341,6 +332,9 @@ class ExperimentSection(WidgetManager):
         self._statsRunner.step.connect(self._incDataStatsProgressBar)
         self._statsRunner.actInfo.connect(self._widget.dataStatsRunActInfo.setText)
         self._statsRunner.calcStatsResult.connect(self._newDataStatsResults)
+        
+        #clear the act info
+        self._widget.dataStatsRunActInfo.setText("")
         
         #set the progress bar
         self._widget.dataStatsRunProgressBar.setValue(0)
@@ -430,9 +424,12 @@ class ExperimentSection(WidgetManager):
         #experiment stop event
         self._widget.stopDataStatsRunButton.clicked.connect(self._dataStatsStop)
         
+        self._widget.saveNewDataSetButton.clicked.connect(self._saveAsNewDataset)
+        
         #add watcher for updating the view
         self._dataStatsTabWatcher=ExperimentSectionDataStatsTabWatcher(self._widget, self._experiment)
 
+        
         
     def _initCls(self):
         """
@@ -461,6 +458,17 @@ class ExperimentSection(WidgetManager):
         self._widget.startExperimentButton.clicked.connect(self._experimentStarts)
         #experiment stop event
         self._widget.stopExperimentButton.clicked.connect(self._experimentStops)
+        
+    def _saveAsNewDataset(self):
+        """
+        Saves subset of dataset as new dataset.
+        """
+        
+        fileName=QFileDialog.getSaveFileName(self._widget, self.tr("Save dataset"), ".csv", self.tr("CSV files (*.csv)"))[0]
+        if fileName:
+            #use selected a file
+            self._experiment.useSubset()
+            self._experiment.dataset.save(fileName, self._experiment.attributesThatShouldBeUsed())
         
     def _hideClassifierProperties(self):
         """

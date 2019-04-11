@@ -19,10 +19,13 @@ from typing import Any, Dict
 import numpy as np
 import pandas as pd
 from sklearn.metrics import classification_report, accuracy_score
-from multiprocessing import Process
+import multiprocessing
+import queue
 from ..core.utils import sparseMatVariance, Observable
 import copy
 import statistics 
+from pip._internal.utils.misc import enum
+from functools import partial
 
 class ClassifierSlot(object):
     """
@@ -303,6 +306,24 @@ class Experiment(Observable):
         self._origDataStats=None
         
         self._attributesThatShouldBeUsedCache={}
+        
+    def useSubset(self):
+        """
+        Use only subset of samples from data set according to data stats.
+        """
+        counters=copy.copy(self._dataStats.classSamples)
+        
+        subset=np.empty(self._dataStats.numberOfSamples)
+        cnt=0
+        for i, sample in enumerate(self.dataset):
+            l=sample[self._label]
+            
+            if counters[l]>0:
+                subset[cnt]=i
+                counters[l]-=1
+                cnt+=1
+        print(subset.shape[0])
+        self._dataset.useSubset(subset)
         
     @property    
     def dataStats(self):
@@ -616,6 +637,22 @@ class ExperimentBackgroundWorker(QThread):
     actInfo = Signal(str)
     """Sends information about what thread is doing now."""
     
+    class MultPMessageType(Enum):
+        """
+        Message type for multiprocessing communication.
+        """
+        
+        NUMBER_OF_STEPS_SIGNAL=0
+        """Signalizes that we now know the number of steps. Value is number of steps (int)."""
+        
+        STEP_SIGNAL=1
+        """Next step finished. Value None."""
+        
+        ACT_INFO_SIGNAL=2
+        """Sends information about what process is doing now. Value is string."""
+        
+        
+    
     def __init__(self, experiment:Experiment):
         """
         Initialization of background worker.
@@ -705,62 +742,119 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         """
         Run the experiment.
         """
-        p = Process(target=self.work)
+        commQ = multiprocessing.Queue()
+        p = multiprocessing.Process(target=partial(self.work, self._experiment, commQ))
         p.start()
         while not self.isInterruptionRequested() and p.is_alive():
-            time.sleep(1)
+            try:
+                msgType, msgValue=commQ.get(False, 0.5)#nonblocking
+                
+                if msgType==self.MultPMessageType.NUMBER_OF_STEPS_SIGNAL:
+                    self.numberOfSteps.emit(msgValue)
+                elif msgType==self.MultPMessageType.STEP_SIGNAL:
+                    self.step.emit()
+                elif msgType==self.MultPMessageType.ACT_INFO_SIGNAL:
+                    self.actInfo.emit(msgValue)
+                
+            except queue.Empty:
+                #nothing here
+                pass
             
         if p.is_alive() and self.isInterruptionRequested():
             p.terminate()
         
-    def work(self):
+    @classmethod
+    def work(cls, experiment:Experiment, commQ:multiprocessing.Queue):
         """
         The actual work of that thread
+        
+        :param experiment: Work on that experiment.
+        :type experiment: Experiment
+        :param commQ: Communication queue.
+        :type commQ: multiprocessing.Queue
         """
         #TODO: MULTILANGUAGE
-        self.actInfo.emit("dataset reading") 
+        commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,"dataset reading"))
+
         #ok, lets first read the data
-        data, labels=self._experiment.dataset.toNumpyArray([
-            self._experiment.attributesThatShouldBeUsed(False),
-            [self._experiment.label]
+        data, labels=experiment.dataset.toNumpyArray([
+            experiment.attributesThatShouldBeUsed(False),
+            [experiment.label]
             ])
         
         labels=labels.ravel()   #we need row vector       
         #extractors mapping
-        extMap=[self._experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR) \
-                for a in self._experiment.attributesThatShouldBeUsed(False)]
+        extMap=[experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR) \
+                for a in experiment.attributesThatShouldBeUsed(False)]
         
         #create storage for results
-        steps=self._experiment.evaluationMethod.numOfSteps(data,labels)
-        self.numberOfSteps.emit(len(self._experiment.classifiers)*(steps)+1)    #+1 reading
+        steps=experiment.evaluationMethod.numOfSteps(data,labels)
         
+        commQ.put((cls.MultPMessageType.NUMBER_OF_STEPS_SIGNAL,    #+1 reading
+                   len(experiment.classifiers)*(steps)+1))
+
         #TODO catch memory error
         resultsStorage=Results(steps)
-        self.step.emit() 
-        for c in self._experiment.classifiers:
+
+        commQ.put((cls.MultPMessageType.STEP_SIGNAL,None))
+        for c in experiment.classifiers:
             print(c.getName(), ", ".join( a.name+"="+str(a.value.getName()+":"+", ".join([pa.name+"->"+str(pa.value) for pa in a.value.getAttributes()]) if isinstance(a.value,Plugin) else a.value) for a in c.getAttributes()))
-            self.actInfo.emit("testing {} {}/{}".format(c.getName(), 1, steps))
+            commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,
+                       "testing {} {}/{}".format(c.getName(), 1, steps)))
+
             start = time.time()
             startProc=time.process_time()
-            for step, (predicted, realLabels) in enumerate(self._experiment.evaluationMethod.run(c, data, labels, extMap)):
-                end = time.time()
+            for step, (predicted, realLabels, stepTimes) in enumerate(experiment.evaluationMethod.run(c, data, labels, extMap)):
                 endProc=time.process_time()
+                end = time.time()
+                
                 if resultsStorage.steps[step].labels is None:
                     #because it does not make much sense to have true labels stored for each predictions
                     #we store labels just once for each validation step
                     resultsStorage.steps[step].labels=realLabels
                 resultsStorage.steps[step].addResults(c, predicted)
-                self.step.emit()
+                commQ.put((cls.MultPMessageType.STEP_SIGNAL,None))
                 if step+2<=steps:
                     #TODO: MULTILANGUAGE
-                    self.actInfo.emit("testing {} {}/{}".format(c.getName(), step+2, steps))
+                    commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,
+                               "testing {} {}/{}".format(c.getName(), step+2, steps)))
                 
-                self.writeConfMat(predicted, realLabels)
+                cls.writeConfMat(predicted, realLabels)
 
                 print(classification_report(realLabels, predicted))
                 print("accuracy\t{}".format(accuracy_score(realLabels, predicted)))
-                print("Time:",end-start)
-                print("Process time:",endProc-startProc)
+                
+                print("Feature extraction time for train set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN])
+                print("Feature extraction process time for train set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC])
+                
+                print("Feature extraction time for test set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST])
+                print("Feature extraction process time for test set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST_PROC])
+                
+                print("Feature extraction time for train and test set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN]
+                      +
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST])
+                print("Feature extraction process time train and test set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]
+                      +
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST_PROC])
+                                
+                print("Train time:",
+                      stepTimes[Validator.TimeDuration.TRAINING])
+                print("Train process time:",
+                      stepTimes[Validator.TimeDuration.TRAINING_PROC])
+                
+                print("Test time:",
+                      stepTimes[Validator.TimeDuration.TEST])
+                print("Test process time:",
+                      stepTimes[Validator.TimeDuration.TEST_PROC])
+                
+                print("Step time:",end-start)
+                print("Step process time:",endProc-startProc)
                 print("\n\n")
                 start = time.time()
                 startProc=time.process_time()

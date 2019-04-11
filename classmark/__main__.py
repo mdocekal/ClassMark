@@ -17,7 +17,8 @@ import traceback
 def main():
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     app = QApplication(sys.argv)
-
+    
+    #TODO: Kill all child process when this dies.
     try:
         
         window = MainWindow(app)

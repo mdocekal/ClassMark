@@ -128,11 +128,19 @@ class ExperimentDataStatistics(Observable):
     def attributes(self, attr):
         """
         Set all attributes. Is used mainly for the order of these attributes.
+        WARNING: Cleares attributes metrics.
         
         :param attr: List of attributes.
         :type attr: List[str]
         """
         
+        self._attributesFeatures={}
+        self._attributesAVGFeatureVariance={}
+        
+        for a in attr:
+            self._attributesFeatures[a]=0
+            self._attributesAVGFeatureVariance[a]=0
+            
         self._attributes=attr
         
     @property
@@ -207,9 +215,11 @@ class ExperimentDataStatistics(Observable):
         :return: maximal number of samples in class and that class
         :rtype: Tuple[int, Any]
         """
+        if len(self.activeClasses)>0:
+            mC=max(self.activeClasses, key=lambda x: self._classSamples[x])
+            return (self._classSamples[mC],mC)
         
-        mC=max(self.activeClasses, key=lambda x: self._classSamples[x])
-        return (self._classSamples[mC],mC)
+        return (0,"")
     
     @property
     def minSamplesInClass(self):
@@ -220,8 +230,11 @@ class ExperimentDataStatistics(Observable):
         :rtype: Tuple[int, Any]
         """
         
-        mC=min(self.activeClasses, key=lambda x: self._classSamples[x])
-        return (self._classSamples[mC],mC)
+        if len(self.activeClasses)>0:
+            mC=min(self.activeClasses, key=lambda x: self._classSamples[x])
+            return (self._classSamples[mC],mC)
+        
+        return (0,"")
         
     @property
     def AVGSamplesInClass(self):
@@ -231,8 +244,9 @@ class ExperimentDataStatistics(Observable):
         :return: avg samples
         :rtype: float
         """
-        
-        return sum(self._classSamples[c] for c in self.activeClasses)/len(self.activeClasses)
+        if len(self.activeClasses)>0:
+            return sum(self._classSamples[c] for c in self.activeClasses)/len(self.activeClasses)
+        return 0
     
     @property
     def SDSamplesInClass(self):
@@ -307,23 +321,30 @@ class Experiment(Observable):
         
         self._attributesThatShouldBeUsedCache={}
         
-    def useSubset(self):
+    def useDataSubset(self):
         """
-        Use only subset of samples from data set according to data stats.
+        Use only defined subset of data.
+        Subset is defined by selected samples.
+        Samples are selected according to constraints defined in dataStats.
         """
-        counters=copy.copy(self._dataStats.classSamples)
-        
-        subset=np.empty(self._dataStats.numberOfSamples)
-        cnt=0
-        for i, sample in enumerate(self.dataset):
-            l=sample[self._label]
-            
-            if counters[l]>0:
-                subset[cnt]=i
-                counters[l]-=1
-                cnt+=1
-        print(subset.shape[0])
-        self._dataset.useSubset(subset)
+        if self._dataStats is not None:
+            self._dataset.useSubset(None)#clear the old one
+            subset=np.empty(self._dataStats.numberOfSamples)
+            counters=copy.copy(self._dataStats.classSamples)
+
+            cnt=0
+            for i,sample in enumerate(self._dataset):
+                l=sample[self._label]
+                try:
+                    if counters[l]>0:
+                        counters[l]-=1
+                        subset[cnt]=i
+                        cnt+=1
+                except KeyError:
+                    #probably class that we want to omit
+                    pass
+
+            self.dataset.useSubset(subset)
         
     @property    
     def dataStats(self):
@@ -346,20 +367,43 @@ class Experiment(Observable):
         """
         return copy.copy(self._origDataStats)
     
+    
     @Observable._event("NEW_DATA_STATS")
-    def setDataStats(self, stats):
+    def setDataStats(self, stats, actOnly=False):
         """
         Set the data stats. This method overrides working copy
         and original data stats.
         
         :param stats: New stats.
         :type stats: ExperimentDataStatistics
+        :param actOnly: If true than overrides only working copy.
+            If false than overrides original data to.
+            If no original data was set (origData is None) than
+            this parameter is ignored and origData is set too.
+        :type actOnly: bool
         """
-        
+
         self._dataStats=copy.deepcopy(stats)
-        self._origDataStats=stats
-        
-        
+        if self._origDataStats is None or not actOnly:
+            self._origDataStats=stats
+        else:
+            #We must add classes that were filtered out.
+            classSamples=self._dataStats.classSamples
+            deactivate=[]
+            for c in self._origDataStats.classes:
+                if c not in classSamples:
+                    #we set the max, but we must deactivate it
+                    #The max is set because if user will decide
+                    #that she/he wants to use this class, than
+                    #we must set somu initial number of samples.
+                    classSamples[c]=self._origDataStats.classSamples[c]
+                    deactivate.append(c)
+                    
+            self._dataStats.classSamples=classSamples
+            #lets deactivate it
+            for c in deactivate:
+                self._dataStats.deactivateClass(c)
+    
     def _loadPlugins(self):
         """
         Loads available plugins.
@@ -692,6 +736,14 @@ class ExperimentStatsRunner(ExperimentBackgroundWorker):
             [self._experiment.label]
             ])
         
+
+        if data.shape[0]==0:
+            #no data
+            #TODO: ERROR MESSAGE FOR USER THIS IS TO FAST
+            self.actInfo.emit("no data") 
+            self.calcStatsResult.emit(statsExp)
+            return
+        
         labels=labels.ravel()   #we need row vector   
         
         self.step.emit()     
@@ -781,6 +833,12 @@ class ExperimentRunner(ExperimentBackgroundWorker):
             experiment.attributesThatShouldBeUsed(False),
             [experiment.label]
             ])
+        
+        if data.shape[0]==0:
+            #no data
+            #TODO: ERROR MESSAGE FOR USER THIS IS TO FAST
+            commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,"no data"))
+            return
         
         labels=labels.ravel()   #we need row vector       
         #extractors mapping

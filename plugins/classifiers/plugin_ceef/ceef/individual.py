@@ -290,16 +290,14 @@ class FunGenes(object):
 
         for _ in range(n):
             #select one
-            self._samplesSlots.append(self._selectUniqueSample(slots, classSamples))
+            self._samplesSlots.append(self._selectUniqueSample(classSamples))
             
             self._samplesSlotsVal=1 if classSamples else -1
 
     def _selectUniqueSample(self, t, classSamples):
         """
         Selects unique sample.
-        
-        :param t: Slots for unique check.
-        :type t: List
+
         :param classSamples: True means select from class samples. False means outer samples.
         :type classSamples: bool
         :raise CanNotFillSlotException: This exception raises when there is no free sample that can fill empty slot.
@@ -310,13 +308,13 @@ class FunGenes(object):
         indicies=self._classDataIndices if classSamples else self._outerIndices
         sel=random.randrange(indicies.shape[0])
         actSel=self._dataSet.data[indicies[sel]].todense().A1   #.A1 matrix to vector conversion
-        if any(True for x in t if np.allclose(actSel,x)):
+        if self._sampleAllreadyIn(self._samplesSlots,actSel):
             #not unique sample
             #find next that is free
             tmpSel=(sel+1)%indicies.shape[0]
             while tmpSel!=sel:
                 actSel=self._dataSet.data[indicies[tmpSel]].todense().A1   #.A1 matrix to vector conversion
-                if not any(True for x in t if np.allclose(actSel,x)):
+                if not self._sampleAllreadyIn(self._samplesSlots,actSel):
                     #unique
                     break
                 tmpSel=(tmpSel+1)%indicies.shape[0]
@@ -326,6 +324,20 @@ class FunGenes(object):
                 raise self.CanNotFillSlotException()
 
         return actSel
+        
+    @staticmethod
+    def _sampleAllreadyIn(samplesSlots, sample):
+        """
+        Checks if sample is already in some slot.
+        
+        :param samplesSlots: Searcher in that slots.
+        :type samplesSlots: np.array
+        :param sample: The samples that should be checked.
+        :type sample: np.array
+        """
+        
+        return any(True for x in samplesSlots if np.allclose(sample,x))
+        
         
     '''
     TODO: DELETE
@@ -359,55 +371,49 @@ class FunGenes(object):
     
     
     @classmethod      
-    def crossover(cls, funGenes):
+    def crossover(cls, firstParent, secondParent):
         """
         Performs uniform crossover on given FunGenes.
         
-        :param funGenes: FunGenes for crossover.
-        :type funGenes: List[FunGenes]
+        :param firstParent: FunGenes for crossover.
+        :type firstParent: FunGenes
+        :param secondParent: FunGenes for crossover.
+        :type secondParent: FunGenes
+        :return: Children of given parents. 
+        :rtype: Tuple[FunGenes,FunGenes]
         """
-        #TODO:continue with crossover
 
+        parents=[firstParent, secondParent]
+        parSel=random.randint(0,1)
+        
+        
         #let's create brand new and choose parent for function 
-        newSib=cls(funGenes[0]._dataSet,funGenes[0]._classDataIndices, funGenes[0]._outerIndices,
-                   random.choice(funGenes)._fun)
+        newSib=cls(parents[0]._dataSet,parents[0]._classDataIndices, parents[0]._outerIndices,
+                   parents[parSel]._fun)
         
-        #let's do the crossover for class samples
-        #Results length will be between min(len(x_classSamples)) and max (len(x_classSamples))
-        maxLength=max( len(f._classSamples) for f in funGenes)
-        for i in range(maxLength):
-            parentForGene=random.choice(funGenes)
-            try:
-                if any(True for x in newSib._classSamples if np.allclose(parentForGene._classSamples[i],x)):
-                    #is already in sibling, skip it
-                    #TODO: maybe it will be better solution to try different parent
-                    continue
-                    
-                newSib._classSamples.append(parentForGene._classSamples[i])
-                newSib._classSamplesVal.append(parentForGene._classSamplesVal[i])
-            except IndexError:
-                #parent with shorter part of chromosome was chosen
-                #just skip it
-                pass
+        newSib2=cls(parents[0]._dataSet,parents[0]._classDataIndices, parents[0]._outerIndices,
+                   parents[(parSel+1)%2]._fun)
         
-        #now the crossover for outer samples
-        maxLength=max( len(f._outerSamples) for f in funGenes)
+        #let's do the crossover for samples slots
+        #Results length will be between min(len(x_samplesSlots)) and max (len(x_samplesSlots))
+        maxLength=max( len(f._samplesSlots) for f in parents)
         for i in range(maxLength):
-            parentForGene=random.choice(funGenes)
-            try:
-                if any(True for x in newSib._outerSamples if np.allclose(parentForGene._outerSamples[i],x)):
-                    #is already in sibling, skip it
-                    #TODO: maybe it will be better solution to try different parent
-                    continue
-                    
-                newSib._outerSamples.append(parentForGene._outerSamples[i])
-                newSib._outerSamplesVal.append(parentForGene._outerSamplesVal[i])
-            except IndexError:
-                #parent with shorter part of chromosome was chosen
-                #just skip it
-                pass
+            parSel=random.randint(0,1)
             
-        return newSib
+            for s in [newSib, newSib2]:
+                actSel=parents[parSel]._samplesSlots[i]
+                try:
+                    if not self._sampleAllreadyIn(s._samplesSlots,actSel):
+                        #actual sample is not in this sibling already
+                        s._samplesSlots.append(actSel)
+                        s._samplesSlotsVal.append(parents[parSel]._samplesSlotsVal[i])
+                except IndexError:
+                    #parent with shorter part of chromosome was chosen
+                    #just skip it
+                    pass
+                parSel=(parSel+1)%2
+                
+        return (newSib,newSib2)
     
     '''
     TODO:REMOVE

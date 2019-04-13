@@ -154,17 +154,23 @@ class DataSet(object):
                     self._prepareSample(sample)
                     yield sample
             else:
-                #user wants just the subset
-                subIter=iter(self._subset)
-                nextFromSub=next(subIter)
-                print(len(self._subset))
-                for i, sample in enumerate(reader):
-                    if i==nextFromSub:
-                        #we are in subset
-                        nextFromSub=next(subIter)
-                        self._prepareSample(sample)
-                        yield sample
+                if self._subset.shape[0]>0:
+                    #user wants just the subset
+                    subIter=iter(self._subset)
+                    nextFromSub=next(subIter)
                     
+                    for i, sample in enumerate(reader):
+                        if i==nextFromSub:
+                            #we are in subset
+                            
+                            self._prepareSample(sample)
+                            yield sample
+                            try:
+                                nextFromSub=next(subIter)
+                            except StopIteration:
+                                break
+                        
+                        
     def _prepareSample(self, sample:Dict[str,str]):
         """
         Makes all necessary preparation for sample.

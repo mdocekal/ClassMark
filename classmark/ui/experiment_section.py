@@ -8,7 +8,7 @@ Module for experiment section of the application.
 
 from .widget_manager import WidgetManager, IconName, AttributesWidgetManager
 from .section_router import SectionRouter
-from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton
+from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton, QMessageBox
 from PySide2.QtCore import Qt, QObject
 from ..core.experiment import Experiment, ExperimentRunner, ExperimentStatsRunner, ExperimentDataStatistics
 from ..core.plugins import Classifier
@@ -280,6 +280,14 @@ class ExperimentSection(WidgetManager):
         """
         Starts the experiment.
         """
+        if self._experiment.label is None:
+            msgBox=QMessageBox();
+            msgBox.setText(self.tr("Select the label first."));
+            msgBox.exec();
+            return
+        
+        self._experiment.useDataSubset()
+        
         #create runner for that experiment
         useExperiment=copy.copy(self._experiment)
         useExperiment.setDataStats(None)
@@ -290,6 +298,9 @@ class ExperimentSection(WidgetManager):
         self._experimentRunner.numberOfSteps.connect(self._widget.experimentProgressBar.setMaximum)
         self._experimentRunner.step.connect(self._incExperimentProgressBar)
         self._experimentRunner.actInfo.connect(self._widget.experimentActInfo.setText)
+        
+        #clear the act info
+        self._widget.experimentActInfo.setText("")
         
         #set the progress bar
         self._widget.experimentProgressBar.setValue(0)
@@ -324,7 +335,14 @@ class ExperimentSection(WidgetManager):
         """
         Starts statistics calculation.
         """
-        self._experiment.setDataStats(None)
+        if self._experiment.label is None:
+            msgBox=QMessageBox();
+            msgBox.setText(self.tr("Select the label first."));
+            msgBox.exec();
+            return
+        
+        self._experiment.useDataSubset()
+
         #create runner for 
         self._statsRunner=ExperimentStatsRunner(self._experiment)
         self._statsRunner.finished.connect(self._dataStatsFinished)
@@ -343,7 +361,14 @@ class ExperimentSection(WidgetManager):
         self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_RUNNING.value)
         
         self._statsRunner.start()
-    
+        
+    def _dataStatsClear(self):
+        """
+        Clears data stats.
+        """
+        self._experiment.setDataStats(None)
+        self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_NO_RESULTS.value)
+            
     def _dataStatsStop(self):
         """
         Stops statistics calculation.
@@ -363,7 +388,7 @@ class ExperimentSection(WidgetManager):
         :param stats: The new stats.
         :type stats: ExperimentDataStatistics
         """
-        self._experiment.setDataStats(stats)
+        self._experiment.setDataStats(stats, True)
         
         
     def _dataStatsFinished(self):
@@ -424,11 +449,13 @@ class ExperimentSection(WidgetManager):
         #experiment stop event
         self._widget.stopDataStatsRunButton.clicked.connect(self._dataStatsStop)
         
-        self._widget.saveNewDataSetButton.clicked.connect(self._saveAsNewDataset)
-        
         #add watcher for updating the view
         self._dataStatsTabWatcher=ExperimentSectionDataStatsTabWatcher(self._widget, self._experiment)
 
+        self._widget.refreshDataStatisticsButton.clicked.connect(self._dataStatsStart)
+        
+        self._widget.saveNewDataSetButton.clicked.connect(self._saveAsNewDataset)
+        
         
         
     def _initCls(self):
@@ -458,18 +485,7 @@ class ExperimentSection(WidgetManager):
         self._widget.startExperimentButton.clicked.connect(self._experimentStarts)
         #experiment stop event
         self._widget.stopExperimentButton.clicked.connect(self._experimentStops)
-        
-    def _saveAsNewDataset(self):
-        """
-        Saves subset of dataset as new dataset.
-        """
-        
-        fileName=QFileDialog.getSaveFileName(self._widget, self.tr("Save dataset"), ".csv", self.tr("CSV files (*.csv)"))[0]
-        if fileName:
-            #use selected a file
-            self._experiment.useSubset()
-            self._experiment.dataset.save(fileName, self._experiment.attributesThatShouldBeUsed())
-        
+
     def _hideClassifierProperties(self):
         """
         Hides UI section of classifier properties.
@@ -542,6 +558,23 @@ class ExperimentSection(WidgetManager):
         """
         pass
     
+    def _saveAsNewDataset(self):
+        """
+        Saves subset of current data set to its own file.
+        Subset is created from selected attributes and selected samples.
+        """
+        if self._experiment.label is None:
+            msgBox=QMessageBox();
+            msgBox.setText(self.tr("Select the label first."));
+            msgBox.exec();
+            return
+            
+        filePath=QFileDialog.getSaveFileName(self._widget, self.tr("Save dataset"), ".csv", self.tr("CSV files (*.csv)"))[0]
+        if filePath:
+            self._experiment.useDataSubset()
+            self._experiment.dataset.save(filePath, self._experiment.attributesThatShouldBeUsed())
+        
+    
     def loadDataset(self):
         """
         Selection of data set.
@@ -555,6 +588,8 @@ class ExperimentSection(WidgetManager):
                                                                                self._experiment, 
                                                                                self._showFeaturesExtractorProperties))
             self._setPropertiesButtonsToDataAttrTable()
+            
+            self._dataStatsClear()
             
     def _setPropertiesButtonsToDataAttrTable(self):
         """

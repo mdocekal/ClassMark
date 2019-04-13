@@ -186,7 +186,7 @@ class CEEF(Classifier):
             #crossover
             if random.uniform(0,1)<=self._crossoverProb.value:
                 #the crossover is requested
-                newIndividual=Individual.crossover(theChosenOnes)
+                newIndividual,_=Individual.crossover(theChosenOnes)
             else:
                 #ok no crossover just choose one
                 newIndividual=copy.copy(random.choice(theChosenOnes))

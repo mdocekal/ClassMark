@@ -35,17 +35,24 @@ class EvoDataSet(object):
         self._labels=labels
         self._classes=np.unique(labels)
         
-        #n_splits=nChanges+1    because we are using change at initialization
-        self._shuffler=StratifiedShuffleSplit(n_splits=nChanges+1, test_size=testSize, random_state=randomSeed).split(data, labels)
-        self.changeTestSet()
+        if testSize<1:
+            #n_splits=nChanges+1    because we are using change at initialization
+            self._shuffler=StratifiedShuffleSplit(n_splits=nChanges+1, test_size=testSize, random_state=randomSeed).split(data, labels)
+            self.changeTestSet()
+        else:
+            self._shuffler=None
+            self._testData=data.A
+            self._testLabels=labels
+        
         
     def changeTestSet(self):
         """
         Randomly selects new samples for testing.
         """
-        _, test=next(self._shuffler)
-        self._testData=self._data[test].A
-        self._testLabels=self._labels[test]
+        if self._shuffler is not None:
+            _, test=next(self._shuffler)
+            self._testData=self._data[test].A
+            self._testLabels=self._labels[test]
         
     @property
     def data(self):

@@ -304,7 +304,7 @@ class FeatureExtractor(Plugin):
         :param data: Original data for features extraction.
             In numpy array:
                 example: ["first document", "second document"]
-        :type data: np.array
+        :type data: ArrayLike
         :return: Extracted features.
             Example:
                 [

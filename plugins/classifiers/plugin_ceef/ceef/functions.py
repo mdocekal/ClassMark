@@ -85,6 +85,7 @@ def fNearest(samples, samplesVals):
     :param samplesVals: Values on class coords.
     :type samplesVals: np.array
     """
+
     f=NearestNDInterpolator(samples, samplesVals)
 
     return f
@@ -104,32 +105,56 @@ def fNearest2x2FromEachClass(samples, samplesVals):
     :type samplesVals: np.array
     """
     
-    classData=samples[np.where(samplesVals>0)]
-    outerData=samples[np.where(samplesVals<=0)]
+    cInd=np.where(samplesVals>0)
+    classData=samples[cInd]
+    classVals=samplesVals[cInd]
+    haveClassData=classData.shape[0]>0
+    
+    oInd=np.where(samplesVals<=0)
+    outerData=samples[oInd]
+    outerVals=samplesVals[oInd]
+    haveOuterData=outerData.shape[0]>0
+
     #nearest 2x2 (from each class) interpolate
 
-    fnClass=cKDTree(classData)
-    fnClassMaxNeigh=1 if classData.shape[0]<2 else 2
+    if haveClassData:
+        fnClass=cKDTree(classData)
+        fnClassMaxNeigh=1 if classData.shape[0]<2 else 2
     
-    fnOuter=cKDTree(outerData)
-    fnOuterMaxNeigh=1 if outerData.shape[0]<2 else 2
+    if haveOuterData:
+        fnOuter=cKDTree(outerData)
+        fnOuterMaxNeigh=1 if outerData.shape[0]<2 else 2
     
     def res(p):
         #check the nearest
 
-        dC, iC=fnClass.query(p,fnClassMaxNeigh)
-        if fnClassMaxNeigh==1:
-            #we need col vectors
-            dC=dC[:, np.newaxis]
-            iC=iC[:, np.newaxis]
-            
-        dO, _=fnOuter.query(p,fnOuterMaxNeigh)
-        if fnOuterMaxNeigh==1:
-            #we need col vectors
-            dO=dO[:, np.newaxis]
+        if haveClassData:
+            dC, iC=fnClass.query(p,fnClassMaxNeigh)
+            if fnClassMaxNeigh==1:
+                #we need col vectors
+                dC=dC[:, np.newaxis]
+                iC=iC[:, np.newaxis]
+        if haveOuterData:
+            dO, oC=fnOuter.query(p,fnOuterMaxNeigh)
+            if fnOuterMaxNeigh==1:
+                #we need col vectors
+                dO=dO[:, np.newaxis]
+                oC=oC[:, np.newaxis]
+        if haveClassData and haveOuterData:
+            values=np.hstack((classVals[iC],outerVals[oC]))
+            del iC
+            del oC
+            distances=np.hstack((dC,dO))
 
-        del iC
-        distances=np.hstack((dC,dO))
+        elif haveClassData:
+            values=classVals[iC]
+            del iC
+            distances=dC
+        else:
+            #only outer remains
+            values=outerVals[oC]
+            del oC
+            distances=dO
 
         with np.errstate(divide='ignore',invalid='ignore'):
             #we want to detect zero distance values
@@ -155,7 +180,7 @@ def fNearest2x2FromEachClass(samples, samplesVals):
 numpy.AxisError: axis 1 is out of bounds for array of dimension 1
 
             """
-            avg=np.average(samplesVals, axis=1, weights=distances)
+            avg=np.average(values, axis=1, weights=distances)
             
             #find problems, if exists
             problems=np.where(np.isnan(avg))
@@ -163,7 +188,7 @@ numpy.AxisError: axis 1 is out of bounds for array of dimension 1
                 problemsCols=(problems[0],np.array(np.argmax(np.isinf(distances[problems]),axis=1)))    #we are interested in the first only
                 
                 #change the nans with values of the problematic points
-                avg[problems]=samplesVals[problemsCols]
+                avg[problems]=values[problemsCols]
             
             return avg
         
@@ -212,20 +237,26 @@ def fNearest2x2FromEachClass2AtAll(samples, samplesVals):
     cInd=np.where(samplesVals>0)
     classData=samples[cInd]
     classVals=samplesVals[cInd]
+    haveClassData=classData.shape[0]>0
+        
     
     oInd=np.where(samplesVals<=0)
     outerData=samples[oInd]
-    outerVals=outerVals[oInd]
+    outerVals=samplesVals[oInd]
+    haveOuterData=outerData.shape[0]>0
   
+    
     fnAll=cKDTree(samples)
-    samplesVals=np.hstack((classVals,np.full(outerData.shape[0], -1)))
+    samplesVals=np.hstack((classVals,outerVals))
     fnAllMaxNeigh=1 if samplesVals.shape[0]<2 else 2
     
-    fnClass=cKDTree(classData)
-    fnClassMaxNeigh=1 if classData.shape[0]<2 else 2
+    if haveClassData:
+        fnClass=cKDTree(classData)
+        fnClassMaxNeigh=1 if classData.shape[0]<2 else 2
     
-    fnOuter=cKDTree(outerData)
-    fnOuterMaxNeigh=1 if outerData.shape[0]<2 else 2
+    if haveOuterData:
+        fnOuter=cKDTree(outerData)
+        fnOuterMaxNeigh=1 if outerData.shape[0]<2 else 2
     
     def res(p):
         #check the nearest
@@ -236,21 +267,38 @@ def fNearest2x2FromEachClass2AtAll(samples, samplesVals):
             DA=DA[:, np.newaxis]
             IA=IA[:, np.newaxis]
             
-        dC, iC=fnClass.query(p,fnClassMaxNeigh)
-        if fnClassMaxNeigh==1:
-            #we need col vectors
-            dC=dC[:, np.newaxis]
-            iC=iC[:, np.newaxis]
+        if haveClassData:
+            dC, iC=fnClass.query(p,fnClassMaxNeigh)
+            if fnClassMaxNeigh==1:
+                #we need col vectors
+                dC=dC[:, np.newaxis]
+                iC=iC[:, np.newaxis]
             
-        dO, _=fnOuter.query(p,fnOuterMaxNeigh)
-        if fnOuterMaxNeigh==1:
-            #we need col vectors
-            dO=dO[:, np.newaxis]
+        if haveOuterData:
+            dO, oC=fnOuter.query(p,fnOuterMaxNeigh)
+            if fnOuterMaxNeigh==1:
+                #we need col vectors
+                dO=dO[:, np.newaxis]
+                oC=oC[:, np.newaxis]
+            
+        #compile data we have
+        if haveClassData and haveOuterData:
+            values=np.hstack((samplesVals[IA],classVals[iC],outerVals[oC]))
+            del iC
+            del oC
+            distances=np.hstack((DA,dC,dO))
+        elif haveClassData:
+            values=np.hstack((samplesVals[IA],classVals[iC]))
+            del iC
+            distances=np.hstack((DA,dC))
+        else:
+            #we have just outer not class
+            values=np.hstack((samplesVals[IA],outerVals[oC]))
+            del oC
+            distances=np.hstack((DA,dO))
         
-        values=np.hstack((samplesVals[IA],classVals[iC],np.full_like(dO,-1)))
-        del iC
         del IA
-        distances=np.hstack((DA,dC,dO))
+        
         
         with np.errstate(divide='ignore',invalid='ignore'):
             #we want to detect zero distance values

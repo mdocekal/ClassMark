@@ -10,17 +10,124 @@ from .widget_manager import WidgetManager, IconName, AttributesWidgetManager
 from .section_router import SectionRouter
 from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton, QMessageBox
 from PySide2.QtCore import Qt, QObject
-from ..core.experiment import Experiment, ExperimentRunner, ExperimentStatsRunner, ExperimentDataStatistics
-from ..core.plugins import Classifier
+from ..core.experiment import Experiment, PluginSlot, ExperimentRunner, ExperimentStatsRunner, ExperimentDataStatistics
+from ..core.plugins import Plugin, Classifier
+from ..core.selection import FeaturesSelector
 from .delegates import RadioButtonDelegate, ComboBoxDelegate
 from .models import TableDataAttributesModel, TableClassStatsModel, TableAttributesStatsModel
-from typing import Callable
+from typing import Callable, Dict
 from functools import partial
 import copy
 from enum import Enum
+from abc import ABC, abstractmethod
+
+class PluginRowWidgetManager(ABC,WidgetManager):
+    """
+    Widget manager of row with selection of plugin.
+    """
+    TEMPLATE="plugin_row"
+    """Corresponding template name."""
+    
+    def __init__(self, slot:PluginSlot, plugins:Dict[str, Plugin], parent=None):
+        """
+        Creates classifier row widget.
+
+        :param slot: Plugin slot.
+        :type slot: PluginSlot
+        :param pluginNames: Plugins that could be selected.
+            Key is plugin name that should be shown to user and value is
+            plugin itself.
+        :type pluginNames: Dict[str, Plugin]
+        :param parent: Parent widget.
+        :type parent: QWidget
+        """
+        
+        super().__init__()
+        self._removeCallback=None   #registered remove event callback
+        self._changeCallback=None   #registered change event callback
+        self._propertyCallback=None   #registered property event callback
+        
+        self._widget=self._loadTemplate(self.TEMPLATE, parent)
+
+        self.pluginSlot=slot
+        
+        #let's fill the combo box
+        self._widget.comboBox.addItems([p.getName() for p in plugins.values()])
+        self._pluginNameToCls=plugins
+        self._onChange()
+        
+        #register events
+        #Unfortunately it is necessary to make this callbacks partials, because
+        #without it invalid methods were called (mismatch between subclasses [do no why]).
+        self._widget.removeButton.clicked.connect(partial(self.__class__._onRemove,self))
+        self._widget.propertiesButton.clicked.connect(partial(self.__class__._onProperty,self))
+        self._widget.comboBox.currentTextChanged.connect(partial(self.__class__._onChange,self))
+    
+    def __eq__(self, other):
+        if not isinstance(other, __class__):
+            return False
+        return self.pluginSlot==other.pluginSlot #two different managers can not share same slot
+    
+    def __hash__(self):
+        return hash(self.pluginSlot)
 
 
-class ClassifierRowWidgetManager(WidgetManager):
+    def registerRemoveEvent(self, callback):
+        """
+        Provided callback will be called when user wants to remove this row.
+        
+        :param callback: Method that will be called. That method must have one 
+            parameter where this manager will be passed.
+        :type callback: Callable[[PluginRowWidgetManager],None]
+        """
+        self._removeCallback=callback
+        
+    def registerPropertiesEvent(self, callback:Callable):
+        """
+        Provided callback will be called when user wants to show plugins properties.
+        
+        :param callback: Method that will be called. That method must have one 
+            parameter where selected plugin will be passed.
+        :type callback: Callable[[Plugin],None]
+        """
+        
+        self._propertyCallback=callback
+        
+    def registerChangeEvent(self, callback:Callable):
+        """
+        Provided callback will be called when user changed plugin.
+        
+        :param callback: Method that will be called. That method must have one 
+            parameter where newly selected plugin will be passed.
+        :type callback: Callable[[Plugin],None]
+        """
+        self._changeCallback=callback
+        
+    def _onChange(self, *args,**dargs):
+        """
+        Plugin change.
+        """
+
+        self.pluginSlot.plugin=self._pluginNameToCls[self._widget.comboBox.currentText()]()
+        if self._changeCallback is not None:
+            self._changeCallback(self.pluginSlot.plugin)
+        
+    @abstractmethod
+    def _onRemove(self):
+        """
+        Remove event occurred.
+        """
+        pass
+            
+    def _onProperty(self):
+        """
+        User wants to show properties.
+        """
+
+        if self._propertyCallback is not None:
+            self._propertyCallback(self.pluginSlot.plugin)
+    
+class ClassifierRowWidgetManager(PluginRowWidgetManager):
     """
     TODO: TRANSFORM TO ORDINARY WIDGET
     Widget manager of row with selection of classifier for testing.
@@ -30,8 +137,7 @@ class ClassifierRowWidgetManager(WidgetManager):
     with appropriate (registerRemoveEvent,registerPropertiesEvent) methods.
     
     """
-    TEMPLATE="classifier_row"
-    """Corresponding template name."""
+    
 
     def __init__(self, experiment:Experiment, parent=None):
         """
@@ -43,93 +149,57 @@ class ClassifierRowWidgetManager(WidgetManager):
         :param parent: Parent widget.
         :type parent: QWidget
         """
-        super().__init__()
-        self._removeCallback=None   #registered remove event callback
-        self._changeCallback=None   #registered change event callback
-        self._propertyCallback=None   #registered property event callback
-        
-        self._widget=self._loadTemplate(self.TEMPLATE, parent)
         self._experiment=experiment
-        
-        #lets create own classifier slot
-        self.classifierSlot=self._experiment.newClassifierSlot()
-        
-        #let's fill the combo box
-        self._widget.classifiersComboBox.addItems([c.getName() for c in self._experiment.availableClassifiers.values()])
-        self._clsNameToCls={c.getName():c for c in self._experiment.availableClassifiers.values()}
-        self._onChange()
-        
-        #register events
-        self._widget.removeClassifierButton.clicked.connect(self._onRemove)
-        self._widget.propertiesButton.clicked.connect(self._onProperty)
-        self._widget.classifiersComboBox.currentTextChanged.connect(self._onChange)
-        
+        super().__init__(self._experiment.newClassifierSlot(),
+                         {c.getName():c for c in self._experiment.availableClassifiers.values()},
+                         parent)
 
-        
-    def __eq__(self, other):
-        if not isinstance(other, __class__):
-            return False
-        return self.classifierSlot==other.classifierSlot #two different managers can not share same slot
-    
-    def __hash__(self):
-        return hash(self.classifierSlot)
-    
-    def registerRemoveEvent(self, callback):
-        """
-        Provided callback will be called when user wants to remove this row.
-        
-        :param callback: Method that will be called. That method must have one 
-            parameter where this manager will be passed.
-        :type callback: Callable[[ClassifierRowWidgetManager],None]
-        """
-        self._removeCallback=callback
-        
-            
-    def registerPropertiesEvent(self, callback:Callable):
-        """
-        Provided callback will be called when user wants to show classifiers properties.
-        
-        :param callback: Method that will be called. That method must have one 
-            parameter where selected classifier will be passed.
-        :type callback: Callable[[Classifier],None]
-        """
-        self._propertyCallback=callback
-        
-    def registerChangeEvent(self, callback:Callable):
-        """
-        Provided callback will be called when user changed classifier.
-        
-        :param callback: Method that will be called. That method must have one 
-            parameter where newly selected classifier will be passed.
-        :type callback: Callable[[Classifier],None]
-        """
-        self._changeCallback=callback
-        
-    def _onChange(self):
-        """
-        Classifier change.
-        """
-        
-        self.classifierSlot.classifier=self._clsNameToCls[self._widget.classifiersComboBox.currentText()]()
-        if self._changeCallback is not None:
-            self._changeCallback(self.classifierSlot.classifier)
-        
-        
     def _onRemove(self):
         """
         Remove event occurred.
         """
-        self._experiment.removeClassifierSlot(self.classifierSlot)
+        self._experiment.removeClassifierSlot(self.pluginSlot)
         if self._removeCallback is not None:
             self._removeCallback(self)
-            
-    def _onProperty(self):
+
+
+
+class FeaturesSelectorRowWidgetManager(PluginRowWidgetManager):
+    """
+    TODO: TRANSFORM TO ORDINARY WIDGET
+    Widget manager of row with selection of features selector.
+    
+    This widget informs about user choice of features selector Experiment object directly, but
+    if you want to catch remove row and show properties events, than register your callback
+    with appropriate (registerRemoveEvent,registerPropertiesEvent) methods.
+    
+    """
+
+    def __init__(self, experiment:Experiment, parent=None):
         """
-        User wants to show properties.
+        Creates classifier row widget.
+
+        :param experiment: This manager will use that experiment for storing information
+            about selection of classifier.
+        :type experiment: Experiment
+        :param parent: Parent widget.
+        :type parent: QWidget
         """
-        
-        if self._propertyCallback is not None:
-            self._propertyCallback(self.classifierSlot.classifier)
+        self._experiment=experiment
+        super().__init__(self._experiment.newFeaturesSelectorSlot(),
+                         {c.getName():c for c in FeaturesSelector.__subclasses__()},
+                         parent)
+
+    
+    def _onRemove(self):
+        """
+        Remove event occurred.
+        """
+        self._experiment.removeFeaturesSelectorSlot(self.pluginSlot)
+
+        if self._removeCallback is not None:
+            self._removeCallback(self)
+
 
 
 class ExperimentSectionDataStatsTabWatcher(WidgetManager):
@@ -272,6 +342,7 @@ class ExperimentSection(WidgetManager):
         
         self._initData()
         self._initDataStats()
+        self._initFeatSel()
         self._initCls()
         self._initRes()
  
@@ -477,6 +548,85 @@ class ExperimentSection(WidgetManager):
         #hide the plugin attributes header
         self._hideClassifierProperties()
         
+    def _initFeatSel(self):
+        """
+        Initialization of features selection tab.
+        """
+        #register click events
+        self._widget.buttonAddFeaturesSelectorOption.clicked.connect(self._addFeaturesSelectorOption)
+        
+        #set alignment to layout
+        self._widget.featuresSelectorsLayout.setAlignment(Qt.AlignTop)
+        self._featuresSelectorRowsManagers=[]
+        
+        #hide the plugin attributes header
+        self._hideFeaturesSelectorProperties()
+        
+    def _hideFeaturesSelectorProperties(self):
+        """
+        Hides UI section of classifier properties.
+        """
+        self._widget.featureSelectorAttributesHeader.hide()
+        self._widget.featureSelectorAttributesScrollArea.hide()
+        
+    def _addFeaturesSelectorOption(self):
+        """
+        Add one new classifier option to UI.
+        """
+
+        #lets create option row manager
+        manager=FeaturesSelectorRowWidgetManager(self._experiment, None)
+        #register events
+        manager.registerRemoveEvent(self._removeFeaturesSelectorOption)
+        manager.registerChangeEvent(self._featuresSelectorPropertiesEvent)
+        manager.registerPropertiesEvent(self._featuresSelectorPropertiesEvent)
+        
+        self._featuresSelectorRowsManagers.append(manager)
+        self._widget.featuresSelectorsLayout.addWidget(manager.widget)
+
+    def _removeFeaturesSelectorOption(self, manager:FeaturesSelectorRowWidgetManager):
+        """
+        Remove features selector option from UI.
+        
+        :param manager: Manger of features selector row.
+        :type manager:FeaturesSelectorRowWidgetManager
+        """
+        self._featuresSelectorRowsManagers.remove(manager)
+        manager.widget.deleteLater()
+
+        self._hideFeaturesSelectorProperties()
+        
+    def _featuresSelectorPropertiesEvent(self, featuresSelector:FeaturesSelector):
+        """
+        Show properties for given features selector.
+        
+        :param featuresSelector: The features selector which attributes you want to show.
+        :type featuresSelector: FeaturesSelector
+        """
+
+        #TODO: _featuresSelectorPropertiesEvent _classifierPropertiesEvent _showFeaturesExtractorProperties is quite the same code
+        #    maybe they can share a method
+        
+        #remove old
+        child=self._widget.featureSelectorPluginAttributesContent.takeAt(0)
+        while child:
+            child.widget().deleteLater()
+            child=self._widget.featureSelectorPluginAttributesContent.takeAt(0)
+
+        #set the header
+        self._widget.featureSelectorAttributesHeader.show()
+        self._widget.featureSelectorAttributesScrollArea.show()
+        self._widget.featureSelectorNameShownAttributes.setText(featuresSelector.getName())
+        
+        
+        hasOwnWidget=featuresSelector.getAttributesWidget(self._widget.featureSelectorPluginAttributesWidget)
+        
+        if hasOwnWidget is not None:
+            self._widget.featureSelectorPluginAttributesContent.addWidget(hasOwnWidget)
+        else:
+            self.manager=AttributesWidgetManager(featuresSelector.getAttributes(), self._widget.featureSelectorPluginAttributesWidget)
+            self._widget.featureSelectorPluginAttributesContent.addWidget(self.manager.widget)
+        
     def _initRes(self):
         """
         Initialization of results tab.
@@ -499,13 +649,13 @@ class ExperimentSection(WidgetManager):
         """
         
         #lets create option row manager
-        manager=ClassifierRowWidgetManager(self._experiment, self._widget)
+        manager=ClassifierRowWidgetManager(self._experiment, None)
         #register events
         manager.registerRemoveEvent(self._removeClassifierOption)
         manager.registerChangeEvent(self._classifierPropertiesEvent)
         manager.registerPropertiesEvent(self._classifierPropertiesEvent)
         self._classifiersRowsManagers.append(manager)
-        self._widget.testClassifiersLayout.addWidget(manager.widget);
+        self._widget.testClassifiersLayout.addWidget(manager.widget)
         
     def _removeClassifierOption(self, manager:ClassifierRowWidgetManager):
         """

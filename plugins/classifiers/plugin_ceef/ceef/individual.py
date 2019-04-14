@@ -30,7 +30,10 @@ class Individual(object):
         :param dataSet: Data set that will be used for evolution and evaluation of solution.
         :type dataSet: EvoDataSet
         """
-        self._score=None
+
+        self._scoresSum=0
+        self._numOfScoresInSum=0
+        self._evaluate=True #True means that this individual should be evaluated
         self._dataSet=dataSet
         self._funGenes=[]
         
@@ -74,32 +77,39 @@ class Individual(object):
         
         return c
         
-    def invalidateScore(self):
+    def shouldEvaluate(self):
         """
-        Invalidates score.
+        Set's flag that this individual should be evaluated (again).
         """
-        self._score=None
-        
+        self._evaluate=True
+    
     @property
     def score(self):
         """
         Fitness of that individual.
         
-        :return: Returns accuracy on given test set.
+        It is AVG score of all evaluations.
+        Sets evaluate flag to false. Because this individual becomes evaluated one.
+        
+        :return: Returns AVG accuracy on all tests used for evaluation.
         :rtype: float
         """
 
-        if self._score is None:
-            self._score=0
+        if self._evaluate:
+            self._evaluate=False
+
             #ok, we do not have it yet so lets calc it
             predicted=self.predict(self._dataSet.testData)
             
-            self._score=np.sum(predicted == self._dataSet.testLabels)
+            score=np.sum(predicted == self._dataSet.testLabels)
         
             if self._dataSet.testData.shape[0]>0:
-                self._score/=self._dataSet.testData.shape[0]
+                score/=self._dataSet.testData.shape[0]
+                
+            self._scoresSum+=score
+            self._numOfScoresInSum+=1
 
-        return self._score
+        return self._scoresSum/self._numOfScoresInSum
     
     def predict(self, samples):
         """
@@ -125,23 +135,30 @@ class Individual(object):
         return predicted
             
     @classmethod      
-    def crossover(cls, individuals):
+    def crossover(cls, firstParent, secondParent):
         """
         Performs uniform crossover on given individuals.
         
-        :param individuals: Individuals for crossover.
-        :type individuals: List[Individual]
-        :return: Children of their parents.
-        :rtype: [Individual]
+        :param firstParent: Individual for crossover.
+        :type firstParent: Individual
+        :param secondParent: Individual for crossover.
+        :type secondParent: Individual
+        :return: Children of given parents. 
+        :rtype: Tuple[Individual,Individual]
         """
         
-        theNewSib=cls(individuals[0]._dataSet)
-        
-        for fi in range(len(individuals[0]._funGenes)):
+        theNewSib=cls(firstParent._dataSet)
+        theNewSib2=cls(firstParent._dataSet)
+        parents=[firstParent,secondParent]
+        for fi in range(len(parents[0]._funGenes)):
             #for each fun gene
-            theNewSib._funGenes.append(FunGenes.crossover([i._funGenes[fi] for i in individuals]))
+            childOne,childTwo=FunGenes.crossover(
+                firstParent._funGenes[fi],secondParent._funGenes[fi])
             
-        return theNewSib
+            theNewSib._funGenes.append(childOne)
+            theNewSib2._funGenes.append(childTwo)
+            
+        return (theNewSib,theNewSib2)
 
     
     def mutate(self, m:int):
@@ -292,9 +309,9 @@ class FunGenes(object):
             #select one
             self._samplesSlots.append(self._selectUniqueSample(classSamples))
             
-            self._samplesSlotsVal=1 if classSamples else -1
+            self._samplesSlotsVal.append(1 if classSamples else -1)
 
-    def _selectUniqueSample(self, t, classSamples):
+    def _selectUniqueSample(self, classSamples):
         """
         Selects unique sample.
 
@@ -401,9 +418,9 @@ class FunGenes(object):
             parSel=random.randint(0,1)
             
             for s in [newSib, newSib2]:
-                actSel=parents[parSel]._samplesSlots[i]
                 try:
-                    if not self._sampleAllreadyIn(s._samplesSlots,actSel):
+                    actSel=parents[parSel]._samplesSlots[i]
+                    if not cls._sampleAllreadyIn(s._samplesSlots,actSel):
                         #actual sample is not in this sibling already
                         s._samplesSlots.append(actSel)
                         s._samplesSlotsVal.append(parents[parSel]._samplesSlotsVal[i])
@@ -476,7 +493,7 @@ class FunGenes(object):
             try:
                 classSamples=bool(random.getrandbits(1))    #randomly chooses class sample or outer
                 sel=random.randrange(len(self._samplesSlots))
-                changeTo=self._selectUniqueSample(self._samplesSlots, classSamples)
+                changeTo=self._selectUniqueSample(classSamples)
                 self._mutations-=1
                 
                 #overwrite
@@ -491,16 +508,9 @@ class FunGenes(object):
         """
         Mutates (adds/removes) samples slots.
         """
-        maxMut=min(self._mutations,len(slots)-1)
-        if maxMut==0:
-            #ok nevermind maybe later
-            return
-        
-        mut=random.randint(1,maxMut)
-        
-        self._mutations-=mut
-        
-        if len(slots)==1 or random.randint(0,1)==1:
+        if len(self._samplesSlots)==1 or random.randint(0,1)==1:
+            mut=random.randint(1,self._mutations)
+            self._mutations-=mut
             #add
             try:
                 self._addNewSlots(mut, bool(random.getrandbits(1))) #randomly selects outer or class sample
@@ -509,9 +519,12 @@ class FunGenes(object):
                 return
             
         else:
+            maxMut=min(self._mutations,len(self._samplesSlots)-1)
+            mut=random.randint(1,maxMut)
+            self._mutations-=mut
             #remove
             for _ in range(mut):
-                i=random.randrange(len(slots))
+                i=random.randrange(len(self._samplesSlots))
                 del self._samplesSlots[i]
                 del self._samplesSlotsVal[i]
 

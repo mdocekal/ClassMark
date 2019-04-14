@@ -13,9 +13,21 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
+  <property name="locale">
+   <locale language="English" country="UnitedStates"/>
+  </property>
   <layout class="QHBoxLayout" name="horizontalLayout">
+   <property name="leftMargin">
+    <number>9</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
    <item>
-    <widget class="QToolButton" name="removeClassifierButton">
+    <widget class="QToolButton" name="removeButton">
      <property name="locale">
       <locale language="English" country="UnitedStates"/>
      </property>
@@ -29,7 +41,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QComboBox" name="classifiersComboBox">
+    <widget class="QComboBox" name="comboBox">
      <property name="locale">
       <locale language="English" country="UnitedStates"/>
      </property>

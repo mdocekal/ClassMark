@@ -134,16 +134,17 @@ class CEEF(Classifier):
         population=[Individual.createInit(dataset, self._maxMutations.value, self._maxStartSlots.value) for _ in range(self._population.value)]
         
         #evaluate
+        
         #set the best as the result
         self._evolvedCls=max(population, key=lambda i: i.score)
         
         generations=1
         while (self._stopAccuracy.value is None or self._stopAccuracy.value>self._evolvedCls.score) and \
                self._generations.value>=generations:
-            print(self._evolvedCls.score)
+            print(self._evolvedCls.score, id(self._evolvedCls))
             
-            
-            #get new population (in elitistic fashion)
+
+            #get new population
             #    performs steps:
             #        selection
             #        crossover
@@ -154,8 +155,9 @@ class CEEF(Classifier):
             #evaluate
             if self._changeTestSet.value:
                 #ok new test set requested
-                self._evolvedCls.invalidateScore()   #because of the new test set
                 dataset.changeTestSet()
+                self._evolvedCls.shouldEvaluate()   #because of the new test set
+                for i in population: i.shouldEvaluate()
                 
             actBest=max(population, key=lambda i: i.score)
             
@@ -181,20 +183,26 @@ class CEEF(Classifier):
         newPopulation=sorted(population, key=lambda i: i.score)[:self._nbestToNext.value]
         while(len(newPopulation)<self._population.value):
             #selection
-            theChosenOnes=selMethod(population,2)   #we are selecting two parents
+            parents=selMethod(population,2)   #we are selecting two parents
             
             #crossover
             if random.uniform(0,1)<=self._crossoverProb.value:
                 #the crossover is requested
-                newIndividual,_=Individual.crossover(theChosenOnes)
+                child1,child2=Individual.crossover(parents[0],parents[1])
             else:
-                #ok no crossover just choose one
-                newIndividual=copy.copy(random.choice(theChosenOnes))
+                #ok no crossover
+                child1=copy.copy(parents[0])
+                child2=copy.copy(parents[1])
                 
             #lets do the mutation
-            newIndividual.mutate(self._maxMutations.value)
+            child1.mutate(self._maxMutations.value)
+            child2.mutate(self._maxMutations.value)
             
-            newPopulation.append(newIndividual)
+            #select two best out of children and parents
+            for b in sorted([child1,child2]+parents, key=lambda i: i.score, reverse=True)[:2]:
+                newPopulation.append(b)
+                if(len(newPopulation)>=self._population.value):
+                    break
 
         return newPopulation
         

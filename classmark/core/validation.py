@@ -11,9 +11,10 @@ import numpy as np
 from abc import abstractmethod
 from typing import List, Callable
 from .plugins import Plugin, PluginAttribute, Classifier, FeatureExtractor
+from .selection import FeaturesSelector
 from PySide2.QtCore import Signal
 from sklearn.model_selection import StratifiedKFold, LeaveOneOut, KFold
-from enum import Enum
+from enum import Enum, auto
 import time
 
 class EvaluationMethod(object):
@@ -33,38 +34,65 @@ class Validator(Plugin):
     actStepDesc=Signal(str)
     """Is emitted when step begins and sends description of actual step."""
     
+    class SamplesStats(Enum):
+        """
+        Statistics of samples.
+        """
+        
+        NUM_SAMPLES_TRAIN=auto()
+        """Number of samples used for training."""
+        
+        NUM_SAMPLES_TEST=auto()
+        """Number of samples used for testing."""
+        
+        NUM_FEATURES=auto()
+        """Used number of features."""
+        
     
     class TimeDuration(Enum):
         """
         All time durations that are measure inside one step.
         """
-        FEATURE_EXTRACTION_TRAIN=0
+        FEATURE_EXTRACTION_TRAIN=auto()
         """Duration of feature extracting for train set measured with time.time()."""
         
-        FEATURE_EXTRACTION_TRAIN_PROC=1
+        FEATURE_EXTRACTION_TRAIN_PROC=auto()
         """Duration of feature extracting for train set measured with time.process_time()."""
         
-        TRAINING=2
+        FEATURE_SELECTION_TRAIN=auto()
+        """Duration of feature selection for train set measured with time.time()."""
+        
+        FEATURE_SELECTION_TRAIN_PROC=auto()
+        """Duration of feature selection for train set measured with time.process_time()."""
+        
+        TRAINING=auto()
         """Duration of training measured with time.time()."""
         
-        TRAINING_PROC=3
+        TRAINING_PROC=auto()
         """Duration of training measured with time.process_time()."""
         
-        FEATURE_EXTRACTION_TEST=4
+        FEATURE_EXTRACTION_TEST=auto()
         """Duration of feature extracting for test set measured with time.time()."""
         
-        FEATURE_EXTRACTION_TEST_PROC=5
+        FEATURE_EXTRACTION_TEST_PROC=auto()
         """Duration of feature extracting for test set measured with time.process_time()."""
         
-        TEST=6
+        FEATURE_SELECTION_TEST=auto()
+        """Duration of feature selection for test set measured with time.time()."""
+
+        FEATURE_SELECTION_TEST_PROC=auto()
+        """Duration of feature selection for test set measured with time.process_time()."""
+                
+        TEST=auto()
         """Duration of testing measured with time.time()."""
         
-        TEST_PROC=7
+        TEST_PROC=auto()
         """Duration of testing measured with time.process_time()."""
         
         
 
-    def run(self, classifier:Classifier, data:np.array, labels:np.array, extMap:List[FeatureExtractor]):
+    def run(self, classifier:Classifier, data:np.array, labels:np.array, extMap:List[FeatureExtractor], \
+            featSel:List[FeaturesSelector]=[]):
         """
         Run whole validation process on given classifier with
         given data. It is implemented as generator that provides predicted labels, real labels and times for train/test set on the
@@ -80,8 +108,11 @@ class Validator(Plugin):
         :param extMap: Index of a FeatureExtractor, in that list corresponds
             to column, in data matrix, to which the extractor will be used.
         :type extMap: List[FeatureExtractor]
-        :return: Generator of tuple Tuple[predictedLabels,realLabels, dict of times]
-        :rtype: Iterator[Tuple[np.array,np.array,Dict[TimeDuration, float]]]
+        :param featSel: Features selectors. Selectors will be applied in same order
+            as they appear in that list.
+        :type featSel: List[FeaturesSelector]
+        :return: Generator of tuple Tuple[predictedLabels,realLabels, dict of times, samples stats]
+        :rtype: Iterator[Tuple[np.array,np.array,Dict[TimeDuration, float],Dict[SamplesStats,int]]]
         """
         
         for trainIndices, testIndices in self.splitter(data, labels):
@@ -96,12 +127,25 @@ class Validator(Plugin):
             times={self.TimeDuration.FEATURE_EXTRACTION_TRAIN:time.time(),
                    self.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC:time.process_time()}
             
+            stats={}
+            
             trainFeatures=self._featuresStep(data[trainIndices], extMap, trainLabels, fit=True)
             
             times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]=time.process_time()-times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]
             times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN]=time.time()-times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN]
             
-
+            #feature selection
+            times[self.TimeDuration.FEATURE_SELECTION_TRAIN]=time.time()
+            times[self.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]=time.process_time()
+            for s in featSel:
+                s.fit(trainFeatures, trainLabels)
+                trainFeatures=s.select(trainFeatures)
+            times[self.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]=time.process_time()-times[self.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]
+            times[self.TimeDuration.FEATURE_SELECTION_TRAIN]=time.time()-times[self.TimeDuration.FEATURE_SELECTION_TRAIN]
+            
+            stats[self.SamplesStats.NUM_SAMPLES_TRAIN]=trainFeatures.shape[0]
+            stats[self.SamplesStats.NUM_FEATURES]=trainFeatures.shape[1]
+            
             times[self.TimeDuration.TRAINING]=time.time()
             times[self.TimeDuration.TRAINING_PROC]=time.process_time()
             #train classifier
@@ -122,6 +166,16 @@ class Validator(Plugin):
             times[self.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]=time.process_time()-times[self.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]
             times[self.TimeDuration.FEATURE_EXTRACTION_TEST]=time.time()-times[self.TimeDuration.FEATURE_EXTRACTION_TEST]
 
+            stats[self.SamplesStats.NUM_SAMPLES_TEST]=testFeatures.shape[0]
+            
+            #feature selection for test set
+            times[self.TimeDuration.FEATURE_SELECTION_TEST]=time.time()
+            times[self.TimeDuration.FEATURE_SELECTION_TEST_PROC]=time.process_time()
+            for s in featSel:
+                testFeatures=s.select(testFeatures)
+            times[self.TimeDuration.FEATURE_SELECTION_TEST_PROC]=time.process_time()-times[self.TimeDuration.FEATURE_SELECTION_TEST_PROC]
+            times[self.TimeDuration.FEATURE_SELECTION_TEST]=time.time()-times[self.TimeDuration.FEATURE_SELECTION_TEST]
+            
             times[self.TimeDuration.TEST]=time.time()
             times[self.TimeDuration.TEST_PROC]=time.process_time()
             #predict the labels
@@ -130,7 +184,7 @@ class Validator(Plugin):
             times[self.TimeDuration.TEST_PROC]=time.process_time()-times[self.TimeDuration.TEST_PROC]
             times[self.TimeDuration.TEST]=time.time()-times[self.TimeDuration.TEST]
 
-            yield (predictedLabels, labels[testIndices], times)
+            yield (predictedLabels, labels[testIndices], times, stats)
             
     def _featuresStep(self, data:np.array,extMap:List[FeatureExtractor], labels:np.array=None, fit=False):
         """

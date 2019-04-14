@@ -15,7 +15,7 @@ from ..core.validation import Validator
 from builtins import isinstance
 from PySide2.QtCore import QThread, Signal
 from .results import Results
-from typing import Any, Dict
+from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
 from sklearn.metrics import classification_report, accuracy_score
@@ -27,9 +27,9 @@ import statistics
 from pip._internal.utils.misc import enum
 from functools import partial
 
-class ClassifierSlot(object):
+class PluginSlot(object):
     """
-    Slot that stores informations about classifier that should be tested. 
+    Slot that stores informations about selected plugin. 
     """
     
     def __init__(self, slotID):
@@ -40,7 +40,17 @@ class ClassifierSlot(object):
         :type slotID: int
         """
         self._id=slotID
-        self.classifier=None
+        self.plugin=None
+    
+    @property
+    def id(self):
+        """
+        Slot id.
+        
+        :return: id
+        :rtype: int
+        """
+        return self._id
     
     def __eq__(self, other):
         if not isinstance(other, __class__):
@@ -309,6 +319,7 @@ class Experiment(Observable):
         self._dataset=None
         self._attributesSet={}
         self._label=None
+        self._featuresSele=[]   
         self._classifiers=[]    #classifiers for testing
         self._evaluationMethod=None
         
@@ -458,48 +469,81 @@ class Experiment(Observable):
         self._evaluationMethod=self.availableEvaluationMethods[0]()  #add default
         
     @property
+    def featuresSelectors(self):
+        """
+        Features selectors for feature selecting.
+        """
+        
+        return [ s.plugin for s in self._featuresSele]
+    
+    @property
     def classifiers(self):
         """
         Classifiers for testing.
         """
         
-        return [ c.classifier for c in self._classifiers if c is not None]
+        return [ s.plugin for s in self._classifiers]
     
     def newClassifierSlot(self):
         """
         Creates new slot for classifier that should be tested.
         
         :return: Classifier slot
-        :rtype: ClassifierSlot
+        :rtype: PluginSlot
         """
-        #lets find first empty id
-        slotId=len(self._classifiers)
-        for i, x in enumerate(self._classifiers):
-            if x is None:
-                #there is empty id
-                self._classifiers[i]=ClassifierSlot(i)
-                return self._classifiers[i]
-            
-        self._classifiers.append(ClassifierSlot(slotId))
-        return self._classifiers[-1]
+        return self._addPluginSlot(self._classifiers)
     
-    def removeClassifierSlot(self, slot:ClassifierSlot):
+    def removeClassifierSlot(self, slot:PluginSlot):
         """
         Remove classifier slot.
         
-        :param slot: Slot fot classifier.
-        :type slot:ClassifierSlot
+        :param slot: Slot for classifier.
+        :type slot:PluginSlot
         """
-
-        i=self._classifiers.index(slot)
-        self._classifiers[i]=None
+        self._removePluginSlot(self._classifiers, slot)
         
-        #remove all None from the end of list
-        for i in range(len(self._classifiers)-1,-1,-1):
-            if self._classifiers[i] is None:
-                self._classifiers.pop()
-            else:
-                break
+    def newFeaturesSelectorSlot(self):
+        """
+        Creates new slot for features selector that should be tested.
+        
+        :return: Features selector slot
+        :rtype: PluginSlot
+        """
+        return self._addPluginSlot(self._featuresSele)
+    
+    def removeFeaturesSelectorSlot(self, slot:PluginSlot):
+        """
+        Remove features selector slot.
+        
+        :param slot: Slot for features selector.
+        :type slot: PluginSlot
+        """
+        self._removePluginSlot(self._featuresSele, slot)
+            
+    def _addPluginSlot(self, bank):
+        """
+        Creates new slot in given slot bank.
+        
+        :param bank: Slot bank
+        :type bank: List[PluginSlot]
+        :return: New slot
+        :rtype: PluginSlot
+        """
+        #lets find first empty id
+        slotId=0 if len(bank)==0 else max(p.id for p in bank)+1
+        bank.append(PluginSlot(slotId))
+        return bank[-1]
+    
+    def _removePluginSlot(self, bank:List[PluginSlot], slot:PluginSlot):
+        """
+        Creates new slot in given slot bank.
+        
+        :param bank: Slot bank
+        :type bank: List[PluginSlot]
+        :param slot: Slot that should be removed.
+        :type slot: PluginSlot
+        """
+        bank.remove(slot)
     
     @property
     def availableClassifiers(self):
@@ -845,6 +889,8 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         extMap=[experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR) \
                 for a in experiment.attributesThatShouldBeUsed(False)]
         
+    
+        
         #create storage for results
         steps=experiment.evaluationMethod.numOfSteps(data,labels)
         
@@ -862,7 +908,7 @@ class ExperimentRunner(ExperimentBackgroundWorker):
 
             start = time.time()
             startProc=time.process_time()
-            for step, (predicted, realLabels, stepTimes) in enumerate(experiment.evaluationMethod.run(c, data, labels, extMap)):
+            for step, (predicted, realLabels, stepTimes, stats) in enumerate(experiment.evaluationMethod.run(c, data, labels, extMap, experiment.featuresSelectors)):
                 endProc=time.process_time()
                 end = time.time()
                 
@@ -880,7 +926,12 @@ class ExperimentRunner(ExperimentBackgroundWorker):
                 cls.writeConfMat(predicted, realLabels)
 
                 print(classification_report(realLabels, predicted))
+                
                 print("accuracy\t{}".format(accuracy_score(realLabels, predicted)))
+                
+                print("Samples for training:", stats[Validator.SamplesStats.NUM_SAMPLES_TRAIN])
+                print("Samples for testing:", stats[Validator.SamplesStats.NUM_SAMPLES_TEST])
+                print("Number of features:", stats[Validator.SamplesStats.NUM_FEATURES])
                 
                 print("Feature extraction time for train set:",
                       stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN])
@@ -900,7 +951,27 @@ class ExperimentRunner(ExperimentBackgroundWorker):
                       stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]
                       +
                       stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST_PROC])
-                                
+                
+                print("---")
+                print("Feature selection time for train set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN])
+                print("Feature selection process time for train set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC])
+                
+                print("Feature selection time for test set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TEST])
+                print("Feature selection process time for test set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TEST_PROC])
+                
+                print("Feature selection time for train and test set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN]
+                      +
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TEST])
+                print("Feature selection process time train and test set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]
+                      +
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC])          
+                print("---")
                 print("Train time:",
                       stepTimes[Validator.TimeDuration.TRAINING])
                 print("Train process time:",

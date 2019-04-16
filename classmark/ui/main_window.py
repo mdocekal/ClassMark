@@ -12,7 +12,7 @@ from .home_section import HomeSection
 from .experiment_section import ExperimentSection
 from .section_router import SectionRouter
 
-from PySide2.QtWidgets import QFileDialog
+from PySide2.QtWidgets import QFileDialog, QMessageBox
 
 class MainWindow(WidgetManager,SectionRouter):
     """
@@ -45,6 +45,8 @@ class MainWindow(WidgetManager,SectionRouter):
         #register click events
         self._widget.menuFileNewExperiment.triggered.connect(self.goExperiment)
         self._widget.menuFileLoadExperiment.triggered.connect(self.goLoadExperiment)
+        self._widget.menuFileSaveExperiment.triggered.connect(self.goSaveExperiment)
+        
         self._widget.menuFileExit.triggered.connect(app.quit)
         
         
@@ -62,7 +64,7 @@ class MainWindow(WidgetManager,SectionRouter):
         Go to home section.
         """
         self._widget.mainContent.setCurrentIndex(self._widget.mainContent.indexOf(self._home.widget))
-    
+        self._widget.menuFileSaveExperiment.setEnabled(False)
     def goExperiment(self):
         """
         Go to experiment section.
@@ -72,6 +74,7 @@ class MainWindow(WidgetManager,SectionRouter):
         :type load: string|None
         """
         self._goExperiment()
+        
         
     def _goExperiment(self, load=None):
         """
@@ -85,7 +88,25 @@ class MainWindow(WidgetManager,SectionRouter):
             self._experiment.loadExperiment(load)
             
         self._widget.mainContent.setCurrentIndex(self._widget.mainContent.indexOf(self._experiment.widget))
+        self._widget.menuFileSaveExperiment.setEnabled(True)
         
+    def goSaveExperiment(self):
+        """
+        Selection of path where experiment should be saved and saving it.
+        """
+        file=QFileDialog.getSaveFileName(self._widget, self.tr("Save experiment"), ".e", self.tr("Any files (*)"))
+        if file[0]:
+            #use selected file
+            try:
+                self._experiment.saveExperiment(file[0])
+            except Exception as e:
+                emsg = QMessageBox()
+                emsg.setWindowTitle(self.tr("There is a problem with saving your experiment :("))
+                emsg.setText(str(e))
+                emsg.setIcon(QMessageBox.Critical)
+                emsg.exec()
+            
+            
     def goLoadExperiment(self):
         """
         Selection of experiment file.
@@ -93,7 +114,14 @@ class MainWindow(WidgetManager,SectionRouter):
 
         file=QFileDialog.getOpenFileName(self._widget, self.tr("Load experiment"), "~", self.tr("Any files (*)"))
         if file[0]:
-            #use selected a file
-            self._goExperiment(file[0])
+            #use selected file
+            try:
+                self._goExperiment(file[0])
+            except Exception as e:
+                emsg = QMessageBox()
+                emsg.setWindowTitle(self.tr("There is a problem with loading your experiment :("))
+                emsg.setText(str(e))
+                emsg.setIcon(QMessageBox.Critical)
+                emsg.exec()
 
         

@@ -28,6 +28,8 @@ from pip._internal.utils.misc import enum
 from functools import partial
 from .utils import getAllSubclasses
 from .selection import FeaturesSelector
+import pickle
+from classmark.core.plugins import Classifier
 
 class PluginSlot(object):
     """
@@ -288,7 +290,12 @@ class ExperimentDataStatistics(Observable):
         """
         return self._attributesAVGFeatureVariance
     
-    
+class ExperimentLoadException(Exception):
+    """
+    There are some troubles when we are loading experiment.
+    """
+    pass    
+
 class Experiment(Observable):
     """
     This class represents experiment.
@@ -315,15 +322,19 @@ class Experiment(Observable):
         :param filePath: Path to file. If None than new experiment is created, else
             saved experiment is loaded.
         :type filePath: str| None
-        :raise RuntimeError: When there is problem with plugins.
+        :raise RuntimeError: When there is a problem with plugins.
+        :raise ExperimentLoadException: When there is a problem with loading.
         """
         super().__init__()
-        self._dataset=None
-        self._attributesSet={}
-        self._label=None
-        self._featuresSele=[]   
-        self._classifiers=[]    #classifiers for testing
-        self._evaluationMethod=None
+        if filePath is None:
+            self._dataset=None
+            self._attributesSet={}
+            self._label=None
+            self._featuresSele=[]   
+            self._classifiers=[]    #classifiers for testing
+            self._evaluationMethod=None
+        else:
+            self._load(filePath)
         
         #let's load the plugins that are now available
         self._loadPlugins()
@@ -334,6 +345,93 @@ class Experiment(Observable):
         
         self._attributesThatShouldBeUsedCache={}
         
+    def save(self, filePath):
+        """
+        Saves experiment configuration to given file.
+        
+        :param filePath: Path to experiment file.
+        :type filePath: str
+        """
+        with open(filePath,"wb") as saveF:
+            #let's create Experiment version for saving
+            data={
+                "dataSet":self._dataset,
+                "attributesSet":self._attributesSet,
+                "label":self._label,
+                "featuresSele":self._featuresSele,
+                "classifiers":self._classifiers,
+                "evaluationMethod":self._evaluationMethod,
+                }
+            #save it
+            pickle.dump(data,saveF)
+            
+    def _load(self, filePath):
+        """
+        Loads saved experiment configuration from given file.
+        
+        :param filePath: Path to experiment file.
+        :type filePath: str
+        :raise ExperimentLoadException: When there is a problem with loading.
+        """
+        with open(filePath,"rb") as loadF:
+            try:
+                lE=pickle.load(loadF)
+            except:
+                print("1")
+                raise ExperimentLoadException("Couldn't load given experiment.")
+            
+            if not isinstance(lE, dict):
+                print("2")
+                raise ExperimentLoadException("Couldn't load given experiment.")
+            
+            #check that we have loaded all attributes
+            
+            for a in ["dataSet","attributesSet","label", \
+                      "featuresSele","classifiers","evaluationMethod"]:
+                if a not in lE:
+                    print("3")
+                    raise ExperimentLoadException("Couldn't load given experiment.")
+                
+            if not isinstance(lE["dataSet"], DataSet):
+                raise ExperimentLoadException("Couldn't load given experiment.")
+            
+            self._dataset=lE["dataSet"]
+            
+            if not isinstance(lE["attributesSet"], dict):
+                print("4")
+                raise ExperimentLoadException("Couldn't load given experiment.")
+                
+            self._attributesSet=lE["attributesSet"]
+            
+            if not isinstance(lE["label"], str) and lE["label"] is not None :
+                print("5")
+                raise ExperimentLoadException("Couldn't load given experiment.")
+            
+            self._label=lE["label"]
+            
+            
+            if not isinstance(lE["featuresSele"], list) and \
+                any(not isinstance(fs, FeaturesSelector) for fs in lE["featuresSele"]):
+                print("6")
+                raise ExperimentLoadException("Couldn't load given experiment.")
+            
+            self._featuresSele=lE["featuresSele"]
+            
+            
+            if not isinstance(lE["classifiers"], list) and \
+                any(not isinstance(c, Classifier) for c in lE["classifiers"]):
+                print("7")
+                raise ExperimentLoadException("Couldn't load given experiment.")
+            
+            self._classifiers=lE["classifiers"]
+            
+            
+            
+            if not isinstance(lE["evaluationMethod"], Validator):
+                print("8")
+                raise ExperimentLoadException("Couldn't load given experiment.")
+            self._evaluationMethod=lE["evaluationMethod"]
+
     def useDataSubset(self):
         """
         Use only defined subset of data.
@@ -473,6 +571,20 @@ class Experiment(Observable):
         """
         
         return [ s.plugin for s in self._featuresSele]
+    @property
+    def featuresSelectorsSlots(self):
+        """
+        All used features selectors slots.
+        """
+        
+        return self._featuresSele
+    
+    @property
+    def classifiersSlots(self):
+        """
+        All curently used classifiers slots.
+        """
+        return self._classifiers
     
     @property
     def classifiers(self):
@@ -849,7 +961,7 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         p.start()
         while not self.isInterruptionRequested() and p.is_alive():
             try:
-                msgType, msgValue=commQ.get(False, 0.5)#nonblocking
+                msgType, msgValue=commQ.get(True, 0.5)#blocking
                 
                 if msgType==self.MultPMessageType.NUMBER_OF_STEPS_SIGNAL:
                     self.numberOfSteps.emit(msgValue)

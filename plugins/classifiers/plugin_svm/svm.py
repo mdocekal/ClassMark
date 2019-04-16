@@ -8,7 +8,7 @@ SVM classifier plugin for ClassMark.
 from classmark.core.plugins import Classifier, PluginAttribute
 from classmark.core.preprocessing import BaseNormalizer, NormalizerPlugin,\
     MinMaxScalerPlugin,StandardScalerPlugin, RobustScalerPlugin
-from sklearn.svm import LinearSVC
+from sklearn.svm import LinearSVC, SVC
 
 
 
@@ -17,7 +17,8 @@ class SVM(Classifier):
     SVM classifier plugin for ClassMark.
     """
     
-    def __init__(self, normalizer:BaseNormalizer=NormalizerPlugin(), maxIter:int=1000):
+    def __init__(self, normalizer:BaseNormalizer=NormalizerPlugin(), maxIter:int=None, 
+                 kernel:str="linear"):
         """
         Classifier initialization.
         
@@ -25,6 +26,8 @@ class SVM(Classifier):
         :type normalizer: None | BaseNormalizer
         :param maxIter: Maximum number of iterations.
         :type maxIter: int
+        :param kernel: Kernel type that should be used.
+        :type kernel: str
         """
 
         
@@ -36,6 +39,10 @@ class SVM(Classifier):
         self._normalizer=PluginAttribute("Normalize", PluginAttribute.PluginAttributeType.SELECTABLE_PLUGIN, None,
                                          [None, NormalizerPlugin, MinMaxScalerPlugin, StandardScalerPlugin, RobustScalerPlugin])
         self._normalizer.value=normalizer
+        
+        self._kernel=PluginAttribute("Kernel", PluginAttribute.PluginAttributeType.SELECTABLE, str,
+                                         ["linear", "poly", "rbf", "sigmoid"])
+        self._kernel.value=kernel
         
     @staticmethod
     def getName():
@@ -55,7 +62,14 @@ class SVM(Classifier):
         
         #The documentation says:
         #    Prefer dual=False when n_samples > n_features.
-        self._cls=LinearSVC(dual=data.shape[0]<=data.shape[1], max_iter=self._maxIter.value)
+        if self._kernel.value=="linear":
+            #this should be faster
+            self._cls=LinearSVC(dual=data.shape[0]<=data.shape[1], 
+                                max_iter=1000 if self._maxIter.value is None else self._maxIter.value)
+        else:
+            self._cls=SVC(kernel=self._kernel.value, 
+                          max_iter=-1 if self._maxIter.value is None else self._maxIter.value)
+            
         self._cls.fit(data,labels)
     
     def predict(self, data):

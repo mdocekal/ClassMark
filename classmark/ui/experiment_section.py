@@ -139,18 +139,22 @@ class ClassifierRowWidgetManager(PluginRowWidgetManager):
     """
     
 
-    def __init__(self, experiment:Experiment, parent=None):
+    def __init__(self, experiment:Experiment, slot:PluginSlot=None, parent=None):
         """
         Creates classifier row widget.
 
         :param experiment: This manager will use that experiment for storing information
             about selection of classifier.
         :type experiment: Experiment
+        :param slot: Use given slot. If None than new slot is created.
+        :type slot: PluginSlot | None
         :param parent: Parent widget.
         :type parent: QWidget
         """
         self._experiment=experiment
-        super().__init__(self._experiment.newClassifierSlot(),
+        if slot is None:
+            slot=self._experiment.newClassifierSlot()
+        super().__init__(slot,
                          {c.getName():c for c in self._experiment.availableClassifiers.values()},
                          parent)
 
@@ -175,18 +179,22 @@ class FeaturesSelectorRowWidgetManager(PluginRowWidgetManager):
     
     """
 
-    def __init__(self, experiment:Experiment, parent=None):
+    def __init__(self, experiment:Experiment, slot:PluginSlot=None, parent=None):
         """
         Creates classifier row widget.
 
         :param experiment: This manager will use that experiment for storing information
             about selection of classifier.
         :type experiment: Experiment
+        :param slot: Use given slot. If None than new slot is created.
+        :type slot: PluginSlot | None
         :param parent: Parent widget.
         :type parent: QWidget
         """
         self._experiment=experiment
-        super().__init__(self._experiment.newFeaturesSelectorSlot(),
+        if slot is None:
+            slot=self._experiment.newFeaturesSelectorSlot()
+        super().__init__(slot,
                          {c.getName():c for c in self._experiment.availableFeatureSelectors},
                          parent)
 
@@ -334,18 +342,39 @@ class ExperimentSection(WidgetManager):
         """
         
         super().__init__()
-        self._widget=self._loadTemplate(self.TEMPLATE, parent)
         self._router=sectionRouter
+        self._parent=parent
+        self.loadExperiment(load)
+ 
+    def saveExperiment(self, filePath):
+        """
+        Save experiment to given file.
+        
+        :param filePath: File where the experiment should be saved.
+        :type filePath: str
+        """
+        self._experiment.save(filePath)
+        
+         
+    def loadExperiment(self, load):
+        """
+        Loads given experiment.
+        
+        :param load: Path to file containing experiment configuration.
+            None means that new experiment should be loaded.
+        :type load: string|None
+        :raise exception: 
+        """
+        self._widget=self._loadTemplate(self.TEMPLATE, self._parent)
+        
         #create new or load saved experiment
         self._experiment=Experiment(load)
-        
         
         self._initData()
         self._initDataStats()
         self._initFeatSel()
         self._initCls()
         self._initRes()
- 
         
     def _experimentStarts(self):
         """
@@ -479,6 +508,7 @@ class ExperimentSection(WidgetManager):
         """
             
         #register click events
+            
         self._widget.buttonChooseData.clicked.connect(self.loadDataset)
         
         #set cell span for features extractor header
@@ -507,9 +537,20 @@ class ExperimentSection(WidgetManager):
         #init validators
         self._widget.comboBoxValidation.addItems([v.getName() for v in self._experiment.availableEvaluationMethods])
         
+            
         self._widget.comboBoxValidation.currentTextChanged.connect(self._experiment.setEvaluationMethod)
         self._widget.comboBoxValidation.currentTextChanged.connect(self._showEvaluationMethodProperties)
         self._widget.validationPropertiesButton.clicked.connect(self._showEvaluationMethodProperties)
+        
+        #assign loaded data (if exists)
+        if self._experiment.dataset is not None:
+            self._widget.pathToData.setText(self._experiment.dataset.filePath)
+            
+        if self._experiment.evaluationMethod is not None:
+            index = self._widget.comboBoxValidation.findText(self._experiment.evaluationMethod.getName())
+            self._widget.comboBoxValidation.setCurrentIndex(index)
+            
+        
         
     def _initDataStats(self):
         """
@@ -542,8 +583,12 @@ class ExperimentSection(WidgetManager):
         
         self._classifiersRowsManagers=[]
         
-        #add one classifier option
-        self._addClassifierOption()
+        if len(self._experiment.classifiersSlots)>0:
+            for slot in self._experiment.classifiersSlots:
+                self._addClassifierOption(slot)
+        else:
+            #add one classifier option
+            self._addClassifierOption()
         
         #hide the plugin attributes header
         self._hideClassifierProperties()
@@ -562,6 +607,10 @@ class ExperimentSection(WidgetManager):
         #hide the plugin attributes header
         self._hideFeaturesSelectorProperties()
         
+
+        for slot in self._experiment.featuresSelectorsSlots:
+            self._addFeaturesSelectorOption(slot)
+        
     def _hideFeaturesSelectorProperties(self):
         """
         Hides UI section of classifier properties.
@@ -569,13 +618,16 @@ class ExperimentSection(WidgetManager):
         self._widget.featureSelectorAttributesHeader.hide()
         self._widget.featureSelectorAttributesScrollArea.hide()
         
-    def _addFeaturesSelectorOption(self):
+    def _addFeaturesSelectorOption(self, slot:PluginSlot=None):
         """
         Add one new classifier option to UI.
+        
+        :param slot: Uses provided slot. (optionally)
+        :type slot:PluginSlot|None
         """
 
         #lets create option row manager
-        manager=FeaturesSelectorRowWidgetManager(self._experiment, None)
+        manager=FeaturesSelectorRowWidgetManager(self._experiment, slot, None)
         #register events
         manager.registerRemoveEvent(self._removeFeaturesSelectorOption)
         manager.registerChangeEvent(self._featuresSelectorPropertiesEvent)
@@ -643,13 +695,16 @@ class ExperimentSection(WidgetManager):
         self._widget.classifierPluginAttributesHeader.hide()
         self._widget.classifierAttributesScrollArea.hide()
         
-    def _addClassifierOption(self):
+    def _addClassifierOption(self, slot:PluginSlot=None):
         """
         Add one new classifier option to UI.
+        
+        :param slot: Uses provided slot. (optionally)
+        :type slot:PluginSlot|None
         """
         
         #lets create option row manager
-        manager=ClassifierRowWidgetManager(self._experiment, None)
+        manager=ClassifierRowWidgetManager(self._experiment, slot, None)
         #register events
         manager.registerRemoveEvent(self._removeClassifierOption)
         manager.registerChangeEvent(self._classifierPropertiesEvent)
@@ -698,15 +753,7 @@ class ExperimentSection(WidgetManager):
         else:
             self.manager=AttributesWidgetManager(classifier.getAttributes(), self._widget.classifierPluginAttributesWidget)
             self._widget.classifierPluginAttributesContent.addWidget(self.manager.widget)
-        
-    def loadExperiment(self, load):
-        """
-        Loads given experiment.
-        
-        :param load: Path to file containing experiment configuration.
-        :type load: string
-        """
-        pass
+
     
     def _saveAsNewDataset(self):
         """
@@ -740,6 +787,7 @@ class ExperimentSection(WidgetManager):
             self._setPropertiesButtonsToDataAttrTable()
             
             self._dataStatsClear()
+            #TODO: HIDE OLD FEATURES EXTRACTOR
             
     def _setPropertiesButtonsToDataAttrTable(self):
         """
@@ -784,6 +832,7 @@ class ExperimentSection(WidgetManager):
         """
         self._showPropertiesInDataSection(self._experiment.evaluationMethod, self._experiment.evaluationMethod.getName())
             
+    
     def _showPropertiesInDataSection(self, plugin, name):
         """
         Shows plugins attributes.

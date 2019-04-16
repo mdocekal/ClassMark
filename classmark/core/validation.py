@@ -446,12 +446,12 @@ class ValidatorPeparedSets(Validator):
                     v=float(m)
                     
                 try:
-                    splits[v][isTest].append(i)
+                    self.splits[v][isTest].append(i)
                 except KeyError:
-                    splits[v]=([],[])
-                    splits[v][isTest].append(i)
+                    self.splits[v]=([],[])
+                    self.splits[v][isTest].append(i)
             
-        def __callable__(self, data:np.array, labels:np.array):
+        def __call__(self, data:np.array, labels:np.array):
             """
             One split step.
             
@@ -463,8 +463,8 @@ class ValidatorPeparedSets(Validator):
             :rtype: Tuple[Tuple,Tuple]
             """
  
-            for split in sorted(self._splits):
-                yield split
+            for split in sorted(self.splits):
+                yield self.splits[split]
 
     def __init__(self, attribute:str=None):
         """

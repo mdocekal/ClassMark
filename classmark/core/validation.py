@@ -12,10 +12,12 @@ from abc import abstractmethod
 from typing import List, Callable
 from .plugins import Plugin, PluginAttribute, Classifier, FeatureExtractor
 from .selection import FeaturesSelector
+from ..data.data_set import DataSet
 from PySide2.QtCore import Signal
 from sklearn.model_selection import StratifiedKFold, LeaveOneOut, KFold
 from enum import Enum, auto
 import time
+from pip._internal.utils.misc import enum
 
 class EvaluationMethod(object):
     """
@@ -33,6 +35,7 @@ class Validator(Plugin):
     
     actStepDesc=Signal(str)
     """Is emitted when step begins and sends description of actual step."""
+
     
     class SamplesStats(Enum):
         """
@@ -91,14 +94,16 @@ class Validator(Plugin):
         
         
 
-    def run(self, classifier:Classifier, data:np.array, labels:np.array, extMap:List[FeatureExtractor], \
+    def run(self, dataSet:DataSet, classifier:Classifier, data:np.array, labels:np.array, extMap:List[FeatureExtractor], \
             featSel:List[FeaturesSelector]=[]):
         """
         Run whole validation process on given classifier with
         given data. It is implemented as generator that provides predicted labels, real labels and times for train/test set on the
         end of validation step.
         
-        
+        :param dataSet: Dataset where the data come from.
+            Some validators may used it to get additional informations.
+        :type dataSet: DataSet 
         :param classifier: Classifier you want to test.
         :type classifier: Classifier
         :param data: Data which will be used for validation.
@@ -115,7 +120,9 @@ class Validator(Plugin):
         :rtype: Iterator[Tuple[np.array,np.array,Dict[TimeDuration, float],Dict[SamplesStats,int]]]
         """
         
-        for trainIndices, testIndices in self.splitter(data, labels):
+        self._lastDataSet=dataSet
+        
+        for trainIndices, testIndices in self._splitter(data, labels):
             s=time.time()
             """
             self.actInfo.emit("Extracting features {} on samples. Step {}/{}.".format(
@@ -261,10 +268,13 @@ class Validator(Plugin):
         pass
     
     @abstractmethod
-    def numOfSteps(self, data:np.array=None, labels:np.array=None):
+    def numOfSteps(self, dataSet:DataSet=None, data:np.array=None, labels:np.array=None):
         """
         Total number of steps to complete validation process for one classifier.
         
+        :param dataSet: Dataset where the data come from.
+            Some validators may used it to get additional informations.
+        :type dataSet: DataSet 
         :param data: Data which will be used for validation.
         :type data: np.array
         :param labels: Labels which will be used for validation.
@@ -274,7 +284,7 @@ class Validator(Plugin):
     
     @property
     @abstractmethod
-    def splitter(self):
+    def _splitter(self):
         """
         Train/test set splitter.
         Should be callable that takes two arguments data,labels and returns
@@ -307,11 +317,10 @@ class ValidatorStratifiedKFold(Validator):
         self._randomSeed.value=None
         
     @property
-    def splitter(self):
-        self._spliter=StratifiedKFold(n_splits=self._folds.value,
+    def _splitter(self):
+        return StratifiedKFold(n_splits=self._folds.value,
                                       shuffle=self._shuffle.value,
-                                      random_state=self._randomSeed.value)
-        return self._spliter.split
+                                      random_state=self._randomSeed.value).split
         
         
     @staticmethod
@@ -333,7 +342,7 @@ class ValidatorStratifiedKFold(Validator):
         """
         pass
     
-    def numOfSteps(self, data:np.array=None, labels:np.array=None):
+    def numOfSteps(self, dataSet:DataSet=None,data:np.array=None, labels:np.array=None):
         return self._folds.value
 
 class ValidatorKFold(Validator):
@@ -342,29 +351,32 @@ class ValidatorKFold(Validator):
     train and test sets.
     """
     
-    def __init__(self, folds:int=5):
+    def __init__(self, folds:int=5, shuffle:bool=False, randomSeed:int=None):
         """
         Initialize ValidationKFold validation
-        
+ 
         :param folds: Number of folds.
         :type folds: int
+        :param shuffle: Sould shuffle the data?
+        :type shuffle: bool
+        :param randomSeed: Given seed.
+        :type randomSeed: None| int
         """
         
         self._folds=PluginAttribute("Folds", PluginAttribute.PluginAttributeType.VALUE, int)
         self._folds.value=folds
         
         self._shuffle=PluginAttribute("Shuffle", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
-        self._shuffle.value=False
+        self._shuffle.value=shuffle
         
         self._randomSeed=PluginAttribute("Shuffle - random seed", PluginAttribute.PluginAttributeType.VALUE, int)
-        self._randomSeed.value=None
+        self._randomSeed.value=randomSeed
         
     @property
-    def splitter(self):
-        self._spliter=KFold(n_splits=self._folds.value,
+    def _splitter(self):
+        return KFold(n_splits=self._folds.value,
                                       shuffle=self._shuffle.value,
-                                      random_state=self._randomSeed.value)
-        return self._spliter.split
+                                      random_state=self._randomSeed.value).split
     
     @staticmethod
     def getName():
@@ -386,9 +398,132 @@ class ValidatorKFold(Validator):
         """
         pass
     
-    def numOfSteps(self, data:np.array=None, labels:np.array=None):
+    def numOfSteps(self,dataSet:DataSet=None, data:np.array=None, labels:np.array=None):
         return self._folds.value
 
+class ValidatorPeparedSets(Validator):
+    """
+    Validation process that uses prepared train/test sets.
+    """
+    
+    class Splitter(object):
+        """
+        Functor that makes split according to selected attribute that contains
+        marking.
+        Marking example:
+                1    First validation step train set.
+                1t    First validation step test set.
+                2    Second validation step train set.
+                2t    Second validation step test set.
+        """
+        
+        def __init__(self, dataSet:DataSet, attr:str):
+            """
+            Initialization of splitter.
+            
+            :param dataSet: This data set will be used for getting the attr values.
+            :type dataSet: dataSet
+            :param attr: Attribute name that contains marking.
+            :type attr: str
+            """
+            
+            self.dataSet=dataSet
+            self.attr=attr
+            self.splits={}
+            for i, row in enumerate(self.dataSet):
+                try:
+                    m=row[self.attr]
+                except KeyError:
+                    raise ValueError("Non existing attribute: "+str(self.attr))
+                    
+                isTest=0
+                if m.endswith("t"):
+                    #test set
+                    v=float(m[:-1])
+                    isTest=1
+                else:
+                    #train set
+                    v=float(m)
+                    
+                try:
+                    splits[v][isTest].append(i)
+                except KeyError:
+                    splits[v]=([],[])
+                    splits[v][isTest].append(i)
+            
+        def __callable__(self, data:np.array, labels:np.array):
+            """
+            One split step.
+            
+            :param data: Data which will be used for validation.
+            :type data: np.array
+            :param labels: Labels which will be used for validation.
+            :type labels: np.array
+            :return: (indices for train set, indices for test set)
+            :rtype: Tuple[Tuple,Tuple]
+            """
+ 
+            for split in sorted(self._splits):
+                yield split
+
+    def __init__(self, attribute:str=None):
+        """
+        Initialize ValidationKFold validation
+        
+        :param attribute: Attribute that contains train/test set marking
+            Marking example:
+                1    First validation step train set.
+                1t    First validation step test set.
+                2    Second validation step train set.
+                2t    Second validation step test set.
+        :type attribute: str
+        """
+
+        self._attribute=PluginAttribute("Attribute", PluginAttribute.PluginAttributeType.VALUE, str)
+        self._attribute.value=attribute
+        
+    @property
+    def _splitter(self):
+        """
+        Beware that this splitter is using attribute column for experiment data set.
+        So do not use other data than the one from the experiment.
+        
+        Also the splitter expects that member _lastDataSet is set.
+        """
+        if not hasattr(self, "_splitterObj") or self._splitterObj is None or \
+            self._lastDataSet != self._splitterObj.dataSet or \
+            self._splitterObj.attr!=self._attribute.value:
+            
+            if self._attribute.value is None:
+                raise ValueError("Please fill field "+self._attribute.name+" for validator: "+self.getName()+".")
+            self._splitterObj=self.Splitter(self._lastDataSet,self._attribute.value)
+
+        return self._splitterObj
+    
+    @staticmethod
+    def getName():
+        return "Prepared sets"
+ 
+    @staticmethod
+    def getNameAbbreviation():
+        return "PS"
+    
+    @staticmethod
+    def getInfo():
+        return ""
+    
+    
+    @property
+    def results(self):
+        """
+        Get gathered results so far.
+        """
+        pass
+    
+    def numOfSteps(self, dataSet:DataSet=None,data:np.array=None, labels:np.array=None):
+        self._lastDataSet=dataSet
+        return len(self._splitter.splits)
+    
 class ValidatorLeaveOneOut(Validator):
     """
     Validation process that uses LeaveOneOut for getting
@@ -396,9 +531,9 @@ class ValidatorLeaveOneOut(Validator):
     """
     
     @property
-    def splitter(self):
-        self._spliter=LeaveOneOut()
-        return self._spliter.split
+    def _splitter(self):
+
+        return LeaveOneOut().split
     
     @staticmethod
     def getName():
@@ -406,7 +541,7 @@ class ValidatorLeaveOneOut(Validator):
  
     @staticmethod
     def getNameAbbreviation():
-        return "LOO"
+        return "LOU"
     
     @staticmethod
     def getInfo():
@@ -420,5 +555,5 @@ class ValidatorLeaveOneOut(Validator):
         pass
     
 
-    def numOfSteps(self, data:np.array=None, labels:np.array=None):
+    def numOfSteps(self, dataSet:DataSet=None,data:np.array=None, labels:np.array=None):
         return labels.shape[0]

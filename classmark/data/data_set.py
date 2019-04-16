@@ -9,7 +9,11 @@ Module for data set representation and actions.
 import os
 import csv
 import numpy as np
+import mimetypes
 from typing import List, Dict
+from ..core.plugins import FeatureExtractor
+from skimage.io import imread
+from abc import ABC
 
 class Sample(object):
     """
@@ -17,9 +21,32 @@ class Sample(object):
     """
     pass
 
-class LazyTextFileReader(str):
+class LazyFileReaderFactory(object):
     """
-    Lazy text reader for attributes that are marked as path.
+    Lazy file reader factory.
+    """
+    
+    @staticmethod
+    def getReader(filePath:str, t:FeatureExtractor.DataTypes):
+        """
+        Create file reader.
+        
+        :param filePath: Path to file that should be read, at time it is absolutely necessary.
+            It means when the content is actually required.
+        :type filePath: str
+        :param t: Data type.
+        :type t: FeatureExtractor.DataTypes
+        """
+        if t ==FeatureExtractor.DataTypes.STRING:
+            return LazyTextFileReader(filePath)
+        if t==FeatureExtractor.DataTypes.IMAGE:
+            return LazyImageFileReader(filePath)
+        
+        
+
+class LazyFileReader(ABC):
+    """
+    Lazy reader for attributes that are marked as path.
     """
     
     def __init__(self, filePath:str):
@@ -32,7 +59,17 @@ class LazyTextFileReader(str):
         """
         self._filePath=filePath
         
-
+    def __repr__(self):
+        """
+        Representation of that reader
+        """
+        return "{}: {}".format(__class__.__name__, self._filePath)
+    
+class LazyTextFileReader(LazyFileReader,str):
+    """
+    Lazy text reader for attributes that are marked as path.
+    """
+    
     def __str__(self):
         """
         Get content of the file.
@@ -40,12 +77,18 @@ class LazyTextFileReader(str):
         with open(self._filePath, "r", encoding="utf-8") as fileToRead:
             return fileToRead.read()
 
-    def __repr__(self):
-        """
-        Representation of that reader
-        """
-        return "{}: {}".format(__class__.__name__, self._filePath)
+    
  
+class LazyImageFileReader(LazyFileReader):
+    """
+    Lazy image reader for attributes that are marked as path.
+    """
+    
+    def __init__(self, filePath:str):
+        super().__init__(filePath)
+
+    def getRGB(self):
+        return imread(self._filePath)
         
 
 class DataSet(object):
@@ -65,7 +108,8 @@ class DataSet(object):
         self._attributes=[]
         self._filePath=filePath
         self._folder=os.path.dirname(filePath)
-        self._pathAttributes=set()  #attributes that points to content in different file
+        self._pathAttributes={}  #attributes that points to content in different file
+        
         #load just the attributes.
         with open(filePath, "r", encoding="utf-8") as opF:
             reader = csv.DictReader(opF)
@@ -73,6 +117,10 @@ class DataSet(object):
             
         self._subset=None   #determines if we want to use just subset
         
+    def __eq__(self, other):
+        return self._filePath==other._filePath and self._subset == other._subset and \
+            self._pathAttributes==other._pathAttributes
+    
     def useSubset(self, subset:np.array):
         """
         Use just subset of samples.
@@ -102,8 +150,14 @@ class DataSet(object):
             for sample in self:
                 writter.writerow(sample)
             
+    @property
+    def pathAttributes(self):
+        """
+        List of attributes marked as path.
+        """
+        return set(self._pathAttributes.keys())
     
-    def addPathAttribute(self, attr:str):
+    def addPathAttribute(self, attr:str, t:FeatureExtractor.DataTypes):
         """
         Marks attribute as path to different file whichs content shold be read and
         used instead of the path.
@@ -112,12 +166,14 @@ class DataSet(object):
         
         :param attr: The attribute name.
         :type attr: str
+        :param t: Type of data for reading.
+        :type t: FeatureExtractor.DataTypes
         :raise KeyError: When the name of attribute is uknown.
         """
         if attr not in self._attributes:
             raise KeyError("Unknown attribute.")
         
-        self._pathAttributes.add(attr)
+        self._pathAttributes[attr]=t
         
     def removePathAttribute(self, attr:str):
         """
@@ -126,7 +182,7 @@ class DataSet(object):
         :param attr: The attribute name.
         :type attr: str
         """
-        self._pathAttributes.remove(attr)
+        del self._pathAttributes[attr]
         
             
     @property
@@ -179,11 +235,12 @@ class DataSet(object):
         :type sample: Dict[str,str]
         """
         #convert the path attributes
-        for pA in self._pathAttributes:
+        for pA, pT in self._pathAttributes.items():
             if not os.path.isabs(sample[pA]):
                 #it is relative path so let's 
                 #add as base folder of that data set
-                sample[pA]=LazyTextFileReader(os.path.join(self._folder,sample[pA]))
+                
+                sample[pA]=LazyFileReaderFactory.getReader(os.path.join(self._folder,sample[pA]), pT)
         
     def toNumpyArray(self, useOnly:List[List[str]]=[]):
         """

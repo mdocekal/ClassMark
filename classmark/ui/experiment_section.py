@@ -187,7 +187,7 @@ class FeaturesSelectorRowWidgetManager(PluginRowWidgetManager):
         """
         self._experiment=experiment
         super().__init__(self._experiment.newFeaturesSelectorSlot(),
-                         {c.getName():c for c in FeaturesSelector.__subclasses__()},
+                         {c.getName():c for c in self._experiment.availableFeatureSelectors},
                          parent)
 
     

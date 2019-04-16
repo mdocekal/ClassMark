@@ -278,9 +278,11 @@ class FeatureExtractor(Plugin):
         All this types of data will be wrapped in numpy array.
         """
         
-        STRING=0        #default
-        IMAGE_RGB=1     #np.array with red channel first
-        IMAGE_BGR=2     #np.array with blue channel first
+        STRING=0
+        """default"""
+        IMAGE=1
+        """LazyImageFileReader
+        If you want np.array, call getRGB."""
 
     
     @abstractmethod
@@ -335,14 +337,16 @@ class FeatureExtractor(Plugin):
         :rtype: scipy.sparse matrix
         """
         pass
-    
 
-    def expDataType(self):
+    @classmethod
+    def expDataType(cls):
         """
         Expected data type for extraction.
         Overwrite this method if you want to use different data type.
+        Beware that this is just type hint for reading external files that haves their path
+        in attributes marked as path attribute.
         """
-        return self.DataTypes.STRING
+        return cls.DataTypes.STRING
 
 
 CLASSIFIERS={entry_point.name: entry_point.load() \

@@ -102,7 +102,13 @@ class TreeBasedFeatureImportanceSelector(FeaturesSelector):
     def fit(self, features, labels=None):
         clf = DecisionTreeClassifier()
         clf.fit(features, labels)
-        self._sel = SelectFromModel(clf, prefit=True, threshold=self._threshold.value)
+        
+        try:
+            thres=float(self._threshold.value)
+        except ValueError:
+            thres=self._threshold.value
+        
+        self._sel = SelectFromModel(clf, prefit=True, threshold=thres)
         
     def select(self, features):
         return self._sel.transform(features)

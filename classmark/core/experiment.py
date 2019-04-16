@@ -26,6 +26,8 @@ import copy
 import statistics 
 from pip._internal.utils.misc import enum
 from functools import partial
+from .utils import getAllSubclasses
+from .selection import FeaturesSelector
 
 class PluginSlot(object):
     """
@@ -457,16 +459,12 @@ class Experiment(Observable):
             clsTmp.add(cls.getName())
             
         #available Validators
-        self.availableEvaluationMethods = []
-        stackValidators = [Validator]
-        while len(stackValidators):
-            base = stackValidators.pop()
-            for child in base.__subclasses__():
-                if child not in self.availableEvaluationMethods:
-                    self.availableEvaluationMethods.append(child)
-                    stackValidators.append(child)
+        self.availableEvaluationMethods = getAllSubclasses(Validator)
                     
         self._evaluationMethod=self.availableEvaluationMethods[0]()  #add default
+        
+        #available Features selectors
+        self.availableFeatureSelectors = getAllSubclasses(FeaturesSelector)
         
     @property
     def featuresSelectors(self):
@@ -678,11 +676,19 @@ class Experiment(Observable):
             self._attributesSet[attribute][t]=val
             
         if t == Experiment.AttributeSettings.PATH:
-            #we must inform the dataset object
+            #we must inform the data set object
             if val:
-                self._dataset.addPathAttribute(attribute)
+                self._dataset.addPathAttribute(attribute,
+                    self._attributesSet[attribute][Experiment.AttributeSettings.FEATURE_EXTRACTOR].expDataType())
             else:
-                self._dataset.removePathAttribute(attribute)
+                self._dataset.removePathAttribute(attribute,
+                    self._attributesSet[attribute][Experiment.AttributeSettings.FEATURE_EXTRACTOR].expDataType())
+                
+        if t ==Experiment.AttributeSettings.FEATURE_EXTRACTOR and \
+            attribute in self._dataset.pathAttributes:
+            
+            #we must inform the data set object
+            self._dataset.addPathAttribute(attribute, val.expDataType())
             
             
         if t==Experiment.AttributeSettings.USE or t==Experiment.AttributeSettings.LABEL:
@@ -892,7 +898,7 @@ class ExperimentRunner(ExperimentBackgroundWorker):
     
         
         #create storage for results
-        steps=experiment.evaluationMethod.numOfSteps(data,labels)
+        steps=experiment.evaluationMethod.numOfSteps(experiment.dataset,data,labels)
         
         commQ.put((cls.MultPMessageType.NUMBER_OF_STEPS_SIGNAL,    #+1 reading
                    len(experiment.classifiers)*(steps)+1))
@@ -908,7 +914,7 @@ class ExperimentRunner(ExperimentBackgroundWorker):
 
             start = time.time()
             startProc=time.process_time()
-            for step, (predicted, realLabels, stepTimes, stats) in enumerate(experiment.evaluationMethod.run(c, data, labels, extMap, experiment.featuresSelectors)):
+            for step, (predicted, realLabels, stepTimes, stats) in enumerate(experiment.evaluationMethod.run(experiment.dataset,c, data, labels, extMap, experiment.featuresSelectors)):
                 endProc=time.process_time()
                 end = time.time()
                 

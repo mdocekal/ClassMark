@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 import pkg_resources
 from enum import Enum
 from typing import List, Callable, Any
+from .logger import Logger
 
 class PluginAttribute(object):
     """
@@ -176,7 +177,10 @@ class Plugin(ABC):
     """
     Abstract class that defines plugin and its interface.
     """
-
+    
+    _logger=Logger()
+    """If you want to log some information that should be shown in GUI than use this
+    logger. (logger.log("message"))"""
     def getAttributesWidget(self, parent=None):
         """
         UI widget for configuration of plugin attributes.

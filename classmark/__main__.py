@@ -13,12 +13,23 @@ from PySide2.QtWidgets import QApplication, QMessageBox
 from PySide2.QtCore import Qt
 from .ui.main_window import MainWindow
 import traceback
+import atexit
+import multiprocessing
+
+def killChilds():
+    """
+    Kills all subprocesses created by multiprocessing module.
+    """
+    
+    for p in multiprocessing.active_children():
+        p.terminate()
 
 def main():
+    atexit.register(killChilds)
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     app = QApplication(sys.argv)
     
-    #TODO: Kill all child process when this dies.
+    
     try:
         
         window = MainWindow(app)
@@ -36,6 +47,7 @@ def main():
         emsg.setIcon(QMessageBox.Critical)
         emsg.show()
         sys.exit(app.exec_())
+        killChilds()
 
         
         

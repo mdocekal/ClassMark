@@ -12,7 +12,7 @@ import time
 from _collections import OrderedDict
 from ..core.plugins import Plugin, CLASSIFIERS, FEATURE_EXTRACTORS
 from ..core.validation import Validator
-from builtins import isinstance
+from builtins import isinstance, False, True
 from PySide2.QtCore import QThread, Signal
 from .results import Results
 from typing import Any, Dict, List
@@ -27,9 +27,11 @@ import statistics
 from pip._internal.utils.misc import enum
 from functools import partial
 from .utils import getAllSubclasses
+from .logger import Logger
 from .selection import FeaturesSelector
 import pickle
 from classmark.core.plugins import Classifier
+from sklearn.preprocessing import LabelEncoder
 
 class PluginSlot(object):
     """
@@ -326,19 +328,25 @@ class Experiment(Observable):
         :raise ExperimentLoadException: When there is a problem with loading.
         """
         super().__init__()
-        if filePath is None:
-            self._dataset=None
-            self._attributesSet={}
-            self._label=None
-            self._featuresSele=[]   
-            self._classifiers=[]    #classifiers for testing
-            self._evaluationMethod=None
-        else:
-            self._load(filePath)
         
+        self._dataset=None
+        self._attributesSet={}
+        self._label=None
+        self._featuresSele=[]   
+        self._classifiers=[]    #classifiers for testing
+        self._evaluationMethod=None
+        self.loadSavePath=None  #stores path from which this exp was loaded or where is saved
+            
         #let's load the plugins that are now available
+        #must be called before experiment loading
+        #because sets default values
         self._loadPlugins()
-        #TODO: loading
+        
+        if filePath is not None:
+            #load saved experiment
+            self._load(filePath)
+            self.loadSavePath=filePath
+
         
         self._dataStats=None
         self._origDataStats=None
@@ -364,6 +372,7 @@ class Experiment(Observable):
                 }
             #save it
             pickle.dump(data,saveF)
+            self.loadSavePath=filePath
             
     def _load(self, filePath):
         """
@@ -377,11 +386,9 @@ class Experiment(Observable):
             try:
                 lE=pickle.load(loadF)
             except:
-                print("1")
                 raise ExperimentLoadException("Couldn't load given experiment.")
             
             if not isinstance(lE, dict):
-                print("2")
                 raise ExperimentLoadException("Couldn't load given experiment.")
             
             #check that we have loaded all attributes
@@ -389,7 +396,6 @@ class Experiment(Observable):
             for a in ["dataSet","attributesSet","label", \
                       "featuresSele","classifiers","evaluationMethod"]:
                 if a not in lE:
-                    print("3")
                     raise ExperimentLoadException("Couldn't load given experiment.")
                 
             if not isinstance(lE["dataSet"], DataSet):
@@ -398,13 +404,11 @@ class Experiment(Observable):
             self._dataset=lE["dataSet"]
             
             if not isinstance(lE["attributesSet"], dict):
-                print("4")
                 raise ExperimentLoadException("Couldn't load given experiment.")
                 
             self._attributesSet=lE["attributesSet"]
             
             if not isinstance(lE["label"], str) and lE["label"] is not None :
-                print("5")
                 raise ExperimentLoadException("Couldn't load given experiment.")
             
             self._label=lE["label"]
@@ -412,7 +416,6 @@ class Experiment(Observable):
             
             if not isinstance(lE["featuresSele"], list) and \
                 any(not isinstance(fs, FeaturesSelector) for fs in lE["featuresSele"]):
-                print("6")
                 raise ExperimentLoadException("Couldn't load given experiment.")
             
             self._featuresSele=lE["featuresSele"]
@@ -420,7 +423,6 @@ class Experiment(Observable):
             
             if not isinstance(lE["classifiers"], list) and \
                 any(not isinstance(c, Classifier) for c in lE["classifiers"]):
-                print("7")
                 raise ExperimentLoadException("Couldn't load given experiment.")
             
             self._classifiers=lE["classifiers"]
@@ -428,7 +430,6 @@ class Experiment(Observable):
             
             
             if not isinstance(lE["evaluationMethod"], Validator):
-                print("8")
                 raise ExperimentLoadException("Couldn't load given experiment.")
             self._evaluationMethod=lE["evaluationMethod"]
 
@@ -518,6 +519,7 @@ class Experiment(Observable):
     def _loadPlugins(self):
         """
         Loads available plugins.
+        Adds default.
         
         :raise RuntimeError: When there is problem with plugins.
         """
@@ -834,6 +836,11 @@ class Experiment(Observable):
 
         
 class ExperimentBackgroundWorker(QThread):
+    """
+    Base class for background tasks.
+    Defines all mandatory signals.
+    """
+    
     numberOfSteps = Signal(int)
     """Signalizes that we now know the number of steps. Parameter is number of steps."""
     
@@ -842,6 +849,7 @@ class ExperimentBackgroundWorker(QThread):
     
     actInfo = Signal(str)
     """Sends information about what thread is doing now."""
+
     
     class MultPMessageType(Enum):
         """
@@ -857,6 +865,12 @@ class ExperimentBackgroundWorker(QThread):
         ACT_INFO_SIGNAL=2
         """Sends information about what process is doing now. Value is string."""
         
+        LOG_SIGNAL=3
+        """Sends log message that should be shown in GUI."""
+        
+        RESULT_SIGNAL=4
+        """Sends experiment results."""
+        
         
     
     def __init__(self, experiment:Experiment):
@@ -869,6 +883,28 @@ class ExperimentBackgroundWorker(QThread):
         QThread.__init__(self)
         
         self._experiment=experiment
+        
+    def processMultPMsg(self,msgType,msgVal:Any):
+        """
+        Processes message received from another process.
+        Sends appropriate signals to UI thread.
+        
+        :param msgType: Type of received message.
+        :type msgType: MultPMessageType
+        :param msgVal: The message.
+        :type msgVal: Any
+        :return: Returns True if emits an signal. False otherwise.
+        :rtype: bool
+        """
+        if msgType==self.MultPMessageType.NUMBER_OF_STEPS_SIGNAL:
+            self.numberOfSteps.emit(msgVal)
+        elif msgType==self.MultPMessageType.STEP_SIGNAL:
+            self.step.emit()
+        elif msgType==self.MultPMessageType.ACT_INFO_SIGNAL:
+            self.actInfo.emit(msgVal)
+        else:
+            return False
+        return True
     
 
 class ExperimentStatsRunner(ExperimentBackgroundWorker):
@@ -951,6 +987,13 @@ class ExperimentRunner(ExperimentBackgroundWorker):
     """
     Runs experiment in it's own thread.
     """
+    
+        
+    log= Signal(str)
+    """Sends log message that should be shown in GUI."""
+    
+    result= Signal(Results)
+    """Send signal with experiment results."""
         
     def run(self):
         """
@@ -962,14 +1005,7 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         while not self.isInterruptionRequested() and p.is_alive():
             try:
                 msgType, msgValue=commQ.get(True, 0.5)#blocking
-                
-                if msgType==self.MultPMessageType.NUMBER_OF_STEPS_SIGNAL:
-                    self.numberOfSteps.emit(msgValue)
-                elif msgType==self.MultPMessageType.STEP_SIGNAL:
-                    self.step.emit()
-                elif msgType==self.MultPMessageType.ACT_INFO_SIGNAL:
-                    self.actInfo.emit(msgValue)
-                
+                self.processMultPMsg(msgType, msgValue)
             except queue.Empty:
                 #nothing here
                 pass
@@ -990,6 +1026,12 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         #TODO: MULTILANGUAGE
         commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,"dataset reading"))
 
+        logger=Logger() #get singleton instance of logger
+        
+        #reg event
+        logger.registerObserver("LOG", 
+            lambda logMsg: commQ.put((cls.MultPMessageType.LOG_SIGNAL, logMsg)))
+        
         #ok, lets first read the data
         data, labels=experiment.dataset.toNumpyArray([
             experiment.attributesThatShouldBeUsed(False),
@@ -1003,6 +1045,11 @@ class ExperimentRunner(ExperimentBackgroundWorker):
             return
         
         labels=labels.ravel()   #we need row vector       
+        lEnc=LabelEncoder()
+        #let's encode labels to save some memory space
+        labels=lEnc.fit(labels)
+        
+        
         #extractors mapping
         extMap=[experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR) \
                 for a in experiment.attributesThatShouldBeUsed(False)]
@@ -1016,11 +1063,11 @@ class ExperimentRunner(ExperimentBackgroundWorker):
                    len(experiment.classifiers)*(steps)+1))
 
         #TODO catch memory error
-        resultsStorage=Results(steps)
+        resultsStorage=Results(steps,lEnc)
 
         commQ.put((cls.MultPMessageType.STEP_SIGNAL,None))
         for c in experiment.classifiers:
-            print(c.getName(), ", ".join( a.name+"="+str(a.value.getName()+":"+", ".join([pa.name+"->"+str(pa.value) for pa in a.value.getAttributes()]) if isinstance(a.value,Plugin) else a.value) for a in c.getAttributes()))
+            logger.log(c.getName()+", ".join( a.name+"="+str(a.value.getName()+":"+", ".join([pa.name+"->"+str(pa.value) for pa in a.value.getAttributes()]) if isinstance(a.value,Plugin) else a.value) for a in c.getAttributes()))
             commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,
                        "testing {} {}/{}".format(c.getName(), 1, steps)))
 
@@ -1041,71 +1088,99 @@ class ExperimentRunner(ExperimentBackgroundWorker):
                     commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,
                                "testing {} {}/{}".format(c.getName(), step+2, steps)))
                 
-                cls.writeConfMat(predicted, realLabels)
+                transRealLabels=lEnc.inverse_transform(realLabels)
+                transPredictedLabels=lEnc.inverse_transform(predicted)
+                cls.writeConfMat(transPredictedLabels, transRealLabels)
 
-                print(classification_report(realLabels, predicted))
+                logger.log(classification_report(transRealLabels, 
+                                                 transPredictedLabels))
                 
-                print("accuracy\t{}".format(accuracy_score(realLabels, predicted)))
+                logger.log("accuracy\t{}".format(accuracy_score(realLabels, predicted)))
                 
-                print("Samples for training:", stats[Validator.SamplesStats.NUM_SAMPLES_TRAIN])
-                print("Samples for testing:", stats[Validator.SamplesStats.NUM_SAMPLES_TEST])
-                print("Number of features:", stats[Validator.SamplesStats.NUM_FEATURES])
+                logger.log("Samples for training: {}".format(stats[Validator.SamplesStats.NUM_SAMPLES_TRAIN]))
+                logger.log("Samples for testing: {}".format(stats[Validator.SamplesStats.NUM_SAMPLES_TEST]))
+                logger.log("Number of features: {}".format(stats[Validator.SamplesStats.NUM_FEATURES]))
                 
-                print("Feature extraction time for train set:",
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN])
-                print("Feature extraction process time for train set:",
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC])
+                logger.log("Feature extraction time for train set: {}".format(
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN]))
+                logger.log("Feature extraction process time for train set: {}".format(
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]))
                 
-                print("Feature extraction time for test set:",
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST])
-                print("Feature extraction process time for test set:",
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST_PROC])
+                logger.log("Feature extraction time for test set: {}".format(
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST]))
+                logger.log("Feature extraction process time for test set: {}".format(
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]))
                 
-                print("Feature extraction time for train and test set:",
+                logger.log("Feature extraction time for train and test set: {}".format(
                       stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN]
                       +
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST])
-                print("Feature extraction process time train and test set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST]))
+                logger.log("Feature extraction process time train and test set: {}".format(
                       stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]
                       +
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST_PROC])
+                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]))
                 
-                print("---")
-                print("Feature selection time for train set:",
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN])
-                print("Feature selection process time for train set:",
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC])
+                logger.log("---")
+                logger.log("Feature selection time for train set: {}".format(
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN]))
+                logger.log("Feature selection process time for train set: {}".format(
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]))
                 
-                print("Feature selection time for test set:",
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TEST])
-                print("Feature selection process time for test set:",
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TEST_PROC])
+                logger.log("Feature selection time for test set: {}".format(
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TEST]))
+                logger.log("Feature selection process time for test set: {}".format(
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TEST_PROC]))
                 
-                print("Feature selection time for train and test set:",
+                logger.log("Feature selection time for train and test set: {}".format(
                       stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN]
                       +
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TEST])
-                print("Feature selection process time train and test set:",
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TEST]))
+                logger.log("Feature selection process time train and test set: {}".format(
                       stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]
                       +
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC])          
-                print("---")
-                print("Train time:",
-                      stepTimes[Validator.TimeDuration.TRAINING])
-                print("Train process time:",
-                      stepTimes[Validator.TimeDuration.TRAINING_PROC])
+                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]))        
+                logger.log("---")
+                logger.log("Train time: {}".format(
+                      stepTimes[Validator.TimeDuration.TRAINING]))
+                logger.log("Train process time: {}".format(
+                      stepTimes[Validator.TimeDuration.TRAINING_PROC]))
                 
-                print("Test time:",
-                      stepTimes[Validator.TimeDuration.TEST])
-                print("Test process time:",
-                      stepTimes[Validator.TimeDuration.TEST_PROC])
+                logger.log("Test time: {}".format(
+                      stepTimes[Validator.TimeDuration.TEST]))
+                logger.log("Test process time: {}".format(
+                      stepTimes[Validator.TimeDuration.TEST_PROC]))
                 
-                print("Step time:",end-start)
-                print("Step process time:",endProc-startProc)
-                print("\n\n")
+                logger.log("Step time: {}".format(end-start))
+                logger.log("Step process time: {}".format(endProc-startProc))
+                logger.log("\n\n")
                 start = time.time()
                 startProc=time.process_time()
         
+        commQ.put((cls.MultPMessageType.RESULT_SIGNAL,resultsStorage))
+        
+    def processMultPMsg(self,msgType,msgVal:Any):
+        """
+        Processes message received from another process.
+        Sends appropriate signals to UI thread.
+        
+        :param msgType: Type of received message.
+        :type msgType: MultPMessageType
+        :param msgVal: The message.
+        :type msgVal: Any
+        :return: Returns True if emits an signal. False otherwise.
+        :rtype: bool
+        """
+        if not super().processMultPMsg(msgType,msgVal):
+            if msgType==self.MultPMessageType.LOG_SIGNAL:
+                self.log.emit(msgVal)
+            elif  msgType==self.MultPMessageType.RESULT_SIGNAL:
+                self.result.emit(msgVal)
+            else:
+                return False
+            return True
+                
+        return False
+            
     @staticmethod
     def writeConfMat(predicted, labels):
 
@@ -1114,4 +1189,4 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         pd.set_option('display.max_columns', None)
         pd.set_option('display.max_colwidth', len(max(predicted, key=len)) if len(max(predicted, key=len))>len(max(labels, key=len)) else len(max(labels, key=len)))
         
-        print(str(pd.crosstab(pd.Series(labels), pd.Series(predicted), rownames=['Real'], colnames=['Predicted'], margins=True)))
+        Logger().log(str(pd.crosstab(pd.Series(labels), pd.Series(predicted), rownames=['Real'], colnames=['Predicted'], margins=True)))

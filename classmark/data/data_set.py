@@ -69,13 +69,17 @@ class LazyTextFileReader(LazyFileReader,str):
     """
     Lazy text reader for attributes that are marked as path.
     """
-    
+    def __init__(self, filePath:str):
+        super().__init__(filePath)
+        #TODO:temporaly not lazy
+        with open(self._filePath, "r", encoding="utf-8") as fileToRead:
+            self._data=fileToRead.read()
+        
     def __str__(self):
         """
         Get content of the file.
         """
-        with open(self._filePath, "r", encoding="utf-8") as fileToRead:
-            return fileToRead.read()
+        return self._data
 
     
  
@@ -86,9 +90,11 @@ class LazyImageFileReader(LazyFileReader):
     
     def __init__(self, filePath:str):
         super().__init__(filePath)
+        #TODO:temporaly not lazy
+        self._img=imread(self._filePath)
 
     def getRGB(self):
-        return imread(self._filePath)
+        return self._img
         
 
 class DataSet(object):

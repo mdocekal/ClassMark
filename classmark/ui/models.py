@@ -9,6 +9,8 @@ from PySide2.QtCore import QAbstractTableModel, Qt
 from ..core.experiment import Experiment
 from typing import Callable
 
+class TableSummarizationResultsModel
+
 class TableAttributesStatsModel(QAbstractTableModel):
     """
     Model for tableview that is for showing statistics of attributes.

@@ -5,14 +5,17 @@ Module for main window of the application.
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
-
+from functools import partial
 
 from .widget_manager import WidgetManager
 from .home_section import HomeSection
 from .experiment_section import ExperimentSection
 from .section_router import SectionRouter
 
-from PySide2.QtWidgets import QFileDialog, QMessageBox
+from PySide2.QtWidgets import QFileDialog, QMessageBox, QShortcut
+from PySide2.QtGui import QKeySequence
+from PySide2.QtCore import Qt
+
 
 class MainWindow(WidgetManager,SectionRouter):
     """
@@ -46,12 +49,14 @@ class MainWindow(WidgetManager,SectionRouter):
         self._widget.menuFileNewExperiment.triggered.connect(self.goExperiment)
         self._widget.menuFileLoadExperiment.triggered.connect(self.goLoadExperiment)
         self._widget.menuFileSaveExperiment.triggered.connect(self.goSaveExperiment)
+        self._widget.menuFileSaveAsExperiment.triggered.connect(partial(self.goSaveExperiment,True))
         
         self._widget.menuFileExit.triggered.connect(app.quit)
         
-        
+        #shortcuts
+        self._saveShortcut = QShortcut(QKeySequence(Qt.CTRL + Qt.Key_S), self._widget)
+
         self.goHome()
-        
     
     def show(self):
         """
@@ -65,6 +70,9 @@ class MainWindow(WidgetManager,SectionRouter):
         """
         self._widget.mainContent.setCurrentIndex(self._widget.mainContent.indexOf(self._home.widget))
         self._widget.menuFileSaveExperiment.setEnabled(False)
+        self._widget.menuFileSaveAsExperiment.setEnabled(False)
+        self._saveShortcut.activated.connect(None)
+        
     def goExperiment(self):
         """
         Go to experiment section.
@@ -84,18 +92,29 @@ class MainWindow(WidgetManager,SectionRouter):
             None means that new experiment should be loaded.
         :type load: string|None
         """
-        if load is not None:
-            self._experiment.loadExperiment(load)
+
+        self._experiment.loadExperiment(load)
             
         self._widget.mainContent.setCurrentIndex(self._widget.mainContent.indexOf(self._experiment.widget))
         self._widget.menuFileSaveExperiment.setEnabled(True)
+        self._widget.menuFileSaveAsExperiment.setEnabled(True)
+        self._saveShortcut.activated.connect(self.goSaveExperiment)
         
-    def goSaveExperiment(self):
+    def goSaveExperiment(self, saveAs:bool=False):
         """
-        Selection of path where experiment should be saved and saving it.
+        Selection of path where experiment should be saved and saving it. If experiment
+        was already saved or loaded from a path than this method automatically selects the path for saving.
+        
+        :param saveAs: If this parameter is true. Than path selection is forced.
+        :type saveAs: bool
         """
-        file=QFileDialog.getSaveFileName(self._widget, self.tr("Save experiment"), ".e", self.tr("Any files (*)"))
-        if file[0]:
+        
+        if saveAs or self._experiment.experiment.loadSavePath is None:
+            file=QFileDialog.getSaveFileName(self._widget, self.tr("Save experiment"), ".e", self.tr("Any files (*)"))
+            file=file[0]
+        else:
+            file=self._experiment.experiment.loadSavePath
+        if file:
             #use selected file
             try:
                 self._experiment.saveExperiment(file[0])
@@ -105,7 +124,6 @@ class MainWindow(WidgetManager,SectionRouter):
                 emsg.setText(str(e))
                 emsg.setIcon(QMessageBox.Critical)
                 emsg.exec()
-            
             
     def goLoadExperiment(self):
         """

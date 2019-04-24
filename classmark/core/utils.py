@@ -39,6 +39,20 @@ def sparseMatVariance(mat):
     return mat.power(2).mean() - mat.mean()**2
 
 
+class Singleton(type):
+    """
+    Metaclass for singletons.
+    """
+    _clsInstances = {}
+    """Dict containing instances of all singleton classes."""
+    
+    def __call__(cls, *args, **kwargs):
+        try:
+            return cls._clsInstances[cls]
+        except:
+            cls._clsInstances[cls] = super().__call__(*args, **kwargs)
+            return cls._clsInstances[cls]
+
 class Observable(object):
     """
     Implementation of observer like design pattern.

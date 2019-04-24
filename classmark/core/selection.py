@@ -105,7 +105,7 @@ class TreeBasedFeatureImportanceSelector(FeaturesSelector):
         
         try:
             thres=float(self._threshold.value)
-        except ValueError:
+        except:
             thres=self._threshold.value
         
         self._sel = SelectFromModel(clf, prefit=True, threshold=thres)

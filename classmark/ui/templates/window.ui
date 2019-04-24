@@ -61,6 +61,7 @@
     <addaction name="menuFileNewExperiment"/>
     <addaction name="menuFileLoadExperiment"/>
     <addaction name="menuFileSaveExperiment"/>
+    <addaction name="menuFileSaveAsExperiment"/>
     <addaction name="menuFileExit"/>
    </widget>
    <addaction name="menuFile"/>
@@ -72,7 +73,7 @@
      <normaloff>../icons/document-new.svg</normaloff>../icons/document-new.svg</iconset>
    </property>
    <property name="text">
-    <string>New Experiment</string>
+    <string>New</string>
    </property>
   </action>
   <action name="menuFileLoadExperiment">
@@ -81,13 +82,13 @@
      <normaloff>../icons/document-open.svg</normaloff>../icons/document-open.svg</iconset>
    </property>
    <property name="text">
-    <string>Load Experiment</string>
+    <string>Load</string>
    </property>
   </action>
   <action name="menuFileExit">
    <property name="icon">
-    <iconset theme="application-exit">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset>
+     <normaloff>../icons/cross.svg</normaloff>../icons/cross.svg</iconset>
    </property>
    <property name="text">
     <string>Exit</string>
@@ -97,13 +98,27 @@
    <property name="enabled">
     <bool>false</bool>
    </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../icons/save.svg</normaloff>../icons/save.svg</iconset>
+   </property>
    <property name="text">
-    <string>Save Experiment</string>
+    <string>Save</string>
+   </property>
+  </action>
+  <action name="menuFileSaveAsExperiment">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../icons/save.svg</normaloff>../icons/save.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Save as</string>
    </property>
   </action>
  </widget>
- <resources>
-  <include location="../resources.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

@@ -8,18 +8,21 @@ Module for experiment section of the application.
 
 from .widget_manager import WidgetManager, IconName, AttributesWidgetManager
 from .section_router import SectionRouter
-from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton, QMessageBox
+from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton, QMessageBox,\
+    QWidget
 from PySide2.QtCore import Qt, QObject
 from ..core.experiment import Experiment, PluginSlot, ExperimentRunner, ExperimentStatsRunner, ExperimentDataStatistics
 from ..core.plugins import Plugin, Classifier
 from ..core.selection import FeaturesSelector
 from .delegates import RadioButtonDelegate, ComboBoxDelegate
 from .models import TableDataAttributesModel, TableClassStatsModel, TableAttributesStatsModel
+from ..core.results import Results
 from typing import Callable, Dict
 from functools import partial
 import copy
 from enum import Enum
 from abc import ABC, abstractmethod
+from boto.s3.multipart import Part
 
 class PluginRowWidgetManager(ABC,WidgetManager):
     """
@@ -54,7 +57,16 @@ class PluginRowWidgetManager(ABC,WidgetManager):
         #let's fill the combo box
         self._widget.comboBox.addItems([p.getName() for p in plugins.values()])
         self._pluginNameToCls=plugins
-        self._onChange()
+        
+        
+        if self.pluginSlot.plugin is not None:
+            #set index of actual plugin
+            index = self._widget.comboBox.findText(self.pluginSlot.plugin.getName())
+            self._widget.comboBox.setCurrentIndex(index)
+        else:
+            #it's new empty slot
+            #Let's call onChage method that create new plugin.
+            self._onChange()
         
         #register events
         #Unfortunately it is necessary to make this callbacks partials, because
@@ -302,6 +314,34 @@ class ExperimentSectionDataStatsTabWatcher(WidgetManager):
         self._widget.dataStatsAttributesTable.horizontalHeader().setSectionResizeMode(TableAttributesStatsModel.COLL_FEATURES_VARIANCE,QHeaderView.ResizeMode.ResizeToContents);
 
     
+class ResultsPageManager(WidgetManager):
+    """
+    Manager for results page.
+    """
+    
+    def __init__(self,widget:QWidget,parent:QWidget=None):
+        """
+        Initializes manager.
+        
+        :param widget: Results page QWidget.
+        :type widget: Qwidget
+        :param parent: Parent widget
+        :type parent: QWidget
+        """
+        
+        super().__init__()
+        self._widget=widget
+        self._parent=parent
+        
+    def showResults(self, results:Results):
+        """
+        Show given results.
+        
+        :param results: Results that should be shown.
+        :type results: Results
+        """
+        
+        #TODO:continue
 
 class ExperimentSection(WidgetManager):
     """
@@ -345,6 +385,16 @@ class ExperimentSection(WidgetManager):
         self._router=sectionRouter
         self._parent=parent
         self.loadExperiment(load)
+        
+    @property
+    def experiment(self):
+        """
+        Actually used experiment.
+        
+        :return: Experiment
+        :rtype: Experiment 
+        """
+        return self._experiment
  
     def saveExperiment(self, filePath):
         """
@@ -369,7 +419,7 @@ class ExperimentSection(WidgetManager):
         
         #create new or load saved experiment
         self._experiment=Experiment(load)
-        
+
         self._initData()
         self._initDataStats()
         self._initFeatSel()
@@ -398,9 +448,12 @@ class ExperimentSection(WidgetManager):
         self._experimentRunner.numberOfSteps.connect(self._widget.experimentProgressBar.setMaximum)
         self._experimentRunner.step.connect(self._incExperimentProgressBar)
         self._experimentRunner.actInfo.connect(self._widget.experimentActInfo.setText)
+        self._experimentRunner.log.connect(self._widget.logView.append)
         
         #clear the act info
         self._widget.experimentActInfo.setText("")
+        #clear the log
+        self._widget.logView.setText("")
         
         #set the progress bar
         self._widget.experimentProgressBar.setValue(0)
@@ -422,13 +475,14 @@ class ExperimentSection(WidgetManager):
         """
         self._widget.experimentProgressBar.setValue(self._widget.experimentProgressBar.value()+1)
         
+        
     def _experimentFinished(self):
         """
         Show the data and classifiers tabs
         """
         
         #TODO: CHANGE TO RESULTS
-        self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_NO_RESULTS.value)
+        self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_RESULTS.value)
                 
         
     def _dataStatsStart(self):
@@ -535,12 +589,8 @@ class ExperimentSection(WidgetManager):
         self._widget.dataAttributesScrollArea.hide()
         
         #init validators
+
         self._widget.comboBoxValidation.addItems([v.getName() for v in self._experiment.availableEvaluationMethods])
-        
-            
-        self._widget.comboBoxValidation.currentTextChanged.connect(self._experiment.setEvaluationMethod)
-        self._widget.comboBoxValidation.currentTextChanged.connect(self._showEvaluationMethodProperties)
-        self._widget.validationPropertiesButton.clicked.connect(self._showEvaluationMethodProperties)
         
         #assign loaded data (if exists)
         if self._experiment.dataset is not None:
@@ -549,8 +599,11 @@ class ExperimentSection(WidgetManager):
         if self._experiment.evaluationMethod is not None:
             index = self._widget.comboBoxValidation.findText(self._experiment.evaluationMethod.getName())
             self._widget.comboBoxValidation.setCurrentIndex(index)
-            
         
+        #connect events for validator
+        self._widget.comboBoxValidation.currentTextChanged.connect(self._experiment.setEvaluationMethod)
+        self._widget.comboBoxValidation.currentTextChanged.connect(self._showEvaluationMethodProperties)
+        self._widget.validationPropertiesButton.clicked.connect(self._showEvaluationMethodProperties)
         
     def _initDataStats(self):
         """
@@ -576,7 +629,7 @@ class ExperimentSection(WidgetManager):
         """
         
         #register click events
-        self._widget.buttonAddClassifierOption.clicked.connect(self._addClassifierOption)
+        self._widget.buttonAddClassifierOption.clicked.connect(partial(self._addClassifierOption,None))
         
         #set alignment to classifier layout
         self._widget.testClassifiersLayout.setAlignment(Qt.AlignTop)
@@ -588,7 +641,7 @@ class ExperimentSection(WidgetManager):
                 self._addClassifierOption(slot)
         else:
             #add one classifier option
-            self._addClassifierOption()
+            self._addClassifierOption(None)
         
         #hide the plugin attributes header
         self._hideClassifierProperties()
@@ -598,7 +651,7 @@ class ExperimentSection(WidgetManager):
         Initialization of features selection tab.
         """
         #register click events
-        self._widget.buttonAddFeaturesSelectorOption.clicked.connect(self._addFeaturesSelectorOption)
+        self._widget.buttonAddFeaturesSelectorOption.clicked.connect(partial(self._addFeaturesSelectorOption,None))
         
         #set alignment to layout
         self._widget.featuresSelectorsLayout.setAlignment(Qt.AlignTop)

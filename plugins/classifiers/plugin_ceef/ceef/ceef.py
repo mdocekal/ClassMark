@@ -29,7 +29,7 @@ class CEEF(Classifier):
     def __init__(self, normalizer:BaseNormalizer=None, generations:int=100, stopAccuracy:float=None, \
                  population:int=10, nbestToNext=1, selectionMethod:Selector="RANK", randomSeed:int=None, maxMutations=5, \
                  maxStartSlots=1,
-                 crossoverProb:float=0.75, testSetSize:float=0.1, changeTestSet:bool=False):
+                 crossoverProb:float=0.75, testSetSize:float=1, changeTestSet:bool=False):
         """
         Classifier initialization.
         
@@ -141,7 +141,8 @@ class CEEF(Classifier):
         generations=1
         while (self._stopAccuracy.value is None or self._stopAccuracy.value>self._evolvedCls.score) and \
                self._generations.value>=generations:
-            print(self._evolvedCls.score, id(self._evolvedCls))
+            
+            self._logger.log("Actual score: {}".format(self._evolvedCls.score))
             
 
             #get new population

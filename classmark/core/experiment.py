@@ -12,7 +12,6 @@ import time
 from _collections import OrderedDict
 from ..core.plugins import Plugin, CLASSIFIERS, FEATURE_EXTRACTORS
 from ..core.validation import Validator
-from builtins import isinstance, False, True
 from PySide2.QtCore import QThread, Signal
 from .results import Results
 from typing import Any, Dict, List
@@ -21,13 +20,10 @@ import pandas as pd
 from sklearn.metrics import classification_report, accuracy_score
 import multiprocessing
 import queue
-from ..core.utils import sparseMatVariance, Observable
 import copy
 import statistics 
-from pip._internal.utils.misc import enum
 from functools import partial
-from .utils import getAllSubclasses
-from .logger import Logger
+from .utils import getAllSubclasses, sparseMatVariance, Observable,Logger
 from .selection import FeaturesSelector
 import pickle
 from classmark.core.plugins import Classifier
@@ -336,6 +332,7 @@ class Experiment(Observable):
         self._classifiers=[]    #classifiers for testing
         self._evaluationMethod=None
         self.loadSavePath=None  #stores path from which this exp was loaded or where is saved
+        self.results=None
             
         #let's load the plugins that are now available
         #must be called before experiment loading
@@ -374,6 +371,15 @@ class Experiment(Observable):
             pickle.dump(data,saveF)
             self.loadSavePath=filePath
             
+    def setResults(self, r):
+        """
+        Sets results. Suitable for use as callback.
+        
+        :param r: new results.
+        :type r: Results
+        """
+        self.results=r
+    
     def _load(self, filePath):
         """
         Loads saved experiment configuration from given file.
@@ -1047,7 +1053,7 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         labels=labels.ravel()   #we need row vector       
         lEnc=LabelEncoder()
         #let's encode labels to save some memory space
-        labels=lEnc.fit(labels)
+        labels=lEnc.fit_transform(labels)
         
         
         #extractors mapping
@@ -1059,105 +1065,57 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         #create storage for results
         steps=experiment.evaluationMethod.numOfSteps(experiment.dataset,data,labels)
         
-        commQ.put((cls.MultPMessageType.NUMBER_OF_STEPS_SIGNAL,    #+1 reading
-                   len(experiment.classifiers)*(steps)+1))
+        commQ.put((cls.MultPMessageType.NUMBER_OF_STEPS_SIGNAL,    
+                   (len(experiment.classifiers)*2+experiment.evaluationMethod.NUMBER_OF_FEATURES_STEP)*(steps)+1))
+                #+1 reading
+                #len(experiment.classifiers)*2    one step for testing and one for training of one classifier
+        
+        
+        commQ.put((cls.MultPMessageType.STEP_SIGNAL,None))  #because reading is finished
 
         #TODO catch memory error
-        resultsStorage=Results(steps,lEnc)
+        resultsStorage=Results(steps,experiment.classifiers,lEnc)
 
-        commQ.put((cls.MultPMessageType.STEP_SIGNAL,None))
-        for c in experiment.classifiers:
-            logger.log(c.getName()+", ".join( a.name+"="+str(a.value.getName()+":"+", ".join([pa.name+"->"+str(pa.value) for pa in a.value.getAttributes()]) if isinstance(a.value,Plugin) else a.value) for a in c.getAttributes()))
-            commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,
-                       "testing {} {}/{}".format(c.getName(), 1, steps)))
-
-            start = time.time()
-            startProc=time.process_time()
-            for step, (predicted, realLabels, stepTimes, stats) in enumerate(experiment.evaluationMethod.run(experiment.dataset,c, data, labels, extMap, experiment.featuresSelectors)):
-                endProc=time.process_time()
-                end = time.time()
-                
-                if resultsStorage.steps[step].labels is None:
-                    #because it does not make much sense to have true labels stored for each predictions
-                    #we store labels just once for each validation step
-                    resultsStorage.steps[step].labels=realLabels
-                resultsStorage.steps[step].addResults(c, predicted)
-                commQ.put((cls.MultPMessageType.STEP_SIGNAL,None))
-                if step+2<=steps:
-                    #TODO: MULTILANGUAGE
-                    commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,
-                               "testing {} {}/{}".format(c.getName(), step+2, steps)))
-                
-                transRealLabels=lEnc.inverse_transform(realLabels)
-                transPredictedLabels=lEnc.inverse_transform(predicted)
-                cls.writeConfMat(transPredictedLabels, transRealLabels)
-
-                logger.log(classification_report(transRealLabels, 
-                                                 transPredictedLabels))
-                
-                logger.log("accuracy\t{}".format(accuracy_score(realLabels, predicted)))
-                
-                logger.log("Samples for training: {}".format(stats[Validator.SamplesStats.NUM_SAMPLES_TRAIN]))
-                logger.log("Samples for testing: {}".format(stats[Validator.SamplesStats.NUM_SAMPLES_TEST]))
-                logger.log("Number of features: {}".format(stats[Validator.SamplesStats.NUM_FEATURES]))
-                
-                logger.log("Feature extraction time for train set: {}".format(
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN]))
-                logger.log("Feature extraction process time for train set: {}".format(
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]))
-                
-                logger.log("Feature extraction time for test set: {}".format(
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST]))
-                logger.log("Feature extraction process time for test set: {}".format(
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]))
-                
-                logger.log("Feature extraction time for train and test set: {}".format(
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN]
-                      +
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST]))
-                logger.log("Feature extraction process time train and test set: {}".format(
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]
-                      +
-                      stepTimes[Validator.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]))
-                
-                logger.log("---")
-                logger.log("Feature selection time for train set: {}".format(
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN]))
-                logger.log("Feature selection process time for train set: {}".format(
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]))
-                
-                logger.log("Feature selection time for test set: {}".format(
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TEST]))
-                logger.log("Feature selection process time for test set: {}".format(
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TEST_PROC]))
-                
-                logger.log("Feature selection time for train and test set: {}".format(
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN]
-                      +
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TEST]))
-                logger.log("Feature selection process time train and test set: {}".format(
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]
-                      +
-                      stepTimes[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]))        
-                logger.log("---")
-                logger.log("Train time: {}".format(
-                      stepTimes[Validator.TimeDuration.TRAINING]))
-                logger.log("Train process time: {}".format(
-                      stepTimes[Validator.TimeDuration.TRAINING_PROC]))
-                
-                logger.log("Test time: {}".format(
-                      stepTimes[Validator.TimeDuration.TEST]))
-                logger.log("Test process time: {}".format(
-                      stepTimes[Validator.TimeDuration.TEST_PROC]))
-                
-                logger.log("Step time: {}".format(end-start))
-                logger.log("Step process time: {}".format(endProc-startProc))
-                logger.log("\n\n")
-                start = time.time()
-                startProc=time.process_time()
         
+        for step, c, predicted, realLabels, stepTimes, stats in experiment.evaluationMethod.run(experiment.dataset,experiment.classifiers, 
+                            data, labels, extMap, experiment.featuresSelectors, cls.nextSubStep(commQ)):
+            #TODO: stepTimes, stats add to results or remove it
+
+            if resultsStorage.steps[step].labels is None:
+                #because it does not make much sense to have true labels stored for each predictions
+                #we store labels just once for each validation step
+                resultsStorage.steps[step].labels=realLabels
+                
+            resultsStorage.steps[step].addResults(c, predicted)
+   
+            
+            transRealLabels=lEnc.inverse_transform(realLabels)
+            transPredictedLabels=lEnc.inverse_transform(predicted)
+            cls.writeConfMat(transPredictedLabels, transRealLabels)
+
+            logger.log(classification_report(transRealLabels, 
+                                             transPredictedLabels))
+            
+            logger.log("accuracy\t{}".format(accuracy_score(realLabels, predicted)))
+            logger.log("\n\n")
+        resultsStorage.finalize()   #for better score calculation
         commQ.put((cls.MultPMessageType.RESULT_SIGNAL,resultsStorage))
+    
+    @classmethod
+    def nextSubStep(cls,commQ:multiprocessing.Queue):
+        """
+        Informs UI about next substep.
         
+        :param commQ: Communication queue.
+        :type commQ: multiprocessing.Queue
+        """   
+        
+        def x(msg):
+            commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,msg))
+            commQ.put((cls.MultPMessageType.STEP_SIGNAL,None))
+        return x
+            
+    
     def processMultPMsg(self,msgType,msgVal:Any):
         """
         Processes message received from another process.

@@ -29,7 +29,7 @@ def getAllSubclasses(cls):
                 
     return sub
 
-def sparseMatVariance(mat):
+def sparseMatVariance(mat:spmatrix):
     """
     Calculates variance for given spmatrix.
     :param mat: The matrix.
@@ -143,3 +143,23 @@ class Observable(object):
         except KeyError:
             pass
     
+class Logger(Observable, metaclass=Singleton):
+    """
+    This singleton class is useful for broadcasting logs to observes that registers to
+    log method.
+    
+    If you want to log something just call Logger().log("something") and all 
+    observers, registered with Logger().registerObserver("LOG", observerCallbackMethod) method,
+    will be called.
+    
+    """
+    
+    @Observable._event("LOG", True)
+    def log(self, txt:str):
+        """
+        Make a log.
+        
+        :param txt: Text of the log.
+        :type txt: str
+        """
+        pass

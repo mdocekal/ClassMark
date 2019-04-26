@@ -13,11 +13,11 @@ from typing import List, Callable
 from .plugins import Plugin, PluginAttribute, Classifier, FeatureExtractor
 from .selection import FeaturesSelector
 from ..data.data_set import DataSet
+from .utils import Logger
 from PySide2.QtCore import Signal
 from sklearn.model_selection import StratifiedKFold, LeaveOneOut, KFold
 from enum import Enum, auto
 import time
-from pip._internal.utils.misc import enum
 
 class EvaluationMethod(object):
     """
@@ -35,7 +35,34 @@ class Validator(Plugin):
     
     actStepDesc=Signal(str)
     """Is emitted when step begins and sends description of actual step."""
+    
+    NUMBER_OF_FEATURES_STEP=4 #    4=training features+selecting train features+testing features+selecting testing features
+    """
+    Number of sub steps, in each validation step, that are necessary for feature extraction/selection.
+    """
 
+
+    class ValidationStep(Enum):
+        """
+        One step in validation process.
+        """
+        EXTRACTING_TRAIN_FEATURES=auto()
+        """Extracting features that will be used for classifiers training."""
+        
+        EXTRACTING_TEST_FEATURES=auto()
+        """Extracting features that will be used for classifiers testing."""
+        
+        SELECTING_TRAIN_FEATURES=auto()
+        """Selecting features that will be used for classifiers training."""
+        
+        SELECTING_TEST_FEATURES=auto()
+        """Selecting features that will be used for classifiers testing."""
+        
+        TRAINING=auto()
+        """Training of classifier."""
+        
+        TESTING=auto()
+        """Testing of classifier."""
     
     class SamplesStats(Enum):
         """
@@ -94,18 +121,21 @@ class Validator(Plugin):
         
         
 
-    def run(self, dataSet:DataSet, classifier:Classifier, data:np.array, labels:np.array, extMap:List[FeatureExtractor], \
-            featSel:List[FeaturesSelector]=[]):
+    def run(self, dataSet:DataSet, classifiers:List[Classifier], data:np.array, labels:np.array, extMap:List[FeatureExtractor], \
+            featSel:List[FeaturesSelector]=[], subStepCallback:Callable[[str],None]=None):
         """
-        Run whole validation process on given classifier with
+        Run whole validation process on given classifiers with
         given data. It is implemented as generator that provides predicted labels, real labels and times for train/test set on the
         end of validation step.
+        
+        Uses Logger for writing log messages.
+        
         
         :param dataSet: Dataset where the data come from.
             Some validators may used it to get additional informations.
         :type dataSet: DataSet 
-        :param classifier: Classifier you want to test.
-        :type classifier: Classifier
+        :param classifiers: Classifiers you want to test.
+        :type classifiers: List[Classifier]
         :param data: Data which will be used for validation.
         :type data: np.array
         :param labels: Labels which will be used for validation.
@@ -116,20 +146,22 @@ class Validator(Plugin):
         :param featSel: Features selectors. Selectors will be applied in same order
             as they appear in that list.
         :type featSel: List[FeaturesSelector]
-        :return: Generator of tuple Tuple[predictedLabels,realLabels, dict of times, samples stats]
-        :rtype: Iterator[Tuple[np.array,np.array,Dict[TimeDuration, float],Dict[SamplesStats,int]]]
+        :param subStepCallback: This callback is called on start of every substep. Passes string
+            that describes what the validator is doing now.
+        :type subStepCallback: Callable[[str],None]
+        :return: Generator of tuple Tuple[step,classifier,predictedLabels,realLabels, dict of times, samples stats]
+        :rtype: Iterator[Tuple[int,Classifier,np.array,np.array,Dict[TimeDuration, float],Dict[SamplesStats,int]]]
         """
         
         self._lastDataSet=dataSet
-        
-        for trainIndices, testIndices in self._splitter(data, labels):
-            s=time.time()
-            """
-            self.actInfo.emit("Extracting features {} on samples. Step {}/{}.".format(
-                trainIndices.shape[0],classifier.getName(), step+1, self.numOfSteps(data, labels)))
-            """
+        numOfSteps=self.numOfSteps(dataSet, data, labels)
+        for step,(trainIndices, testIndices) in enumerate(self._splitter(data, labels)):
+            stepToShow=step+1
+
             #feature extraction for training set
             trainLabels=labels[trainIndices]
+            
+            if subStepCallback is not None: subStepCallback("{}/{}: Extracting features for train set.".format(stepToShow, numOfSteps))
 
             times={self.TimeDuration.FEATURE_EXTRACTION_TRAIN:time.time(),
                    self.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC:time.process_time()}
@@ -141,7 +173,12 @@ class Validator(Plugin):
             times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]=time.process_time()-times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]
             times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN]=time.time()-times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN]
             
+            Logger().log("Samples for training: {}".format(trainFeatures.shape[0]))
+            Logger().log("Number of features before selecting: {}".format(trainFeatures.shape[1]))
+            
+            
             #feature selection
+            if subStepCallback is not None: subStepCallback("{}/{}: Selecting features for train set.".format(stepToShow, numOfSteps))
             times[self.TimeDuration.FEATURE_SELECTION_TRAIN]=time.time()
             times[self.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]=time.process_time()
             for s in featSel:
@@ -153,21 +190,14 @@ class Validator(Plugin):
             stats[self.SamplesStats.NUM_SAMPLES_TRAIN]=trainFeatures.shape[0]
             stats[self.SamplesStats.NUM_FEATURES]=trainFeatures.shape[1]
             
-            times[self.TimeDuration.TRAINING]=time.time()
-            times[self.TimeDuration.TRAINING_PROC]=time.process_time()
-            #train classifier
-            classifier.train(trainFeatures, trainLabels)
-
-            times[self.TimeDuration.TRAINING_PROC]=time.process_time()-times[self.TimeDuration.TRAINING_PROC]
-            times[self.TimeDuration.TRAINING]=time.time()-times[self.TimeDuration.TRAINING]
-
-            #free memory
-            del trainFeatures
-            del trainLabels
-
+            Logger().log("Number of features after selecting: {}".format(trainFeatures.shape[1]))
+            
+            #feature extraction for test set
+            if subStepCallback is not None: subStepCallback("{}/{}: Extracting features for test set.".format(stepToShow, numOfSteps))
+            
             times[self.TimeDuration.FEATURE_EXTRACTION_TEST]=time.time()
             times[self.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]=time.process_time()
-            #feature extraction for test set
+        
             testFeatures=self._featuresStep(data[testIndices], extMap)
             
             times[self.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]=time.process_time()-times[self.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]
@@ -175,6 +205,9 @@ class Validator(Plugin):
 
             stats[self.SamplesStats.NUM_SAMPLES_TEST]=testFeatures.shape[0]
             
+            Logger().log("Samples for testing: {}".format(testFeatures.shape[0]))
+
+            if subStepCallback is not None: subStepCallback("{}/{}: Selecting features for test set.".format(stepToShow, numOfSteps))
             #feature selection for test set
             times[self.TimeDuration.FEATURE_SELECTION_TEST]=time.time()
             times[self.TimeDuration.FEATURE_SELECTION_TEST_PROC]=time.process_time()
@@ -183,15 +216,88 @@ class Validator(Plugin):
             times[self.TimeDuration.FEATURE_SELECTION_TEST_PROC]=time.process_time()-times[self.TimeDuration.FEATURE_SELECTION_TEST_PROC]
             times[self.TimeDuration.FEATURE_SELECTION_TEST]=time.time()-times[self.TimeDuration.FEATURE_SELECTION_TEST]
             
-            times[self.TimeDuration.TEST]=time.time()
-            times[self.TimeDuration.TEST_PROC]=time.process_time()
-            #predict the labels
-            predictedLabels=classifier.predict(testFeatures)
             
-            times[self.TimeDuration.TEST_PROC]=time.process_time()-times[self.TimeDuration.TEST_PROC]
-            times[self.TimeDuration.TEST]=time.time()-times[self.TimeDuration.TEST]
+            
+            
+            Logger().log("Feature extraction time for train set: {}".format(
+                  times[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN]))
+            Logger().log("Feature extraction process time for train set: {}".format(
+                  times[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]))
+            
+            Logger().log("Feature extraction time for test set: {}".format(
+                  times[Validator.TimeDuration.FEATURE_EXTRACTION_TEST]))
+            Logger().log("Feature extraction process time for test set: {}".format(
+                  times[Validator.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]))
+            
+            Logger().log("Feature extraction time for train and test set: {}".format(
+                  times[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN]
+                  +
+                  times[Validator.TimeDuration.FEATURE_EXTRACTION_TEST]))
+            Logger().log("Feature extraction process time train and test set: {}".format(
+                  times[Validator.TimeDuration.FEATURE_EXTRACTION_TRAIN_PROC]
+                  +
+                  times[Validator.TimeDuration.FEATURE_EXTRACTION_TEST_PROC]))
+            
+            Logger().log("---")
+            Logger().log("Feature selection time for train set: {}".format(
+                  times[Validator.TimeDuration.FEATURE_SELECTION_TRAIN]))
+            Logger().log("Feature selection process time for train set: {}".format(
+                  times[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]))
+            
+            Logger().log("Feature selection time for test set: {}".format(
+                  times[Validator.TimeDuration.FEATURE_SELECTION_TEST]))
+            Logger().log("Feature selection process time for test set: {}".format(
+                  times[Validator.TimeDuration.FEATURE_SELECTION_TEST_PROC]))
+            
+            Logger().log("Feature selection time for train and test set: {}".format(
+                  times[Validator.TimeDuration.FEATURE_SELECTION_TRAIN]
+                  +
+                  times[Validator.TimeDuration.FEATURE_SELECTION_TEST]))
+            Logger().log("Feature selection process time train and test set: {}".format(
+                  times[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]
+                  +
+                  times[Validator.TimeDuration.FEATURE_SELECTION_TRAIN_PROC]))        
+            Logger().log("---")
 
-            yield (predictedLabels, labels[testIndices], times, stats)
+            
+            for classifier in classifiers:
+                times[classifier]={}
+                Logger().log(repr(classifier))
+                if subStepCallback is not None: subStepCallback("{}/{}: Training {}.".format(stepToShow, numOfSteps,classifier.getName()))
+                
+                times[classifier][self.TimeDuration.TRAINING]=time.time()
+                times[classifier][self.TimeDuration.TRAINING_PROC]=time.process_time()
+                #train classifier
+                classifier.train(trainFeatures, trainLabels)
+    
+                times[classifier][self.TimeDuration.TRAINING_PROC]=time.process_time()-times[classifier][self.TimeDuration.TRAINING_PROC]
+                times[classifier][self.TimeDuration.TRAINING]=time.time()-times[classifier][self.TimeDuration.TRAINING]
+    
+    
+    
+                if subStepCallback is not None: subStepCallback("{}/{}: Testing {}.".format(stepToShow, numOfSteps,classifier.getName()))
+                times[classifier][self.TimeDuration.TEST]=time.time()
+                times[classifier][self.TimeDuration.TEST_PROC]=time.process_time()
+                #predict the labels
+                predictedLabels=classifier.predict(testFeatures)
+                
+                times[classifier][self.TimeDuration.TEST_PROC]=time.process_time()-times[classifier][self.TimeDuration.TEST_PROC]
+                times[classifier][self.TimeDuration.TEST]=time.time()-times[classifier][self.TimeDuration.TEST]
+                
+                
+                Logger().log("Train time: {}".format(
+                      times[classifier][Validator.TimeDuration.TRAINING]))
+                Logger().log("Train process time: {}".format(
+                      times[classifier][Validator.TimeDuration.TRAINING_PROC]))
+                
+                Logger().log("Test time: {}".format(
+                      times[classifier][Validator.TimeDuration.TEST]))
+                Logger().log("Test process time: {}".format(
+                      times[classifier][Validator.TimeDuration.TEST_PROC]))
+                
+                Logger().log("---")
+
+                yield (step, classifier, predictedLabels, labels[testIndices], times, stats)
             
     def _featuresStep(self, data:np.array,extMap:List[FeatureExtractor], labels:np.array=None, fit=False):
         """
@@ -270,7 +376,9 @@ class Validator(Plugin):
     @abstractmethod
     def numOfSteps(self, dataSet:DataSet=None, data:np.array=None, labels:np.array=None):
         """
-        Total number of steps to complete validation process for one classifier.
+        Number of steps to complete validation process for one classifier. This number represents
+        only number of validations train/test sets. If you want to consider all substeps than look at
+        self.NUMBER_OF_FEATURES_STEP and also consider number of classifiers.
         
         :param dataSet: Dataset where the data come from.
             Some validators may used it to get additional informations.

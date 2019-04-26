@@ -7,9 +7,168 @@ This module contains models.
 """
 from PySide2.QtCore import QAbstractTableModel, Qt
 from ..core.experiment import Experiment
+from ..core.results import Results
 from typing import Callable
 
-class TableSummarizationResultsModel
+class TableSummarizationResultsModel(QAbstractTableModel):
+    """
+    Model for tableview that is for showing summarized statistics of experiment.
+    """
+    
+    NUM_COL=13
+    """Number of columns in table."""
+    
+    COLL_CLASSIFIER_NAME=0
+    """Index of classifier name column."""
+    
+    COLL_ACCURACY=1
+    """Index of column with average accuracy."""
+    
+    COLL_MICRO_AVG_F1_SCORE=2
+    """Index of column with micro avg F1 score."""
+    
+    COLL_MICRO_AVG_PRECISION_SCORE=3
+    """Index of column with micro avg precision score."""
+    
+    COLL_MICRO_AVG_RECALL_SCORE=4
+    """Index of column with micro avg recall score."""
+    
+    COLL_MACRO_AVG_F1_SCORE=5
+    """Index of column with macro avg F1 score."""
+    
+    COLL_MACRO_AVG_PRECISION_SCORE=6
+    """Index of column with macro avg precision score."""
+    
+    COLL_MACRO_AVG_RECALL_SCORE=7
+    """Index of column with macro avg recall score."""
+    
+    COLL_WEIGHTED_AVG_F1_SCORE=8
+    """Index of column with weighted avg F1 score."""
+    
+    COLL_WEIGHTED_AVG_PRECISION_SCORE=9
+    """Index of column with weighted avg precision score."""
+    
+    COLL_WEIGHTED_AVG_RECALL_SCORE=10
+    """Index of column with weighted avg recall score."""
+    
+    COLL_TRAIN_TIME_SCORE=11
+    """Index of column with average train time."""
+    
+    COLL_TEST_TIME_SCORE=12
+    """Index of column with average test time."""
+    
+    def __init__(self, parent, results:Results):
+        """
+        Initialization of model.
+        
+        :param parent: Parent widget.
+        :type parent: Widget
+        :param results: Experiment results.
+        :type results: Results
+        """
+        QAbstractTableModel.__init__(self, parent)
+        self._results = results
+        
+    
+    @property
+    def results(self):
+        """
+        Assigned results.
+        """
+        return self._results
+    
+    @results.setter
+    def results(self, results:Results):
+        """
+        Assign new results.
+        
+        :param results: New results that should be now used.
+        :type results: Results
+        """
+        self._results=results
+        self.beginResetModel()
+    
+    def rowCount(self, parent=None):
+        try:
+            return len(self._experiment.results.classifiers)
+        except (AttributeError, TypeError):
+            #probably no assigned data stats
+            return 0
+    
+    def columnCount(self, parent=None):
+        return self.NUM_COL
+    
+    def flags(self, index):
+        """
+        Determine flag for column on given index.
+        
+        :param index: Index containing row and col.
+        :type index: QModelIndex
+        :return: Flag for indexed cell.
+        :rtype: PySide2.QtCore.Qt.ItemFlags
+        """
+        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+    
+    def data(self, index, role):
+        """
+        Getter for content of the table.
+        
+        :param index: Index containing row and col.
+        :type index: QModelIndex
+        :param role: Cell role.
+        :type role: int
+        :return: Data for indexed cell.
+        :rtype: object
+        """
+        
+        if not index.isValid():
+            return None
+
+        #classifier on current row
+        classifier=self._experiment.classifiersSlots[index.row()]
+        attributeName=self._experiment.dataStats.attributes[index.row()]
+
+        if role == Qt.DisplayRole:
+            if index.column()==self.COLL_ATTRIBUTE_NAME:
+                return str(attributeName)
+            
+            if index.column()==self.COLL_NUM_OF_FEATURES:
+                return str(self.experiment.dataStats.attributesFeatures[attributeName])
+            
+            if index.column()==self.COLL_FEATURES_VARIANCE:
+                return str(self.experiment.dataStats.attributesAVGFeatureVariance[attributeName])
+
+        return None
+        
+    
+    def headerData(self, section, orientation, role):
+        """
+        Data for header cell.
+        
+        :param section: Header column.
+        :type section: PySide2.QtCore.int
+        :param orientation: Table orientation.
+        :type orientation: PySide2.QtCore.Qt.Orientation
+        :param role: Role of section.
+        :type role: PySide2.QtCore.int
+        :return: Data for indexed header cell.
+        :rtype: object
+        """
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            #we have horizontal header only.
+            try:
+                return self._HEADERS[section]
+            except AttributeError:
+                """Name of columns in table. Initialization is performed on demand."""
+                self._HEADERS=[self.tr("classifier"),self.tr("accuracy"),
+                               self.tr("micro avg F1"),self.tr("micro avg precision"),self.tr("micro avg recall"),
+                               self.tr("macro avg F1"),self.tr("macro avg precision"),self.tr("macro avg recall"),
+                               self.tr("weighted avg F1"),self.tr("weighted avg precision"),self.tr("weighted avg recall"),
+                               self.tr("train time"),self.tr("test time")]
+                return self._HEADERS[section]
+        
+        return None
+    
 
 class TableAttributesStatsModel(QAbstractTableModel):
     """

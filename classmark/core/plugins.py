@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 import pkg_resources
 from enum import Enum
 from typing import List, Callable, Any
-from .logger import Logger
+from .utils import Logger
 
 class PluginAttribute(object):
     """
@@ -181,6 +181,20 @@ class Plugin(ABC):
     _logger=Logger()
     """If you want to log some information that should be shown in GUI than use this
     logger. (logger.log("message"))"""
+    
+    
+    MARKING_CNT=0
+    """This is used as unique identifier/marking of plugin."""
+    
+    def __new__(cls, *args, **kwargs):
+        """
+        Just add marking.
+        """
+        instance = super().__new__(cls, *args, **kwargs)
+        instance._marking=cls.MARKING_CNT
+        cls.MARKING_CNT+=1
+        return instance
+    
     def getAttributesWidget(self, parent=None):
         """
         UI widget for configuration of plugin attributes.
@@ -208,6 +222,21 @@ class Plugin(ABC):
         """
         
         return [value for value in self.__dict__.values() if isinstance(value, PluginAttribute)]
+    
+    def __repr__(self):
+        """
+        String representation in consisting of names and atributes of plugin.
+        """
+        
+        return self.getName()+", ".join( a.name+"="+str(a.value.getName()+":"+", ".join([pa.name+"->"+str(pa.value) for pa in a.value.getAttributes()]) if isinstance(a.value,Plugin) else a.value) for a in self.getAttributes())
+    
+    def __eq__(self, other):
+        if isinstance(self, other.__class__):
+            return self._marking==other._marking
+        return False
+    
+    def __hash__(self):
+        return self._marking
     
     @staticmethod
     @abstractmethod

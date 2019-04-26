@@ -437,7 +437,7 @@ class ExperimentSection(WidgetManager):
             return
         
         self._experiment.useDataSubset()
-        
+        self._experiment.results=None   #remove old
         #create runner for that experiment
         useExperiment=copy.copy(self._experiment)
         useExperiment.setDataStats(None)
@@ -448,6 +448,7 @@ class ExperimentSection(WidgetManager):
         self._experimentRunner.numberOfSteps.connect(self._widget.experimentProgressBar.setMaximum)
         self._experimentRunner.step.connect(self._incExperimentProgressBar)
         self._experimentRunner.actInfo.connect(self._widget.experimentActInfo.setText)
+        self._experimentRunner.result.connect(partial(self._experiment.setResults))
         self._experimentRunner.log.connect(self._widget.logView.append)
         
         #clear the act info
@@ -462,6 +463,7 @@ class ExperimentSection(WidgetManager):
         self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_RUNNING.value)
         
         self._experimentRunner.start()
+        
         
     def _experimentStops(self):
         """
@@ -480,9 +482,10 @@ class ExperimentSection(WidgetManager):
         """
         Show the data and classifiers tabs
         """
-        
-        #TODO: CHANGE TO RESULTS
-        self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_RESULTS.value)
+        if self._experiment.availableFeatureSelectors is None:
+            self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_NO_RESULTS.value)
+        else:
+            self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_RESULTS.value)
                 
         
     def _dataStatsStart(self):
@@ -738,8 +741,10 @@ class ExperimentSection(WidgetManager):
         """
         #experiment start events
         self._widget.startExperimentButton.clicked.connect(self._experimentStarts)
+        self._widget.runNewExperiment.clicked.connect(self._experimentStarts)
         #experiment stop event
         self._widget.stopExperimentButton.clicked.connect(self._experimentStops)
+        
 
     def _hideClassifierProperties(self):
         """

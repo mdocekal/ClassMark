@@ -1323,7 +1323,7 @@
                 <rect>
                  <x>0</x>
                  <y>0</y>
-                 <width>350</width>
+                 <width>407</width>
                  <height>174</height>
                 </rect>
                </property>
@@ -1427,7 +1427,11 @@
                  </widget>
                 </item>
                 <item>
-                 <widget class="QTableView" name="resultSummarizationTable"/>
+                 <widget class="QTableView" name="resultSummarizationTable">
+                  <attribute name="horizontalHeaderCascadingSectionResizes">
+                   <bool>true</bool>
+                  </attribute>
+                 </widget>
                 </item>
                </layout>
               </widget>

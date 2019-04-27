@@ -39,7 +39,7 @@ class MainWindow(WidgetManager,SectionRouter):
         
         self._home=HomeSection(self, self._widget.mainContent)
         self._experiment=ExperimentSection(self, self._widget.mainContent)
-
+        
         
         #Main content is Stacked Widget.
         self._widget.mainContent.addWidget(self._home.widget)
@@ -57,6 +57,7 @@ class MainWindow(WidgetManager,SectionRouter):
         self._saveShortcut = QShortcut(QKeySequence(Qt.CTRL + Qt.Key_S), self._widget)
 
         self.goHome()
+        
     
     def show(self):
         """

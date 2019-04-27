@@ -10,6 +10,7 @@ import pkg_resources
 from enum import Enum
 from typing import List, Callable, Any
 from .utils import Logger
+import copy
 
 class PluginAttribute(object):
     """
@@ -53,7 +54,7 @@ class PluginAttribute(object):
         """
         self._name=name
         self._type=t
-        #TODO: control if valT inherites from Plugin in case of SELECTABLE_PLUGIN
+        #TODO: control if valT inherit from Plugin in case of SELECTABLE_PLUGIN
         self._valT=valT
         self._value=None
         self._selVals=selVals
@@ -172,6 +173,64 @@ class PluginAttribute(object):
             
         return setV
         
+class PluginStub(object):
+    """
+    Plugin stub is used as a copy of Plugin that only consists of descriptive informations such as
+    marking, name and plugina attributes.
+    """
+    
+    def __init__(self, plugin):
+        """
+        Initialize stub.
+        
+        :param plugin: Plugin that stub you want.
+        :type plugin: Plugin
+        """
+        
+        self._attributes=copy.deepcopy(plugin.getAttributes())
+        self._name=plugin.getName()
+        self._marking=plugin.marking
+        
+    @property
+    def marking(self):
+        """
+        Marking of original Plugin.
+        """
+        return self._marking
+    
+    def getAttributes(self):
+        """
+        Attributes of original plugin.
+        
+        :return: Searched attributes.
+        :rtype: List[PluginAttribute]
+        """
+        
+        return self._attributes
+        
+    def getName(self):
+        """
+        Name of original Plugin.
+        
+        :return: Name of the plugin.
+        :rtype: str
+        """
+        return self._name
+    
+    def __repr__(self):
+        """
+        String representation in consisting of names and atributes of plugin.
+        """
+        
+        return self.getName()+", ".join( a.name+"="+str(a.value.getName()+":"+", ".join([pa.name+"->"+str(pa.value) for pa in a.value.getAttributes()]) if isinstance(a.value,Plugin) else a.value) for a in self.getAttributes())
+    
+    def __eq__(self, other):
+        if isinstance(self, other.__class__):
+            return self._marking==other._marking
+        return False
+    
+    def __hash__(self):
+        return self._marking
 
 class Plugin(ABC):
     """
@@ -183,7 +242,7 @@ class Plugin(ABC):
     logger. (logger.log("message"))"""
     
     
-    MARKING_CNT=0
+    __MARKING_CNT=0
     """This is used as unique identifier/marking of plugin."""
     
     def __new__(cls, *args, **kwargs):
@@ -191,8 +250,9 @@ class Plugin(ABC):
         Just add marking.
         """
         instance = super().__new__(cls, *args, **kwargs)
-        instance._marking=cls.MARKING_CNT
-        cls.MARKING_CNT+=1
+        instance._marking=Plugin.__MARKING_CNT
+        Plugin.__MARKING_CNT+=1
+
         return instance
     
     def getAttributesWidget(self, parent=None):
@@ -238,6 +298,15 @@ class Plugin(ABC):
     def __hash__(self):
         return self._marking
     
+    @property
+    def marking(self):
+        """
+        Identifier of plugin.
+        May not be unique if copy of plugin is made.
+        """
+        return self._marking
+        
+    
     @staticmethod
     @abstractmethod
     def getName():
@@ -270,6 +339,15 @@ class Plugin(ABC):
         :rtype: str
         """
         pass
+    
+    def stub(self):
+        """
+        Make stub of plugin. The stub has copy of marking, name and attributes.
+        """
+        return PluginStub(self)
+        
+        
+        
     
 class Classifier(Plugin):
     """

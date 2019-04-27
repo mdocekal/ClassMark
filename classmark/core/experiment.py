@@ -1016,8 +1016,18 @@ class ExperimentRunner(ExperimentBackgroundWorker):
                 #nothing here
                 pass
             
-        if p.is_alive() and self.isInterruptionRequested():
+        if p.is_alive():
             p.terminate()
+            
+        while True:#is something still in queue?
+            try:
+                msgType, msgValue=commQ.get(True, 0.5)#blocking
+                self.processMultPMsg(msgType, msgValue)
+            except queue.Empty:
+                #nothing here
+                break
+            
+        
         
     @classmethod
     def work(cls, experiment:Experiment, commQ:multiprocessing.Queue):
@@ -1029,6 +1039,7 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         :param commQ: Communication queue.
         :type commQ: multiprocessing.Queue
         """
+        #TODO: catch all arror and send error message
         #TODO: MULTILANGUAGE
         commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,"dataset reading"))
 
@@ -1079,14 +1090,12 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         
         for step, c, predicted, realLabels, stepTimes, stats in experiment.evaluationMethod.run(experiment.dataset,experiment.classifiers, 
                             data, labels, extMap, experiment.featuresSelectors, cls.nextSubStep(commQ)):
-            #TODO: stepTimes, stats add to results or remove it
-
             if resultsStorage.steps[step].labels is None:
                 #because it does not make much sense to have true labels stored for each predictions
                 #we store labels just once for each validation step
                 resultsStorage.steps[step].labels=realLabels
                 
-            resultsStorage.steps[step].addResults(c, predicted)
+            resultsStorage.steps[step].addResults(c, predicted, stepTimes, stats)
    
             
             transRealLabels=lEnc.inverse_transform(realLabels)
@@ -1100,7 +1109,8 @@ class ExperimentRunner(ExperimentBackgroundWorker):
             logger.log("\n\n")
         resultsStorage.finalize()   #for better score calculation
         commQ.put((cls.MultPMessageType.RESULT_SIGNAL,resultsStorage))
-    
+        commQ.close()
+        commQ.join_thread()
     @classmethod
     def nextSubStep(cls,commQ:multiprocessing.Queue):
         """
@@ -1132,6 +1142,7 @@ class ExperimentRunner(ExperimentBackgroundWorker):
             if msgType==self.MultPMessageType.LOG_SIGNAL:
                 self.log.emit(msgVal)
             elif  msgType==self.MultPMessageType.RESULT_SIGNAL:
+                
                 self.result.emit(msgVal)
             else:
                 return False

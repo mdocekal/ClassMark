@@ -18,6 +18,7 @@ from PySide2.QtCore import Signal
 from sklearn.model_selection import StratifiedKFold, LeaveOneOut, KFold
 from enum import Enum, auto
 import time
+import copy
 
 class EvaluationMethod(object):
     """
@@ -174,7 +175,7 @@ class Validator(Plugin):
             times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN]=time.time()-times[self.TimeDuration.FEATURE_EXTRACTION_TRAIN]
             
             Logger().log("Samples for training: {}".format(trainFeatures.shape[0]))
-            Logger().log("Number of features before selecting: {}".format(trainFeatures.shape[1]))
+            Logger().log("Number of features before selection: {}".format(trainFeatures.shape[1]))
             
             
             #feature selection
@@ -190,7 +191,7 @@ class Validator(Plugin):
             stats[self.SamplesStats.NUM_SAMPLES_TRAIN]=trainFeatures.shape[0]
             stats[self.SamplesStats.NUM_FEATURES]=trainFeatures.shape[1]
             
-            Logger().log("Number of features after selecting: {}".format(trainFeatures.shape[1]))
+            Logger().log("Number of features after selection: {}".format(trainFeatures.shape[1]))
             
             #feature extraction for test set
             if subStepCallback is not None: subStepCallback("{}/{}: Extracting features for test set.".format(stepToShow, numOfSteps))
@@ -261,43 +262,43 @@ class Validator(Plugin):
 
             
             for classifier in classifiers:
-                times[classifier]={}
+
                 Logger().log(repr(classifier))
                 if subStepCallback is not None: subStepCallback("{}/{}: Training {}.".format(stepToShow, numOfSteps,classifier.getName()))
                 
-                times[classifier][self.TimeDuration.TRAINING]=time.time()
-                times[classifier][self.TimeDuration.TRAINING_PROC]=time.process_time()
+                times[self.TimeDuration.TRAINING]=time.time()
+                times[self.TimeDuration.TRAINING_PROC]=time.process_time()
                 #train classifier
                 classifier.train(trainFeatures, trainLabels)
     
-                times[classifier][self.TimeDuration.TRAINING_PROC]=time.process_time()-times[classifier][self.TimeDuration.TRAINING_PROC]
-                times[classifier][self.TimeDuration.TRAINING]=time.time()-times[classifier][self.TimeDuration.TRAINING]
+                times[self.TimeDuration.TRAINING_PROC]=time.process_time()-times[self.TimeDuration.TRAINING_PROC]
+                times[self.TimeDuration.TRAINING]=time.time()-times[self.TimeDuration.TRAINING]
     
     
     
                 if subStepCallback is not None: subStepCallback("{}/{}: Testing {}.".format(stepToShow, numOfSteps,classifier.getName()))
-                times[classifier][self.TimeDuration.TEST]=time.time()
-                times[classifier][self.TimeDuration.TEST_PROC]=time.process_time()
+                times[self.TimeDuration.TEST]=time.time()
+                times[self.TimeDuration.TEST_PROC]=time.process_time()
                 #predict the labels
                 predictedLabels=classifier.predict(testFeatures)
                 
-                times[classifier][self.TimeDuration.TEST_PROC]=time.process_time()-times[classifier][self.TimeDuration.TEST_PROC]
-                times[classifier][self.TimeDuration.TEST]=time.time()-times[classifier][self.TimeDuration.TEST]
+                times[self.TimeDuration.TEST_PROC]=time.process_time()-times[self.TimeDuration.TEST_PROC]
+                times[self.TimeDuration.TEST]=time.time()-times[self.TimeDuration.TEST]
                 
                 
                 Logger().log("Train time: {}".format(
-                      times[classifier][Validator.TimeDuration.TRAINING]))
+                      times[Validator.TimeDuration.TRAINING]))
                 Logger().log("Train process time: {}".format(
-                      times[classifier][Validator.TimeDuration.TRAINING_PROC]))
+                      times[Validator.TimeDuration.TRAINING_PROC]))
                 
                 Logger().log("Test time: {}".format(
-                      times[classifier][Validator.TimeDuration.TEST]))
+                      times[Validator.TimeDuration.TEST]))
                 Logger().log("Test process time: {}".format(
-                      times[classifier][Validator.TimeDuration.TEST_PROC]))
+                      times[Validator.TimeDuration.TEST_PROC]))
                 
                 Logger().log("---")
 
-                yield (step, classifier, predictedLabels, labels[testIndices], times, stats)
+                yield (step, classifier, predictedLabels, labels[testIndices], copy.copy(times), stats)
             
     def _featuresStep(self, data:np.array,extMap:List[FeatureExtractor], labels:np.array=None, fit=False):
         """

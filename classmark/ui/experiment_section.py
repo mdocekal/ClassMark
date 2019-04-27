@@ -15,7 +15,7 @@ from ..core.experiment import Experiment, PluginSlot, ExperimentRunner, Experime
 from ..core.plugins import Plugin, Classifier
 from ..core.selection import FeaturesSelector
 from .delegates import RadioButtonDelegate, ComboBoxDelegate
-from .models import TableDataAttributesModel, TableClassStatsModel, TableAttributesStatsModel
+from .models import TableDataAttributesModel, TableClassStatsModel, TableAttributesStatsModel, TableSummarizationResultsModel
 from ..core.results import Results
 from typing import Callable, Dict
 from functools import partial
@@ -482,10 +482,18 @@ class ExperimentSection(WidgetManager):
         """
         Show the data and classifiers tabs
         """
-        if self._experiment.availableFeatureSelectors is None:
+        if self._experiment.results is None:
             self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_NO_RESULTS.value)
         else:
             self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_RESULTS.value)
+            
+            #assign model to table view
+            self._widget.resultSummarizationTable.setModel(TableSummarizationResultsModel(self._widget, self._experiment.results))
+            
+
+            for i in range(TableSummarizationResultsModel.NUM_COL):
+                self._widget.resultSummarizationTable.horizontalHeader().setSectionResizeMode(i,QHeaderView.ResizeMode.ResizeToContents);
+            
                 
         
     def _dataStatsStart(self):
@@ -558,6 +566,7 @@ class ExperimentSection(WidgetManager):
             self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_NO_RESULTS.value)
         else:
             self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_RESULTS.value)
+            
         
     def _initData(self):
         """

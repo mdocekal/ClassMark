@@ -29,7 +29,7 @@ class CEEF(Classifier):
     def __init__(self, normalizer:BaseNormalizer=None, generations:int=100, stopAccuracy:float=None, \
                  population:int=10, nbestToNext=1, selectionMethod:Selector="RANK", randomSeed:int=None, maxMutations=5, \
                  maxStartSlots=1,
-                 crossoverProb:float=0.75, testSetSize:float=1, changeTestSet:bool=False):
+                 crossoverProb:float=0.75, testSetSize:float=1, changeTestSet:bool=False, logGenFitness:bool=True):
         """
         Classifier initialization.
         
@@ -58,6 +58,8 @@ class CEEF(Classifier):
         :type testSetSize: float
         :param changeTestSet: Change test set for every generation.
         :type changeTestSet: bool
+        :param logGenFitness: Log generation fitness.
+        :type logGenFitness: bool
         """
 
 
@@ -105,6 +107,9 @@ class CEEF(Classifier):
         self._changeTestSet.value=changeTestSet
         
         
+        self._logGenFitness=PluginAttribute("Log generation fitness", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
+        self._logGenFitness.value=logGenFitness
+        
         self._evolvedCls=None    #there the evolved classifier will be stored
         
     @staticmethod
@@ -141,8 +146,8 @@ class CEEF(Classifier):
         generations=1
         while (self._stopAccuracy.value is None or self._stopAccuracy.value>self._evolvedCls.score) and \
                self._generations.value>=generations:
-            
-            self._logger.log("Actual score: {}".format(self._evolvedCls.score))
+            if self._logGenFitness.value:
+                self._logger.log("Actual score: {}".format(self._evolvedCls.score))
             
 
             #get new population

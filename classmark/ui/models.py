@@ -8,6 +8,7 @@ This module contains models.
 from PySide2.QtCore import QAbstractTableModel, Qt
 from ..core.experiment import Experiment
 from ..core.results import Results
+from ..core.validation import Validator
 from typing import Callable
 
 class TableSummarizationResultsModel(QAbstractTableModel):
@@ -90,7 +91,7 @@ class TableSummarizationResultsModel(QAbstractTableModel):
     
     def rowCount(self, parent=None):
         try:
-            return len(self._experiment.results.classifiers)
+            return len(self._results.classifiers)
         except (AttributeError, TypeError):
             #probably no assigned data stats
             return 0
@@ -125,18 +126,56 @@ class TableSummarizationResultsModel(QAbstractTableModel):
             return None
 
         #classifier on current row
-        classifier=self._experiment.classifiersSlots[index.row()]
-        attributeName=self._experiment.dataStats.attributes[index.row()]
+        classifier=self._results.classifiers[index.row()]
 
         if role == Qt.DisplayRole:
-            if index.column()==self.COLL_ATTRIBUTE_NAME:
-                return str(attributeName)
+            if index.column()==self.COLL_CLASSIFIER_NAME:
+                return str(classifier.getName())
             
-            if index.column()==self.COLL_NUM_OF_FEATURES:
-                return str(self.experiment.dataStats.attributesFeatures[attributeName])
+            if index.column()==self.COLL_ACCURACY:
+                return str(self._results.scores[classifier][Results.ScoreType.ACCURACY])
             
-            if index.column()==self.COLL_FEATURES_VARIANCE:
-                return str(self.experiment.dataStats.attributesAVGFeatureVariance[attributeName])
+            
+            
+            if index.column()==self.COLL_MICRO_AVG_F1_SCORE:
+                return str(self._results.scores[classifier][Results.ScoreType.MICRO_F1])
+            
+            if index.column()==self.COLL_MICRO_AVG_PRECISION_SCORE:
+                return str(self._results.scores[classifier][Results.ScoreType.MICRO_PRECISION])
+            
+            if index.column()==self.COLL_MICRO_AVG_RECALL_SCORE:
+                return str(self._results.scores[classifier][Results.ScoreType.MICRO_RECALL])
+            
+            
+            
+            if index.column()==self.COLL_MACRO_AVG_F1_SCORE:
+                return str(self._results.scores[classifier][Results.ScoreType.MACRO_F1])
+            
+            if index.column()==self.COLL_MACRO_AVG_PRECISION_SCORE:
+                return str(self._results.scores[classifier][Results.ScoreType.MACRO_PRECISION])
+            
+            if index.column()==self.COLL_MACRO_AVG_RECALL_SCORE:
+                return str(self._results.scores[classifier][Results.ScoreType.MACRO_RECALL])
+            
+            
+            
+            if index.column()==self.COLL_WEIGHTED_AVG_F1_SCORE:
+                return str(self._results.scores[classifier][Results.ScoreType.WEIGHTED_F1])
+            
+            if index.column()==self.COLL_WEIGHTED_AVG_PRECISION_SCORE:
+                return str(self._results.scores[classifier][Results.ScoreType.WEIGHTED_PRECISION])
+            
+            if index.column()==self.COLL_WEIGHTED_AVG_RECALL_SCORE:
+                return str(self._results.scores[classifier][Results.ScoreType.WEIGHTED_RECALL])
+            
+            
+            
+            if index.column()==self.COLL_TRAIN_TIME_SCORE:
+                return str(self._results.times[classifier][Validator.TimeDuration.TRAINING_PROC])
+            
+            if index.column()==self.COLL_TEST_TIME_SCORE:
+                return str(self._results.times[classifier][Validator.TimeDuration.TEST_PROC])
+
 
         return None
         

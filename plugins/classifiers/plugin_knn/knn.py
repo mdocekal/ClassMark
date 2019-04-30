@@ -13,7 +13,7 @@ from sklearn.neighbors import KNeighborsClassifier
 
 class KNN(Classifier):
     """
-    k-Nearest Neighbors classifier.
+    k-Nearest Neighbor classifier.
     """
 
     def __init__(self, normalizer:BaseNormalizer=None, neighbors:int=3):
@@ -37,7 +37,7 @@ class KNN(Classifier):
         
     @staticmethod
     def getName():
-        return "k-Nearest Neighbors"
+        return "k-Nearest Neighbor"
     
     @staticmethod
     def getNameAbbreviation():

@@ -1,6 +1,6 @@
 """
 Created on 24. 4. 2019
-Multinomial Naive Bayes classifier plugin for ClassMark.
+Naive Bayes classifier plugin for ClassMark.
 
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
@@ -9,20 +9,23 @@ from classmark.core.plugins import Classifier, PluginAttribute
 from classmark.core.preprocessing import BaseNormalizer, NormalizerPlugin,\
     MinMaxScalerPlugin,StandardScalerPlugin, RobustScalerPlugin
     
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import MultinomialNB, GaussianNB
 
-class MultinomialNaiveBayes(Classifier):
+class NaiveBayesClassifier(Classifier):
     """
-    MultinomialNaiveBayes classifier.
+    Naive Bayes classifier.
     """
 
-    def __init__(self, normalizer:BaseNormalizer=None):
+    def __init__(self, normalizer:BaseNormalizer=None, type:str="gaussian"):
         """
         Classifier initialization.
         
         :param normalizer: Normalizer used for input data. If none than normalization/scalling is omitted.
         :type normalizer: None | BaseNormalizer
-
+        :param type: Type of naive bayes.
+            multinomial    -    Discrete non negative values like counts or something like that.
+            gaussian    -    Continuous values. Likelihood of features is assumed to be gaussian.
+        :type type: str
         """
         
         #TODO: type control must be off here (None -> BaseNormalizer) maybe it will be good if one could pass
@@ -30,15 +33,19 @@ class MultinomialNaiveBayes(Classifier):
         self._normalizer=PluginAttribute("Normalize", PluginAttribute.PluginAttributeType.SELECTABLE_PLUGIN, None,
                                          [None, NormalizerPlugin, MinMaxScalerPlugin, StandardScalerPlugin, RobustScalerPlugin])
         self._normalizer.value=normalizer
+        
+        self._type=PluginAttribute("Type", PluginAttribute.PluginAttributeType.SELECTABLE, str,
+                                         ["gaussian", "multinomial"])
+        self._type.value=type
 
         
     @staticmethod
     def getName():
-        return "Multinomial Naive Bayes"
+        return "Naive Bayes Classifier"
     
     @staticmethod
     def getNameAbbreviation():
-        return "MNB"
+        return "NBC"
  
     @staticmethod
     def getInfo():
@@ -48,11 +55,21 @@ class MultinomialNaiveBayes(Classifier):
         if self._normalizer.value is not None:
             data=self._normalizer.value.fitTransform(data)
         
-        self._cls=MultinomialNB()
-            
+        if self._type.value=="gaussian":
+            self._cls=GaussianNB()
+            data=data.A #this classifier does not like sparse matrices
+        else:
+            self._cls=MultinomialNB()
+        
         self._cls.fit(data,labels)
+            
+        
     
     def predict(self, data):
         if self._normalizer.value is not None:
             data=self._normalizer.value.transform(data)
+            
+        if (isinstance(self._cls, GaussianNB)):
+            #this classifier does not like sparse matrices
+            data=data.A
         return self._cls.predict(data)

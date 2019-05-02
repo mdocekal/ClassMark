@@ -111,25 +111,6 @@ class AttributesWidgetManager(WidgetManager):
     to do it on your own from scratch.
     """
     
-    class WNormalize(QWidget):
-        """
-        Widget for normalization settings.
-        Settings are stored
-        """
-        
-        def __init__(self, a, parent=None):
-            """
-            Initialization of normalization widget.
-            
-            :param a:The attribute.
-            :type a: PluginAttribute
-            :param parent: Parent widget.
-            :type parent: QWidget
-            """
-            super().__init__(parent)
-            self._a=a
-            
-        
     
     class WGroup(QWidget):
         """
@@ -176,37 +157,51 @@ class AttributesWidgetManager(WidgetManager):
             minusButton.clicked.connect(self.popItem)
             buttonsLayout.addWidget(minusButton)
                 
-        def _addItemWidget(self, i, v):
+        def _addItemWidget(self, i):
             """
             Create item widgets and append them to layout.
 
             :param i: Position of item in group.
             :type i: int
-            :param v: Item value.
-            :type v: Any
             """
             
-            actInp=QLineEdit(self.inputW)
+            if not isinstance(self._a._value, list):
+                self._a._value=[]
+            
+            #add plugin
+            self._a._value.append(self._a.valType())
+            
+            
+
+            hasOwnWidget=self._a._value[-1].getAttributesWidget(self.inputW)
+                
+            if hasOwnWidget is not None:    #Do plugin have own widget?
+                self.inputW.layout().addWidget(hasOwnWidget)
+            else:
+                #no it don't
+                if len(self._a._value[-1].getAttributes())>0:
+                    self.manager=AttributesWidgetManager(self._a._value[-1].getAttributes(), self.inputW)
+                    #no it haves
+                    hasOwnWidget=self.manager.widget
+                        
+            
+            
             if self._a.groupItemLabel:
                 #ok we have label for items
                 label=QLabel(self._a.groupItemLabel.format(i+1)+":", self.inputW)
                 label.setTextInteractionFlags(Qt.TextSelectableByMouse|Qt.TextSelectableByKeyboard)
-                label.setBuddy(actInp)
+                label.setBuddy(hasOwnWidget)
                 self.inputW.layout().addWidget(label)
                 
-            if v is not None:
-                actInp.setText(str(v))
-            actInp.textChanged.connect(self._a.setValueBind(actInp.setText,i))
 
-            self.inputW.layout().addWidget(actInp)
+            self.inputW.layout().addWidget(hasOwnWidget)
             
             
         def appendItem(self):
             """
             Append new item.
             """
-            self._addItemWidget(len(self._a.value),None)
-            self._a.value.append(None)
+            self._addItemWidget(len(self._a.value))
         
         def popItem(self):
             """
@@ -214,11 +209,11 @@ class AttributesWidgetManager(WidgetManager):
             """
             if self._a.value is not None and len(self._a.value)>0:
                 self._a.value.pop()
-                #remove input and label
-                for i in range(2):
+                #remove input and label (if label is set)
+                for i in range(2 if self._a.groupItemLabel else 1):
                     child = self.inputW.layout().takeAt(self.inputW.layout().count()-1)
                     child.widget().deleteLater()
-    
+
     def __init__(self, attributes:List[PluginAttribute], parent=None):
         """
         Initialization of manager.
@@ -247,8 +242,8 @@ class AttributesWidgetManager(WidgetManager):
                     PluginAttribute.PluginAttributeType.CHECKABLE:self._createCheckableType,
                     PluginAttribute.PluginAttributeType.VALUE:self._createValueType,
                     PluginAttribute.PluginAttributeType.SELECTABLE:self._createSelectableType,
-                    PluginAttribute.PluginAttributeType.GROUP_VALUE:self._createGroupValueType,
                     PluginAttribute.PluginAttributeType.SELECTABLE_PLUGIN:self._createSelectablePluginType,
+                    PluginAttribute.PluginAttributeType.GROUP_PLUGINS:self._createGroupPluginType,
                     }[a.type](a))
 
         self._widget.setLayout(mainLayout)
@@ -338,23 +333,11 @@ class AttributesWidgetManager(WidgetManager):
         inputW.currentTextChanged.connect(a.setValueBind(inputW.setCurrentText))
 
         return self._createWidget(a, inputW)
-        
-    def _createGroupValueType(self, a:PluginAttribute):
-        """
-        Creates widget for attribute of GROUP_VALUE type.
-        
-        :param a: The attribute.
-        :type a: PluginAttribute
-        :return: Widget for attribute.
-        :rtype: QWidget
-        """
-    
-        return self._createWidget(a, self.WGroup(a))
     
     
     def _createSelectablePluginType(self, a:PluginAttribute):
         """
-        Creates widget for attribute of NORMALIZE type.
+        Creates widget for attribute of SELECTABLE_PLUGIN type.
         
         :param a: The attribute.
         :type a: PluginAttribute
@@ -422,4 +405,16 @@ class AttributesWidgetManager(WidgetManager):
                         
                         break                
         return perform
+    
+    
+    def _createGroupPluginType(self, a:PluginAttribute):
+        """
+        Creates widget for attribute of GROUP_PLUGINS type.
         
+        :param a: The attribute.
+        :type a: PluginAttribute
+        :return: Widget for attribute.
+        :rtype: QWidget
+        """
+        
+        return self._createWidget(a, self.WGroup(a))

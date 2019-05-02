@@ -32,8 +32,12 @@ class PluginAttribute(object):
         """When you have attribute that can contain one from one kind of plugins, than use that type of attribute.
         In UI appears as combo box and widget with attributes of actualy selected plugin."""
         
-        GROUP_VALUE=4
-        """Same as value, but user could increase number of inputs."""
+        GROUP_PLUGINS=4
+        """Group of plugins. User could add or remove plugins in groups.
+            Do not set values programmatically. 
+            Usage: Create Plugin that will store your values and than read that values when you need.
+            """
+
         
         
     
@@ -48,6 +52,8 @@ class PluginAttribute(object):
         :param valT: Type of attribute value. Could be used for type controls and 
             auto type conversion. None means any type. Attribute value that is None or empty string
             is always ok regardless valT.
+            
+            If you use GROUP_PLUGINS, than pass to this type class of plugin that should be used.
         :type valT: Type
         :param selVals: Values for combobox if SELECTABLE type is used.
         :type selVals: List[Any]
@@ -56,7 +62,7 @@ class PluginAttribute(object):
         self._type=t
         #TODO: control if valT inherit from Plugin in case of SELECTABLE_PLUGIN
         self._valT=valT
-        self._value=None
+        self._value=[] if t==self.PluginAttributeType.GROUP_PLUGINS else None
         self._selVals=selVals
         self._groupItemLabel=None
         
@@ -102,6 +108,13 @@ class PluginAttribute(object):
         return self._type
     
     @property
+    def valType(self): 
+        """
+        Attribute value type.
+        """
+        return self._valT
+    
+    @property
     def value(self):
         """
         Attribute value.
@@ -140,7 +153,7 @@ class PluginAttribute(object):
         else:
             #TODO: Troubles with numbers when writing minus values because minus alone is not number
             if index is None:
-                if self.type==PluginAttribute.PluginAttributeType.GROUP_VALUE:
+                if self.type==PluginAttribute.PluginAttributeType.GROUP_PLUGINS:
                     self._value=[x if x is None else self._valT(x) for x in nVal]
                 else:
                     self._value=nVal if self._valT is None else self._valT(nVal)
@@ -362,6 +375,7 @@ class Classifier(Plugin):
         :param data: Data that will be used for training.
         :type data: scipy.sparse matrix
         :param labels: Labels for the training data.
+            Classifier will always receive encoded labels to integers (0...NUMBER_OF_CLASSES-1).
         :type labels: np.array
         """
         pass

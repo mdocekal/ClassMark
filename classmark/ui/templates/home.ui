@@ -52,7 +52,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QListView" name="listView">
+          <widget class="QListView" name="lastExpList">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
              <horstretch>0</horstretch>

@@ -15,7 +15,7 @@ setup(name='ClassMark',
     description='ClassMark is a benchmark for classifiers.',
     author='Martin Dočekal',
     packages=['classmark'],
-    package_data={'classmark': ['ui/icons/*','languages/*','templates/*']},
+    package_data={'classmark': ['ui/icons/*','ui/languages/*','ui/templates/*','core/data/*']},
     data_files=[('examples', ['examples/test.csv'])],
     entry_points={
         'console_scripts': [

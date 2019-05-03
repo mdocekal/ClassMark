@@ -14,7 +14,9 @@ from .section_router import SectionRouter
 
 from PySide2.QtWidgets import QFileDialog, QMessageBox, QShortcut
 from PySide2.QtGui import QKeySequence
-from PySide2.QtCore import Qt
+from PySide2.QtCore import Qt, QStringListModel
+
+
 
 
 class MainWindow(WidgetManager,SectionRouter):
@@ -46,6 +48,7 @@ class MainWindow(WidgetManager,SectionRouter):
         self._widget.mainContent.addWidget(self._experiment.widget)
         
         #register click events
+        
         self._widget.menuFileNewExperiment.triggered.connect(self.goExperiment)
         self._widget.menuFileLoadExperiment.triggered.connect(self.goLoadExperiment)
         self._widget.menuFileSaveExperiment.triggered.connect(self.goSaveExperiment)
@@ -74,7 +77,7 @@ class MainWindow(WidgetManager,SectionRouter):
         self._widget.menuFileSaveAsExperiment.setEnabled(False)
         self._saveShortcut.activated.connect(None)
         
-    def goExperiment(self):
+    def goExperiment(self, load=None):
         """
         Go to experiment section.
         
@@ -82,7 +85,8 @@ class MainWindow(WidgetManager,SectionRouter):
             None means that new experiment should be loaded.
         :type load: string|None
         """
-        self._goExperiment()
+        
+        self._goExperiment(load)
         
         
     def _goExperiment(self, load=None):
@@ -95,7 +99,7 @@ class MainWindow(WidgetManager,SectionRouter):
         """
 
         self._experiment.loadExperiment(load)
-            
+
         self._widget.mainContent.setCurrentIndex(self._widget.mainContent.indexOf(self._experiment.widget))
         self._widget.menuFileSaveExperiment.setEnabled(True)
         self._widget.menuFileSaveAsExperiment.setEnabled(True)
@@ -119,6 +123,7 @@ class MainWindow(WidgetManager,SectionRouter):
             #use selected file
             try:
                 self._experiment.saveExperiment(file)
+                
             except Exception as e:
                 emsg = QMessageBox()
                 emsg.setWindowTitle(self.tr("There is a problem with saving your experiment :("))

@@ -23,12 +23,80 @@ import queue
 import copy
 import statistics 
 from functools import partial
-from .utils import getAllSubclasses, sparseMatVariance, Observable,Logger
+from .utils import getAllSubclasses, sparseMatVariance, Observable,Logger,Singleton
 from .selection import FeaturesSelector
 import pickle
 from classmark.core.plugins import Classifier
 from sklearn.preprocessing import LabelEncoder
 
+import os
+
+class LastUsedExperiments(Observable, metaclass=Singleton):
+    """
+    Last used experiments manager. (singleton)
+    """
+    
+    DATA_FILE_PATH=os.path.join(os.path.dirname(os.path.realpath(__file__)), "data","lastUsed")
+    MAX_IN_HISTORY=100
+
+    def __init__(self):
+        """
+        Initialization of singleton instance
+        """
+        super().__init__()
+        self._list=[]
+        if os.path.exists(self.DATA_FILE_PATH):
+            with open(self.DATA_FILE_PATH, "r+") as file:
+                filtered=False
+                for line in file:
+                    p=line.rstrip('\n')
+                    if os.path.exists(p):
+                        self._list.append(p)
+                    else:
+                        #filtered
+                        filtered=True
+                
+                if filtered:
+                    #write changes
+                    self._listChange()
+      
+    @property  
+    def list(self):
+        """
+        Get list of last used experiments.
+        """
+        return self._list
+    
+    def _listChange(self):
+        """
+        Update list content in file.
+        """
+        with open(self.DATA_FILE_PATH, "w") as f:
+            for p in self._list:
+                print(p, file=f)
+    
+    @Observable._event("CHANGE")
+    def used(self, pathToExp:str):
+        """
+        Inform that experiment on given path was used.
+        
+        :param pathToExp: Path of given experiment.
+        :type pathToExp: str
+        """
+        
+        try:
+            self._list.insert(0, self._list.pop(self._list.index(pathToExp)))
+        except ValueError:
+            #not in list yet
+            self._list.insert(0,pathToExp)
+            
+            if len(self._list)>self.MAX_IN_HISTORY:
+                del self._list[-1]
+                
+        #list changed
+        self._listChange()
+        
+        
 class PluginSlot(object):
     """
     Slot that stores informations about selected plugin. 
@@ -372,6 +440,8 @@ class Experiment(Observable):
             pickle.dump(data,saveF)
             self.loadSavePath=filePath
             
+            LastUsedExperiments().used(filePath)
+            
     def setResults(self, r):
         """
         Sets results. Suitable for use as callback.
@@ -443,6 +513,8 @@ class Experiment(Observable):
             if not isinstance(lE["results"], Results):
                 raise ExperimentLoadException("Couldn't load given experiment.")
             self.results=lE["results"]
+            
+            LastUsedExperiments().used(filePath)
 
     def useDataSubset(self):
         """

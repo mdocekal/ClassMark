@@ -5,8 +5,9 @@ This module contains models.
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
-from PySide2.QtCore import QAbstractTableModel, Qt
-from ..core.experiment import Experiment
+from PySide2.QtCore import QAbstractTableModel, QAbstractListModel, Qt
+from PySide2.QtGui import QBrush, QColor
+from ..core.experiment import Experiment, LastUsedExperiments
 from ..core.results import Results
 from ..core.validation import Validator
 from ..core.plugins import Classifier
@@ -34,6 +35,50 @@ def saveTableModelAsCsv(model:QAbstractTableModel,path:str):
         for row in range(model.rowCount()):
             writer.writerow([model.data(model.index(row, column), Qt.DisplayRole) for column in range(model.columnCount())])
             
+class ListLastExperiments(QAbstractListModel):
+    """
+    Model for last experiments.
+    """
+
+    def __init__(self,parent = None):
+        super().__init__(parent)
+        #when the list changes
+        LastUsedExperiments().registerObserver("CHANGE", self.endResetModel)
+
+
+    def rowCount(self, parent=None):
+        return len(LastUsedExperiments().list)
+
+    def data(self, index, role = Qt.DisplayRole):
+        """
+        Getter for content of the list.
+        
+        :param index: Index.
+        :type index: QModelIndex
+        :param role: Cell role.
+        :type role: int
+        :return: Data for index.
+        :rtype: object
+        """
+        if not index.isValid():
+            return None
+        
+        if role == Qt.DisplayRole:
+            return str(LastUsedExperiments().list[index.row()])
+        return None
+            
+
+    def flags(self, index):
+        """
+        Determine flag for column on given index.
+        
+        :param index: Index containing row and col.
+        :type index: QModelIndex
+        :return: Flag for indexed cell.
+        :rtype: PySide2.QtCore.Qt.ItemFlags
+        """
+        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+
     
 class TableResultsModel(QAbstractTableModel):
     """
@@ -86,10 +131,12 @@ class TableResultsModel(QAbstractTableModel):
         :param results: New results that should be now used.
         :type results: Results
         """
-        self._results=results
         self.beginResetModel()
+        self._results=results
+        
         
         self._numOfResults=sum(s.numOfPredictedLabels for s in self.results.steps)
+        self.endResetModel()
         
     def rowCount(self, parent=None):
         return self._numOfResults
@@ -124,9 +171,8 @@ class TableResultsModel(QAbstractTableModel):
         
         if not index.isValid():
             return None
-
-        if role == Qt.DisplayRole:
-            
+        
+        if role == Qt.BackgroundRole or role == Qt.DisplayRole:
             #in which validation step this row is?
             step=0
             stepSum=0
@@ -144,20 +190,25 @@ class TableResultsModel(QAbstractTableModel):
             
             stepNum=step+1
             step=self._results.steps[step]
-            
-            if useIndex<0: useIndex=index.row()
-            
-            if index.column()==self.COLL_ROW_INDEX:
-                return str(step.testIndicesForCls(self._classifier)[useIndex]+1)
-            
-            if index.column()==self.COLL_VAL_STEP:
-                return stepNum
-            
-            if index.column()==self.COLL_REAL_LABEL:
-                return str(self.results.encoder.inverse_transform([step.labels[useIndex]])[0])
-            
-            if index.column()==self.COLL_PREDICTED_LABEL:
-                return str(self.results.encoder.inverse_transform([step.predictionsForCls(self._classifier)[useIndex]])[0])
+            if role == Qt.DisplayRole:
+
+                if useIndex<0: useIndex=index.row()
+                
+                if index.column()==self.COLL_ROW_INDEX:
+                    return str(step.testIndicesForCls(self._classifier)[useIndex]+1)
+                
+                if index.column()==self.COLL_VAL_STEP:
+                    return stepNum
+                
+                if index.column()==self.COLL_REAL_LABEL:
+                    return str(self.results.encoder.inverse_transform([step.labels[useIndex]])[0])
+                
+                if index.column()==self.COLL_PREDICTED_LABEL:
+                    return str(self.results.encoder.inverse_transform([step.predictionsForCls(self._classifier)[useIndex]])[0])
+    
+            if role == Qt.BackgroundRole:
+                if step.labels[useIndex]!=step.predictionsForCls(self._classifier)[useIndex]:
+                    return QBrush(QColor(255,0,0,80));
 
         return None
         
@@ -222,8 +273,10 @@ class TableConfusionMatrixModel(QAbstractTableModel):
         :param results: New results that should be now used.
         :type results: Results
         """
-        self._results=results
         self.beginResetModel()
+        self._results=results
+        self.endResetModel()
+        
         
     def rowCount(self, parent=None):
         try:
@@ -264,7 +317,7 @@ class TableConfusionMatrixModel(QAbstractTableModel):
 
         if role == Qt.DisplayRole:
             return str(self._results.confusionMatrix(self._classifier)[index.row()][index.column()])
-            
+        
         return None
         
     
@@ -282,7 +335,11 @@ class TableConfusionMatrixModel(QAbstractTableModel):
         :rtype: object
         """
         if role == Qt.DisplayRole:
-            return self._results.encoder.inverse_transform([section])[0]    #we can use section directly because encoder encodes labels from zero
+            if orientation == Qt.Horizontal:
+                labelRealPred="Predicted: "
+            else:
+                labelRealPred="Real: "
+            return labelRealPred+self._results.encoder.inverse_transform([section])[0]    #we can use section directly because encoder encodes labels from zero
 
         return None
 
@@ -364,8 +421,11 @@ class TableSummarizationResultsModel(QAbstractTableModel):
         :param results: New results that should be now used.
         :type results: Results
         """
-        self._results=results
+        
         self.beginResetModel()
+        self._results=results
+        self.endResetModel()
+        
     
     def rowCount(self, parent=None):
         try:
@@ -535,8 +595,10 @@ class TableAttributesStatsModel(QAbstractTableModel):
         :param experiment: New experiment that should be now used.
         :type experiment: Experiment
         """
-        self._experiment=experiment
         self.beginResetModel()
+        self._experiment=experiment
+        self.endResetModel()
+        
         
     def rowCount(self, parent=None):
         try:
@@ -664,8 +726,11 @@ class TableClassStatsModel(QAbstractTableModel):
         :param experiment: New experiment that should be now used.
         :type experiment: Experiment
         """
-        self._experiment=experiment
+        
         self.beginResetModel()
+        self._experiment=experiment
+        self.endResetModel()
+        
         
     def rowCount(self, parent=None):
         try:
@@ -865,8 +930,11 @@ class TableDataAttributesModel(QAbstractTableModel):
         :param experiment: New experiment that should be now used.
         :type experiment: Experiment
         """
-        self._experiment=experiment
+        
         self.beginResetModel()
+        self._experiment=experiment
+        self.endResetModel()
+        
         
     def rowCount(self, parent=None):
         try:

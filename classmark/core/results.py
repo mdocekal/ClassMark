@@ -8,7 +8,7 @@ Module for experiment results.
 
 from .plugins import Classifier
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import precision_recall_fscore_support,accuracy_score
+from sklearn.metrics import precision_recall_fscore_support,accuracy_score, confusion_matrix
 from typing import List, Any
 from enum import Enum, auto
 import numpy as np
@@ -60,11 +60,23 @@ class Results(object):
         """
         def __init__(self):
             self._predictions={}
+            self._testIndices={}
             self._times={}
             self._stats={}
             self.labels=None #True labels for test data in that validation step.
         
-        def addResults(self, classifier:Classifier, predictions:np.array, times, stats):
+        @property
+        def numOfPredictedLabels(self):
+            """
+            Num of predicted labels.
+            """
+            try:
+                return len(next(iter(self._predictions.values())))
+            except :
+                return 0
+            
+        
+        def addResults(self, classifier:Classifier, predictions:np.array, testIndices:np.array, times, stats):
             """
             Add experiment results for classifier.
             
@@ -72,15 +84,29 @@ class Results(object):
             :type classifier: Classifier
             :param predictions: Classifier's predictions of labels.
             :type predictions:np.array
+            :param testIndices: Indices of data that were use for prediction.
+            :type testIndices: np.array
             :param times: dict of times
             :type times: Dict[Validator.TimeDuration,float]
             :param stats: samples stats
             :type stats: Dict[Validator.SamplesStats,float]
             """
             self._predictions[classifier.stub()]=predictions
+            self._testIndices[classifier.stub()]=testIndices
             self._times[classifier.stub()]=times
             self._stats[classifier.stub()]=stats
                 
+        def testIndicesForCls(self,classifier:Classifier):
+            """
+            Get test indices for classifier.
+            
+            :param classifier: The classifier
+            :type classifier: Classifier
+            :return: Indices of test samples in use dataset.
+            :rtype: np.array
+            """
+            
+            return self._testIndices[classifier.stub()]
                 
         def predictionsForCls(self,classifier:Classifier):
             """
@@ -117,6 +143,19 @@ class Results(object):
             """
             
             return self._stats[classifier.stub()]
+        
+        def confusionMatrix(self, c:Classifier):
+            """
+            Get confusion matrix for given classifier.
+            
+            The matrix is sum of all confusion matrices in all cross validation steps.
+            
+            :param c: The classifier
+            :type c: Classifier
+            :return: Confusion matrix of given classifier.
+            :rtype: np.array
+            """
+            return confusion_matrix(self.labels, self._predictions[c])
         
         def score(self):
             """
@@ -165,8 +204,27 @@ class Results(object):
         self.encoder=labelEncoder
         self._finalize=False
         self._finalScore=None
+        self._finalConfMat={}
         self._finalTimes=None
+        self._log=""    #whole log for experiment
 
+    @property
+    def log(self):
+        """
+        whole log for experiment
+        """
+        return self._log
+    
+    @log.setter
+    def log(self, l:str):
+        """
+        Setter for experiment log.
+        
+        :param l: The new log.
+        :type l: str
+        """
+        self._log=l
+        
     def finalize(self):
         """
         Mark this result as complete.
@@ -220,7 +278,34 @@ class Results(object):
             self._finalTimes=res
             
         return res
+    
+    def confusionMatrix(self, c:Classifier):
+        """
+        Get confusion matrix for given classifier.
         
+        The matrix is sum of all confusion matrices in all cross validation steps.
+        
+        :param c: The classifier
+        :type c: Classifier
+        :return: Confusion matrix of given classifier.
+        :rtype: np.array
+        """
+        if len(self.steps)==0:
+            return None
+        
+        if c in self._finalConfMat:
+            #use cached
+            return self._finalConfMat[c]
+        
+        resConfMat=self.steps[0].confusionMatrix(c)
+        for step in range(1,len(self.steps)):
+            resConfMat+=self.steps[step].confusionMatrix(c)
+        
+        if self._finalize:
+            self._finalConfMat[c]=resConfMat
+            
+        return resConfMat
+    
     @property
     def scores(self):
         """

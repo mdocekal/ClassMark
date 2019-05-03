@@ -202,6 +202,7 @@ class PluginStub(object):
         
         self._attributes=copy.deepcopy(plugin.getAttributes())
         self._name=plugin.getName()
+        self._nameAbber=plugin.getNameAbbreviation()
         self._marking=plugin.marking
         
     @property
@@ -230,6 +231,16 @@ class PluginStub(object):
         """
         return self._name
     
+
+    def getNameAbbreviation(self):
+        """
+        Plugin name abbreviation.
+        
+        :return: Name abbreviation of the plugin.
+        :rtype: str
+        """
+        return self._nameAbber
+    
     def __repr__(self):
         """
         String representation in consisting of names and atributes of plugin.
@@ -244,6 +255,12 @@ class PluginStub(object):
     
     def __hash__(self):
         return self._marking
+    
+    def stub(self):
+        """
+        This is already a stub.
+        """
+        return self
 
 class Plugin(ABC):
     """

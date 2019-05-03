@@ -11,9 +11,14 @@ from classmark.core.preprocessing import BaseNormalizer, NormalizerPlugin,\
     
 from keras.models import Sequential
 from keras.layers import Dense
+from keras import optimizers, metrics
+from keras.callbacks import Callback
 import numpy as np
 
 import os
+
+
+USED_ACCURACY="sparse_categorical_accuracy"
 
 class Layer(Plugin):
     
@@ -45,14 +50,32 @@ class Layer(Plugin):
     @staticmethod
     def getInfo():
         return ""
+    
+
+    
+class EpochLogger(Callback):
+    
+    def __init__(self, logger):
+        """
+        Initialization of logger.
+        
+        :param logger: Logger that will be used.
+        :type logger: Logger
+        """
+        super().__init__()
+        self._logger=logger
+
+    def on_epoch_end(self, epoch, logs={}):
+        self._logger.log("Epoch {}\tLoss: {}, Accuracy: {}".format(epoch+1,logs.get('loss'), logs.get(USED_ACCURACY)))
+
 
 class ANN(Classifier):
     """
     Artificial Neural Networks classifier.
     """
 
-    def __init__(self, normalizer:BaseNormalizer=None, randomSeed:int=None, epochs:int=10, batchSize:int=None, gpu:bool=True,
-                 outLactFun:str="softmax"):
+    def __init__(self, normalizer:BaseNormalizer=None, randomSeed:int=None, epochs:int=10, batchSize:int=None, learningRate:float=0.001, 
+                 gpu:bool=True, outLactFun:str="softmax", log:bool=True):
         """
         Classifier initialization.
         
@@ -64,10 +87,14 @@ class ANN(Classifier):
         :type epochs: int
         :param batchSize: Number of samples processed before weights are updated.
         :type batchSize: int
+        :param learningRate: How big step we do when we learn (in direction of gradient).
+        :type learningRate: int
         :param gpu: Should GPU be used?
         :type gpu: bool
         :param outLactFun: Activation function for output layer
         :type outLactFun: str
+        :param log: Should log or not?
+        :type log: bool
         """
         
         #TODO: type control must be off here (None -> BaseNormalizer) maybe it will be good if one could pass
@@ -76,16 +103,18 @@ class ANN(Classifier):
                                          [None, NormalizerPlugin, MinMaxScalerPlugin, StandardScalerPlugin, RobustScalerPlugin])
         self._normalizer.value=normalizer
         
+        self._randomSeed=PluginAttribute("Random seed", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._randomSeed.value=randomSeed
+        
         self._epochs=PluginAttribute("Epochs", PluginAttribute.PluginAttributeType.VALUE, int)
         self._epochs.value=epochs
         
         self._batchSize=PluginAttribute("Batch size", PluginAttribute.PluginAttributeType.VALUE, int)
         self._batchSize.value=batchSize
         
+        self._learningRate=PluginAttribute("Learning rate", PluginAttribute.PluginAttributeType.VALUE, float)
+        self._learningRate.value=learningRate
 
-        self._randomSeed=PluginAttribute("Random seed", PluginAttribute.PluginAttributeType.VALUE, int)
-        self._randomSeed.value=randomSeed
-        
         self._gpu=PluginAttribute("GPU", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
         self._gpu.value=gpu
         
@@ -93,8 +122,12 @@ class ANN(Classifier):
                                         ["relu", "sigmoid", "softmax"])
         self._outLactFun.value=outLactFun
         
+        self._log=PluginAttribute("Log epoch", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
+        self._log.value=log
+        
         self._hiddenLayers=PluginAttribute("Hidden layers", PluginAttribute.PluginAttributeType.GROUP_PLUGINS, Layer)
         self._hiddenLayers.groupItemLabel="Hidden layer {}"
+        
         
         
         self._CUDA_VISIBLE_DEVICES_CACHED=None  #to remember initial state when GPU is switched off
@@ -171,11 +204,12 @@ class ANN(Classifier):
 
         #compile model
         #sparse_categorical_crossentropy because we will receive labels as integers
-        self._cls.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+        self._cls.compile(loss='sparse_categorical_crossentropy', optimizer=optimizers.Adam(lr=self._learningRate.value), metrics=[USED_ACCURACY])
         
         
         #and train
-        self._cls.fit(data, labels, epochs=self._epochs.value, batch_size=self._batchSize.value)
+        self._cls.fit(data, labels, epochs=self._epochs.value, batch_size=self._batchSize.value, verbose=0, 
+                      callbacks=[EpochLogger(self._logger)] if self._log.value else [])
     
     def predict(self, data):
         self.gpuSwitch()

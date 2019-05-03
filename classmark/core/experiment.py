@@ -366,6 +366,7 @@ class Experiment(Observable):
                 "featuresSele":self._featuresSele,
                 "classifiers":self._classifiers,
                 "evaluationMethod":self._evaluationMethod,
+                "results":self.results
                 }
             #save it
             pickle.dump(data,saveF)
@@ -438,6 +439,10 @@ class Experiment(Observable):
             if not isinstance(lE["evaluationMethod"], Validator):
                 raise ExperimentLoadException("Couldn't load given experiment.")
             self._evaluationMethod=lE["evaluationMethod"]
+            
+            if not isinstance(lE["results"], Results):
+                raise ExperimentLoadException("Couldn't load given experiment.")
+            self.results=lE["results"]
 
     def useDataSubset(self):
         """
@@ -1088,14 +1093,14 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         resultsStorage=Results(steps,experiment.classifiers,lEnc)
 
         
-        for step, c, predicted, realLabels, stepTimes, stats in experiment.evaluationMethod.run(experiment.dataset,experiment.classifiers, 
+        for step, c, predicted, realLabels, testIndices, stepTimes, stats in experiment.evaluationMethod.run(experiment.dataset,experiment.classifiers, 
                             data, labels, extMap, experiment.featuresSelectors, cls.nextSubStep(commQ)):
             if resultsStorage.steps[step].labels is None:
                 #because it does not make much sense to have true labels stored for each predictions
                 #we store labels just once for each validation step
                 resultsStorage.steps[step].labels=realLabels
                 
-            resultsStorage.steps[step].addResults(c, predicted, stepTimes, stats)
+            resultsStorage.steps[step].addResults(c, predicted, testIndices, stepTimes, stats)
    
             
             transRealLabels=lEnc.inverse_transform(realLabels)

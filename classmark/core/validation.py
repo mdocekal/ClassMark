@@ -150,8 +150,8 @@ class Validator(Plugin):
         :param subStepCallback: This callback is called on start of every substep. Passes string
             that describes what the validator is doing now.
         :type subStepCallback: Callable[[str],None]
-        :return: Generator of tuple Tuple[step,classifier,predictedLabels,realLabels, dict of times, samples stats]
-        :rtype: Iterator[Tuple[int,Classifier,np.array,np.array,Dict[TimeDuration, float],Dict[SamplesStats,int]]]
+        :return: Generator of tuple Tuple[step,classifier,predictedLabels,realLabels, selectedSamplesIndicesForTest, dict of times, samples stats]
+        :rtype: Iterator[Tuple[int,Classifier,np.array,np.array,np.array,Dict[TimeDuration, float],Dict[SamplesStats,int]]]
         """
         
         self._lastDataSet=dataSet
@@ -298,7 +298,7 @@ class Validator(Plugin):
                 
                 Logger().log("---")
 
-                yield (step, classifier, predictedLabels, labels[testIndices], copy.copy(times), stats)
+                yield (step, classifier, predictedLabels, labels[testIndices], testIndices, copy.copy(times), stats)
             
     def _featuresStep(self, data:np.array,extMap:List[FeatureExtractor], labels:np.array=None, fit=False):
         """

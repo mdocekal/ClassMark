@@ -10,19 +10,19 @@ from .widget_manager import WidgetManager, IconName, AttributesWidgetManager
 from .section_router import SectionRouter
 from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton, QMessageBox,\
     QWidget
-from PySide2.QtCore import Qt, QObject
+from PySide2.QtCore import Qt
 from ..core.experiment import Experiment, PluginSlot, ExperimentRunner, ExperimentStatsRunner, ExperimentDataStatistics
 from ..core.plugins import Plugin, Classifier
 from ..core.selection import FeaturesSelector
 from .delegates import RadioButtonDelegate, ComboBoxDelegate
-from .models import TableDataAttributesModel, TableClassStatsModel, TableAttributesStatsModel, TableSummarizationResultsModel
+from .models import TableDataAttributesModel, TableClassStatsModel, TableAttributesStatsModel, \
+    TableSummarizationResultsModel, TableConfusionMatrixModel, TableResultsModel, saveTableModelAsCsv
 from ..core.results import Results
 from typing import Callable, Dict
 from functools import partial
 import copy
 from enum import Enum
 from abc import ABC, abstractmethod
-from boto.s3.multipart import Part
 
 class PluginRowWidgetManager(ABC,WidgetManager):
     """
@@ -316,9 +316,18 @@ class ExperimentSectionDataStatsTabWatcher(WidgetManager):
     
 class ResultsPageManager(WidgetManager):
     """
-    Manager for results page.
+    Manager for results page, but just for showing part.
     """
     
+    class ResultShowPage(Enum):
+        """
+        Pages in result tab.
+        """
+        PAGE_SUMMARIZATION=0
+        PAGE_LOG=1
+        PAGE_CONF_MAT=2
+        PAGE_RESULT=3
+        
     def __init__(self,widget:QWidget,parent:QWidget=None):
         """
         Initializes manager.
@@ -333,6 +342,20 @@ class ResultsPageManager(WidgetManager):
         self._widget=widget
         self._parent=parent
         
+        
+        #changing views
+        self._widget.resultsSummarizationButton.clicked.connect(partial(self.changePage,self.ResultShowPage.PAGE_SUMMARIZATION))
+        self._widget.resultsLogButton.clicked.connect(partial(self.changePage,self.ResultShowPage.PAGE_LOG))
+
+    def changePage(self, page):
+        """
+        Changes page.
+        
+        :param page: Page you want to show
+        :type page: ResultShowPage
+        """
+        self._widget.resultsContentStackedWidget.setCurrentIndex(page.value)
+        
     def showResults(self, results:Results):
         """
         Show given results.
@@ -340,9 +363,102 @@ class ResultsPageManager(WidgetManager):
         :param results: Results that should be shown.
         :type results: Results
         """
-        
-        #TODO:continue
+        self._actShowingResults=results
+        self._widget.resultsContentStackedWidget.setCurrentIndex(self.ResultShowPage.PAGE_SUMMARIZATION.value)
+        #assign summarization model to table view
+        self._widget.resultSummarizationTable.setModel(TableSummarizationResultsModel(self._widget, results))
+            
 
+        for i in range(TableSummarizationResultsModel.NUM_COL):
+            self._widget.resultSummarizationTable.horizontalHeader().setSectionResizeMode(i,QHeaderView.ResizeMode.ResizeToContents);
+        
+        #register summarization save button
+        self._widget.summarizationSaveButton.clicked.connect(self._saveSummarizationAsCsv)
+        
+                
+        #assign log
+        self._widget.resultLog.setText(results.log)
+        
+        #add buttons for confusion matrices and results
+        
+        #remove the old ones
+        self.removeChildWidgetFromLayout(self._widget.resultsConfMatLayout)
+        self.removeChildWidgetFromLayout(self._widget.resultsClassificationLayout)
+        #add new
+        for c in results.classifiers:
+            #confusion matrix
+            button=QPushButton()
+            button.setText(c.getName())
+            button.clicked.connect(partial(self.showConfusionMatrix,c))
+            self._widget.resultsConfMatLayout.addWidget(button)
+            
+            #results
+            button=QPushButton()
+            button.setText(c.getName())
+            button.clicked.connect(partial(self.showPredResultTable,c))
+            self._widget.resultsClassificationLayout.addWidget(button)
+            
+    def _saveSummarizationAsCsv(self):
+        """
+        Saves summarization results as csv.
+        """
+        
+        #get model
+        
+        if self._widget.resultSummarizationTable.model():
+            #let user choose path
+            file=QFileDialog.getSaveFileName(self._widget, self.tr("Save summarized results."), ".csv", self.tr("Any files (*)"))
+            file=file[0]
+            if file:
+                saveTableModelAsCsv(self._widget.resultSummarizationTable.model(),file)
+            
+            
+    def showConfusionMatrix(self, classifier:Classifier):
+        """
+        Shows confussion matrix for given classifier.
+        
+        You must first show results with showResults method, else this is just empty operation.
+        
+        :param classifier: For that classifier confusion matrix will be shown.
+        :type classifier: Classifier
+        """
+        if self._actShowingResults is None:
+            #there is nothing there
+            return
+        
+        #assign model to table view
+        model=TableConfusionMatrixModel(self._widget, self._actShowingResults, classifier)
+        self._widget.resultConfussionMatrixTable.setModel(model)
+            
+
+        for i in range(model.columnCount()):
+            self._widget.resultConfussionMatrixTable.horizontalHeader().setSectionResizeMode(i,QHeaderView.ResizeMode.ResizeToContents);
+            
+
+        self.changePage(self.ResultShowPage.PAGE_CONF_MAT)
+            
+    def showPredResultTable(self, classifier:Classifier):
+        """
+        Shows classification results for given classifier.
+        
+        You must first show results with showResults method, else this is just empty operation.
+        
+        :param classifier: For that classifier results will be shown.
+        :type classifier: Classifier
+        """
+        if self._actShowingResults is None:
+            #there is nothing there
+            return
+        
+        #assign model to table view
+        model=TableResultsModel(self._widget, self._actShowingResults, classifier)
+        self._widget.resultClassificationResultTable.setModel(model)
+ 
+        for i in range(model.columnCount()):
+            self._widget.resultClassificationResultTable.horizontalHeader().setSectionResizeMode(i,QHeaderView.ResizeMode.ResizeToContents);
+            
+        self.changePage(self.ResultShowPage.PAGE_RESULT)
+            
 class ExperimentSection(WidgetManager):
     """
     Experiment section manager class.
@@ -486,13 +602,12 @@ class ExperimentSection(WidgetManager):
             self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_NO_RESULTS.value)
         else:
             self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_RESULTS.value)
-            
-            #assign model to table view
-            self._widget.resultSummarizationTable.setModel(TableSummarizationResultsModel(self._widget, self._experiment.results))
-            
 
-            for i in range(TableSummarizationResultsModel.NUM_COL):
-                self._widget.resultSummarizationTable.horizontalHeader().setSectionResizeMode(i,QHeaderView.ResizeMode.ResizeToContents);
+            #save the log
+            self._experiment.results.log=self._widget.logView.toPlainText()
+            self._resultPageManager.showResults(self._experiment.results)
+            self._widget.logView.setText("")    #clear the log
+            
             
                 
         
@@ -566,6 +681,7 @@ class ExperimentSection(WidgetManager):
             self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_NO_RESULTS.value)
         else:
             self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_RESULTS.value)
+            
             
         
     def _initData(self):
@@ -748,13 +864,20 @@ class ExperimentSection(WidgetManager):
         """
         Initialization of results tab.
         """
+        
+        self._resultPageManager=ResultsPageManager(self._widget, self._parent)
         #experiment start events
         self._widget.startExperimentButton.clicked.connect(self._experimentStarts)
         self._widget.runNewExperiment.clicked.connect(self._experimentStarts)
         #experiment stop event
         self._widget.stopExperimentButton.clicked.connect(self._experimentStops)
         
-
+        if self.experiment.results is not None:
+            #we have loaded results
+            #let's show them
+            self._widget.resultTabPager.setCurrentIndex(self.ResultPage.PAGE_RESULTS.value)
+            self._resultPageManager.showResults(self._experiment.results)
+            
     def _hideClassifierProperties(self):
         """
         Hides UI section of classifier properties.
@@ -909,11 +1032,9 @@ class ExperimentSection(WidgetManager):
         :param name: Name that will be shown in header.
         :type name: str
         """
-        #remove old
-        child=self._widget.dataPluginAttributesContent.takeAt(0)
-        while child:
-            child.widget().deleteLater()
-            child=self._widget.dataPluginAttributesContent.takeAt(0)
+        #remove old childs
+        self.removeChildWidgetFromLayout(self._widget.dataPluginAttributesContent)
+
 
         #set the header
         self._widget.dataPluginAttributesHeader.show()

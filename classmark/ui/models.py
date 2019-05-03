@@ -9,53 +9,331 @@ from PySide2.QtCore import QAbstractTableModel, Qt
 from ..core.experiment import Experiment
 from ..core.results import Results
 from ..core.validation import Validator
+from ..core.plugins import Classifier
 from typing import Callable
+
+import csv
+
+def saveTableModelAsCsv(model:QAbstractTableModel,path:str):
+    """
+    Saves table model on given path as csv.
+    
+    Takes just horizontal header.
+    
+    :param model: Model you want to save.
+    :type model: QAbstractTableModel
+    :param path: Path where model should be saved.
+    :type path: str
+    """
+    with open(path, 'w') as f:
+        writer=csv.writer(f)
+        
+        #header
+        writer.writerow([model.headerData(i, Qt.Horizontal, Qt.DisplayRole) for i in range(model.columnCount())])
+        
+        for row in range(model.rowCount()):
+            writer.writerow([model.data(model.index(row, column), Qt.DisplayRole) for column in range(model.columnCount())])
+            
+    
+class TableResultsModel(QAbstractTableModel):
+    """
+    Model for tableview that is for showing results of experiment.
+    """
+    
+    NUM_COL=4
+    """Number of columns in table."""
+    
+    COLL_ROW_INDEX=0
+    """Index of row data index column."""
+    
+    COLL_VAL_STEP=1
+    """Index of validation step index column."""
+    
+    COLL_REAL_LABEL=2
+    """Index of real label column."""
+    
+    COLL_PREDICTED_LABEL=3
+    """Index of predicted label column."""
+    
+    def __init__(self, parent, results:Results, classifier:Classifier):
+        """
+        Initialization of model.
+        
+        :param parent: Parent widget.
+        :type parent: Widget
+        :param results: Experiment results.
+        :type results: Results
+        :param classifier: Confusion matrix will be shown for this classifier.
+        :type classifier: Classifier
+        """
+        QAbstractTableModel.__init__(self, parent)
+        self._results = results
+        self._classifier=classifier
+        self._numOfResults=sum(s.numOfPredictedLabels for s in self.results.steps)
+
+    @property
+    def results(self):
+        """
+        Assigned results.
+        """
+        return self._results
+    
+    @results.setter
+    def results(self, results:Results):
+        """
+        Assign new results.
+        
+        :param results: New results that should be now used.
+        :type results: Results
+        """
+        self._results=results
+        self.beginResetModel()
+        
+        self._numOfResults=sum(s.numOfPredictedLabels for s in self.results.steps)
+        
+    def rowCount(self, parent=None):
+        return self._numOfResults
+
+            
+    
+    def columnCount(self, parent=None):
+        return self.NUM_COL
+    
+    def flags(self, index):
+        """
+        Determine flag for column on given index.
+        
+        :param index: Index containing row and col.
+        :type index: QModelIndex
+        :return: Flag for indexed cell.
+        :rtype: PySide2.QtCore.Qt.ItemFlags
+        """
+        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+    
+    def data(self, index, role):
+        """
+        Getter for content of the table.
+        
+        :param index: Index containing row and col.
+        :type index: QModelIndex
+        :param role: Cell role.
+        :type role: int
+        :return: Data for indexed cell.
+        :rtype: object
+        """
+        
+        if not index.isValid():
+            return None
+
+        if role == Qt.DisplayRole:
+            
+            #in which validation step this row is?
+            step=0
+            stepSum=0
+            
+            #we need to transform row index to index in current step
+            useIndex=index.row()
+            
+            for s in self.results.steps:
+                stepSum+=s.numOfPredictedLabels
+                if index.row()<stepSum:
+                    break
+                
+                useIndex-=s.numOfPredictedLabels
+                step+=1
+            
+            stepNum=step+1
+            step=self._results.steps[step]
+            
+            if useIndex<0: useIndex=index.row()
+            
+            if index.column()==self.COLL_ROW_INDEX:
+                return str(step.testIndicesForCls(self._classifier)[useIndex]+1)
+            
+            if index.column()==self.COLL_VAL_STEP:
+                return stepNum
+            
+            if index.column()==self.COLL_REAL_LABEL:
+                return str(self.results.encoder.inverse_transform([step.labels[useIndex]])[0])
+            
+            if index.column()==self.COLL_PREDICTED_LABEL:
+                return str(self.results.encoder.inverse_transform([step.predictionsForCls(self._classifier)[useIndex]])[0])
+
+        return None
+        
+    
+    def headerData(self, section, orientation, role):
+        """
+        Data for header cell.
+        
+        :param section: Header column.
+        :type section: PySide2.QtCore.int
+        :param orientation: Table orientation.
+        :type orientation: PySide2.QtCore.Qt.Orientation
+        :param role: Role of section.
+        :type role: PySide2.QtCore.int
+        :return: Data for indexed header cell.
+        :rtype: object
+        """
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            #we have horizontal header only.
+            try:
+                return self._HEADERS[section]
+            except AttributeError:
+                """Name of columns in table. Initialization is performed on demand."""
+                self._HEADERS=[self.tr("data row index"),self.tr("validation step"),self.tr("real label"),self.tr("predicted label")]
+                return self._HEADERS[section]
+        
+        return None
+    
+
+class TableConfusionMatrixModel(QAbstractTableModel):
+    """
+    Model for tableview that is for showing confusion matrix of experiment.
+    """
+    
+    def __init__(self, parent, results:Results, classifier:Classifier):
+        """
+        Initialization of model.
+        
+        :param parent: Parent widget.
+        :type parent: Widget
+        :param results: Experiment results.
+        :type results: Results
+        :param classifier: Confusion matrix will be shown for this classifier.
+        :type classifier: Classifier
+        """
+        QAbstractTableModel.__init__(self, parent)
+        self._results = results
+        self._classifier=classifier
+        
+    @property
+    def results(self):
+        """
+        Assigned results.
+        """
+        return self._results
+    
+    @results.setter
+    def results(self, results:Results):
+        """
+        Assign new results.
+        
+        :param results: New results that should be now used.
+        :type results: Results
+        """
+        self._results=results
+        self.beginResetModel()
+        
+    def rowCount(self, parent=None):
+        try:
+            return self._results.confusionMatrix(self._classifier).shape[0]
+        except (AttributeError, TypeError):
+            #probably no assigned data stats
+            return 0
+    
+    def columnCount(self, parent=None):
+        return self._results.confusionMatrix(self._classifier).shape[1]
+    
+    def flags(self, index):
+        """
+        Determine flag for column on given index.
+        
+        :param index: Index containing row and col.
+        :type index: QModelIndex
+        :return: Flag for indexed cell.
+        :rtype: PySide2.QtCore.Qt.ItemFlags
+        """
+        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+    
+    def data(self, index, role):
+        """
+        Getter for content of the table.
+        
+        :param index: Index containing row and col.
+        :type index: QModelIndex
+        :param role: Cell role.
+        :type role: int
+        :return: Data for indexed cell.
+        :rtype: object
+        """
+        
+        if not index.isValid():
+            return None
+
+
+        if role == Qt.DisplayRole:
+            return str(self._results.confusionMatrix(self._classifier)[index.row()][index.column()])
+            
+        return None
+        
+    
+    def headerData(self, section, orientation, role):
+        """
+        Data for header cell.
+        
+        :param section: Header column. (row for vertical header)
+        :type section: PySide2.QtCore.int
+        :param orientation: Table orientation.
+        :type orientation: PySide2.QtCore.Qt.Orientation
+        :param role: Role of section.
+        :type role: PySide2.QtCore.int
+        :return: Data for indexed header cell.
+        :rtype: object
+        """
+        if role == Qt.DisplayRole:
+            return self._results.encoder.inverse_transform([section])[0]    #we can use section directly because encoder encodes labels from zero
+
+        return None
 
 class TableSummarizationResultsModel(QAbstractTableModel):
     """
     Model for tableview that is for showing summarized statistics of experiment.
     """
     
-    NUM_COL=13
+    NUM_COL=14
     """Number of columns in table."""
     
     COLL_CLASSIFIER_NAME=0
     """Index of classifier name column."""
     
-    COLL_ACCURACY=1
+    COLL_CLASSIFIER_ABBER_NAME=1
+    """Index of classifier name abbreviation column."""
+    
+    COLL_ACCURACY=2
     """Index of column with average accuracy."""
     
-    COLL_MICRO_AVG_F1_SCORE=2
+    COLL_MICRO_AVG_F1_SCORE=3
     """Index of column with micro avg F1 score."""
     
-    COLL_MICRO_AVG_PRECISION_SCORE=3
+    COLL_MICRO_AVG_PRECISION_SCORE=4
     """Index of column with micro avg precision score."""
     
-    COLL_MICRO_AVG_RECALL_SCORE=4
+    COLL_MICRO_AVG_RECALL_SCORE=5
     """Index of column with micro avg recall score."""
     
-    COLL_MACRO_AVG_F1_SCORE=5
+    COLL_MACRO_AVG_F1_SCORE=6
     """Index of column with macro avg F1 score."""
     
-    COLL_MACRO_AVG_PRECISION_SCORE=6
+    COLL_MACRO_AVG_PRECISION_SCORE=7
     """Index of column with macro avg precision score."""
     
-    COLL_MACRO_AVG_RECALL_SCORE=7
+    COLL_MACRO_AVG_RECALL_SCORE=8
     """Index of column with macro avg recall score."""
     
-    COLL_WEIGHTED_AVG_F1_SCORE=8
+    COLL_WEIGHTED_AVG_F1_SCORE=9
     """Index of column with weighted avg F1 score."""
     
-    COLL_WEIGHTED_AVG_PRECISION_SCORE=9
+    COLL_WEIGHTED_AVG_PRECISION_SCORE=10
     """Index of column with weighted avg precision score."""
     
-    COLL_WEIGHTED_AVG_RECALL_SCORE=10
+    COLL_WEIGHTED_AVG_RECALL_SCORE=11
     """Index of column with weighted avg recall score."""
     
-    COLL_TRAIN_TIME_SCORE=11
+    COLL_TRAIN_TIME_SCORE=12
     """Index of column with average train time."""
     
-    COLL_TEST_TIME_SCORE=12
+    COLL_TEST_TIME_SCORE=13
     """Index of column with average test time."""
     
     def __init__(self, parent, results:Results):
@@ -132,6 +410,9 @@ class TableSummarizationResultsModel(QAbstractTableModel):
             if index.column()==self.COLL_CLASSIFIER_NAME:
                 return str(classifier.getName())
             
+            if index.column()==self.COLL_CLASSIFIER_ABBER_NAME:
+                return str(classifier.getNameAbbreviation())
+            
             if index.column()==self.COLL_ACCURACY:
                 return str(self._results.scores[classifier][Results.ScoreType.ACCURACY])
             
@@ -199,7 +480,7 @@ class TableSummarizationResultsModel(QAbstractTableModel):
                 return self._HEADERS[section]
             except AttributeError:
                 """Name of columns in table. Initialization is performed on demand."""
-                self._HEADERS=[self.tr("classifier"),self.tr("accuracy"),
+                self._HEADERS=[self.tr("classifier"),self.tr("classifier abbrevation"),self.tr("accuracy"),
                                self.tr("micro avg F1"),self.tr("micro avg precision"),self.tr("micro avg recall"),
                                self.tr("macro avg F1"),self.tr("macro avg precision"),self.tr("macro avg recall"),
                                self.tr("weighted avg F1"),self.tr("weighted avg precision"),self.tr("weighted avg recall"),

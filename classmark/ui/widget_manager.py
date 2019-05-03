@@ -12,7 +12,7 @@ from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QFile, QObject, Qt
 from PySide2.QtGui import QPixmap, QIcon
 from PySide2.QtWidgets import QWidget, QComboBox, QCheckBox,QLineEdit,QHBoxLayout, QVBoxLayout, QLabel,\
-    QPushButton
+    QPushButton, QLayout
 from builtins import isinstance
 from typing import List
 from ..core.plugins import PluginAttribute
@@ -104,6 +104,19 @@ class WidgetManager(object):
         return template
 
     
+    @staticmethod
+    def removeChildWidgetFromLayout(layout:QLayout):
+        """
+        Remove all child widgets in given layout.
+        
+        :param layout: The parent layout.
+        :type layout: QLayout
+        """
+        #remove old
+        child=layout.takeAt(0)
+        while child:
+            child.widget().deleteLater()
+            child=layout.takeAt(0)
 
 class AttributesWidgetManager(WidgetManager):
     """

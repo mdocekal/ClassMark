@@ -118,7 +118,7 @@ class MainWindow(WidgetManager,SectionRouter):
         if file:
             #use selected file
             try:
-                self._experiment.saveExperiment(file[0])
+                self._experiment.saveExperiment(file)
             except Exception as e:
                 emsg = QMessageBox()
                 emsg.setWindowTitle(self.tr("There is a problem with saving your experiment :("))

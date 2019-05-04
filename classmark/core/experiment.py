@@ -522,8 +522,8 @@ class Experiment(Observable):
         Subset is defined by selected samples.
         Samples are selected according to constraints defined in dataStats.
         """
+        self._dataset.useSubset(None)#clear the old one
         if self._dataStats is not None:
-            self._dataset.useSubset(None)#clear the old one
             subset=np.empty(self._dataStats.numberOfSamples)
             counters=copy.copy(self._dataStats.classSamples)
 
@@ -821,15 +821,6 @@ class Experiment(Observable):
         """
         return self._label
     
-    @label.setter
-    def label(self, attribute:str):
-        """
-        Set new label attribute
-        :param attribute: Name of attribute that should be used as new label.
-        :type attribute: str | None
-        """
-        
-        self._label=attribute
         
     def getAttributeSetting(self, attribute:str,t):
         """
@@ -862,13 +853,16 @@ class Experiment(Observable):
         :type attribute: str
         :param t: The setting type.
         :type t: Experiment.AttributeSettings
-        :param val: New value.
+        :param val: New value. For setting new label val must be true, because if you pass false than
+        label will be set to None.
         :type val: bool | Plugin
         :raise KeyError: When the name of attribute is uknown.
         """
         
         if t == Experiment.AttributeSettings.LABEL:
             self._label= attribute if val else None
+            #setting new label invalidates data stats
+            self.setDataStats(None)
         else:
             self._attributesSet[attribute][t]=val
             
@@ -878,8 +872,7 @@ class Experiment(Observable):
                 self._dataset.addPathAttribute(attribute,
                     self._attributesSet[attribute][Experiment.AttributeSettings.FEATURE_EXTRACTOR].expDataType())
             else:
-                self._dataset.removePathAttribute(attribute,
-                    self._attributesSet[attribute][Experiment.AttributeSettings.FEATURE_EXTRACTOR].expDataType())
+                self._dataset.removePathAttribute(attribute)
                 
         if t ==Experiment.AttributeSettings.FEATURE_EXTRACTOR and \
             attribute in self._dataset.pathAttributes:
@@ -932,6 +925,9 @@ class ExperimentBackgroundWorker(QThread):
     
     actInfo = Signal(str)
     """Sends information about what thread is doing now."""
+    
+    error = Signal(str)
+    """Sends information about error that cancels background worker."""
 
     
     class MultPMessageType(Enum):
@@ -954,6 +950,8 @@ class ExperimentBackgroundWorker(QThread):
         RESULT_SIGNAL=4
         """Sends experiment results."""
         
+        ERROR_SIGNAL=5
+        """Sends information about error that cancels background worker."""
         
     
     def __init__(self, experiment:Experiment):
@@ -985,6 +983,8 @@ class ExperimentBackgroundWorker(QThread):
             self.step.emit()
         elif msgType==self.MultPMessageType.ACT_INFO_SIGNAL:
             self.actInfo.emit(msgVal)
+        elif msgType==self.MultPMessageType.ERROR_SIGNAL:
+            self.error.emit(msgVal)
         else:
             return False
         return True
@@ -1002,68 +1002,69 @@ class ExperimentStatsRunner(ExperimentBackgroundWorker):
         """
         Run the stat calculation.
         """
-        statsExp=ExperimentDataStatistics()
-        statsExp.attributes=self._experiment.attributesThatShouldBeUsed(False)
-        #reading, samples, attributes
-        self.numberOfSteps.emit(2+len(statsExp.attributes))
-        
-        #TODO: MULTILANGUAGE
-        self.actInfo.emit("dataset reading") 
-        if self.isInterruptionRequested():
-            return
-        #ok, lets first read the data
-        data, labels=self._experiment.dataset.toNumpyArray([
-            statsExp.attributes,
-            [self._experiment.label]
-            ])
-        
+        try:
+            statsExp=ExperimentDataStatistics()
+            statsExp.attributes=self._experiment.attributesThatShouldBeUsed(False)
 
-        if data.shape[0]==0:
-            #no data
-            #TODO: ERROR MESSAGE FOR USER THIS IS TO FAST
-            self.actInfo.emit("no data") 
-            self.calcStatsResult.emit(statsExp)
-            return
-        
-        labels=labels.ravel()   #we need row vector   
-        
-        self.step.emit()     
-        self.actInfo.emit("samples counting") 
-        if self.isInterruptionRequested():
-            return
-        
-        classSamples={}
-        
-        classes, samples=np.unique(labels, return_counts=True)
-        
-        for actClass, actClassSamples in zip(classes, samples):
+            #reading, samples, attributes
+            self.numberOfSteps.emit(2+len(statsExp.attributes))
+
+            self.actInfo.emit("dataset reading") 
             if self.isInterruptionRequested():
                 return
-            classSamples[actClass]=actClassSamples
- 
-        statsExp.classSamples=classSamples
-        #extractors mapping
-        extMap=[(a, self._experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR)) \
-                for a in self._experiment.attributesThatShouldBeUsed(False)]
-        
-        self.step.emit() 
-        
-        #get the attributes values
-        for i,(attr,extractor) in enumerate(extMap):
-            self.actInfo.emit("attribute: "+attr) 
+            #ok, lets first read the data
+            data, labels=self._experiment.dataset.toNumpyArray([
+                statsExp.attributes,
+                [self._experiment.label]
+                ])
+            
+    
+            if data.shape[0]==0:
+                #no data
+                self.error.emit("no data") 
+                return
+            
+            labels=labels.ravel()   #we need row vector   
+            
+            self.step.emit()     
+            self.actInfo.emit("samples counting") 
             if self.isInterruptionRequested():
                 return
-            actF=extractor.fitAndExtract(data[:,i],labels).tocsc()
-            if self.isInterruptionRequested():
-                return
-            statsExp.attributesFeatures[attr]=actF.shape[1]
-            statsExp.attributesAVGFeatureVariance[attr]=np.average(np.array([sparseMatVariance(actF[:,c]) for c in range(actF.shape[1])]))
+            
+            classSamples={}
+            
+            classes, samples=np.unique(labels, return_counts=True)
+            
+            for actClass, actClassSamples in zip(classes, samples):
+                if self.isInterruptionRequested():
+                    return
+                classSamples[actClass]=actClassSamples
+     
+            statsExp.classSamples=classSamples
+            #extractors mapping
+            extMap=[(a, self._experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR)) \
+                    for a in self._experiment.attributesThatShouldBeUsed(False)]
+            
             self.step.emit() 
             
-        self.actInfo.emit("Done") 
-        
-        self.calcStatsResult.emit(statsExp)
-        
+            #get the attributes values
+            for i,(attr,extractor) in enumerate(extMap):
+                self.actInfo.emit("attribute: "+attr) 
+                if self.isInterruptionRequested():
+                    return
+                actF=extractor.fitAndExtract(data[:,i],labels).tocsc()
+                if self.isInterruptionRequested():
+                    return
+                statsExp.attributesFeatures[attr]=actF.shape[1]
+                statsExp.attributesAVGFeatureVariance[attr]=np.average(np.array([sparseMatVariance(actF[:,c]) for c in range(actF.shape[1])]))
+                self.step.emit() 
+                
+            self.actInfo.emit("Done") 
+            
+            self.calcStatsResult.emit(statsExp)
+        except Exception as e:
+            #error
+            self.error.emit(str(e))
 
         
 class ExperimentRunner(ExperimentBackgroundWorker):
@@ -1082,29 +1083,32 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         """
         Run the experiment.
         """
-        commQ = multiprocessing.Queue()
-        p = multiprocessing.Process(target=partial(self.work, self._experiment, commQ))
-        p.start()
-        while not self.isInterruptionRequested() and p.is_alive():
-            try:
-                msgType, msgValue=commQ.get(True, 0.5)#blocking
-                self.processMultPMsg(msgType, msgValue)
-            except queue.Empty:
-                #nothing here
-                pass
+        try:
+            commQ = multiprocessing.Queue()
+            p = multiprocessing.Process(target=partial(self.work, self._experiment, commQ))
+            p.start()
+            while not self.isInterruptionRequested() and p.is_alive():
+                try:
+                    msgType, msgValue=commQ.get(True, 0.5)#blocking
+                    self.processMultPMsg(msgType, msgValue)
+                except queue.Empty:
+                    #nothing here
+                    pass
+                
+            if p.is_alive():
+                p.terminate()
+                
+            while True:#is something still in queue?
+                try:
+                    msgType, msgValue=commQ.get(True, 0.5)#blocking
+                    self.processMultPMsg(msgType, msgValue)
+                except queue.Empty:
+                    #nothing here
+                    break
             
-        if p.is_alive():
-            p.terminate()
-            
-        while True:#is something still in queue?
-            try:
-                msgType, msgValue=commQ.get(True, 0.5)#blocking
-                self.processMultPMsg(msgType, msgValue)
-            except queue.Empty:
-                #nothing here
-                break
-            
-        
+        except Exception as e:
+            #error
+            self.error.emit(str(e))
         
     @classmethod
     def work(cls, experiment:Experiment, commQ:multiprocessing.Queue):
@@ -1116,78 +1120,82 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         :param commQ: Communication queue.
         :type commQ: multiprocessing.Queue
         """
-        #TODO: catch all arror and send error message
-        #TODO: MULTILANGUAGE
-        commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,"dataset reading"))
-
-        logger=Logger() #get singleton instance of logger
-        
-        #reg event
-        logger.registerObserver("LOG", 
-            lambda logMsg: commQ.put((cls.MultPMessageType.LOG_SIGNAL, logMsg)))
-        
-        #ok, lets first read the data
-        data, labels=experiment.dataset.toNumpyArray([
-            experiment.attributesThatShouldBeUsed(False),
-            [experiment.label]
-            ])
-        
-        if data.shape[0]==0:
-            #no data
-            #TODO: ERROR MESSAGE FOR USER THIS IS TO FAST
-            commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,"no data"))
-            return
-        
-        labels=labels.ravel()   #we need row vector       
-        lEnc=LabelEncoder()
-        #let's encode labels to save some memory space
-        labels=lEnc.fit_transform(labels)
-        
-        
-        #extractors mapping
-        extMap=[experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR) \
-                for a in experiment.attributesThatShouldBeUsed(False)]
-        
+        try:
+            commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,"dataset reading"))
     
+            logger=Logger() #get singleton instance of logger
+            
+            #reg event
+            logger.registerObserver("LOG", 
+                lambda logMsg: commQ.put((cls.MultPMessageType.LOG_SIGNAL, logMsg)))
+            
+            #ok, lets first read the data
+            data, labels=experiment.dataset.toNumpyArray([
+                experiment.attributesThatShouldBeUsed(False),
+                [experiment.label]
+                ])
+            
+            if data.shape[0]==0:
+                #no data
+                #TODO: ERROR MESSAGE FOR USER THIS IS TO FAST
+                commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,"no data"))
+                return
+            
+            labels=labels.ravel()   #we need row vector       
+            lEnc=LabelEncoder()
+            #let's encode labels to save some memory space
+            labels=lEnc.fit_transform(labels)
+            
+            
+            #extractors mapping
+            extMap=[experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR) \
+                    for a in experiment.attributesThatShouldBeUsed(False)]
+            
         
-        #create storage for results
-        steps=experiment.evaluationMethod.numOfSteps(experiment.dataset,data,labels)
-        
-        commQ.put((cls.MultPMessageType.NUMBER_OF_STEPS_SIGNAL,    
-                   (len(experiment.classifiers)*2+experiment.evaluationMethod.NUMBER_OF_FEATURES_STEP)*(steps)+1))
-                #+1 reading
-                #len(experiment.classifiers)*2    one step for testing and one for training of one classifier
-        
-        
-        commQ.put((cls.MultPMessageType.STEP_SIGNAL,None))  #because reading is finished
-
-        #TODO catch memory error
-        resultsStorage=Results(steps,experiment.classifiers,lEnc)
-
-        
-        for step, c, predicted, realLabels, testIndices, stepTimes, stats in experiment.evaluationMethod.run(experiment.dataset,experiment.classifiers, 
-                            data, labels, extMap, experiment.featuresSelectors, cls.nextSubStep(commQ)):
-            if resultsStorage.steps[step].labels is None:
-                #because it does not make much sense to have true labels stored for each predictions
-                #we store labels just once for each validation step
-                resultsStorage.steps[step].labels=realLabels
+            
+            #create storage for results
+            steps=experiment.evaluationMethod.numOfSteps(experiment.dataset,data,labels)
+            
+            commQ.put((cls.MultPMessageType.NUMBER_OF_STEPS_SIGNAL,    
+                       (len(experiment.classifiers)*2+experiment.evaluationMethod.NUMBER_OF_FEATURES_STEP)*(steps)+1))
+                    #+1 reading
+                    #len(experiment.classifiers)*2    one step for testing and one for training of one classifier
+            
+            
+            commQ.put((cls.MultPMessageType.STEP_SIGNAL,None))  #because reading is finished
+    
+            #TODO catch memory error
+            resultsStorage=Results(steps,experiment.classifiers,lEnc)
+    
+            
+            for step, c, predicted, realLabels, testIndices, stepTimes, stats in experiment.evaluationMethod.run(experiment.dataset,experiment.classifiers, 
+                                data, labels, extMap, experiment.featuresSelectors, cls.nextSubStep(commQ)):
+                if resultsStorage.steps[step].labels is None:
+                    #because it does not make much sense to have true labels stored for each predictions
+                    #we store labels just once for each validation step
+                    resultsStorage.steps[step].labels=realLabels
+                    
+                resultsStorage.steps[step].addResults(c, predicted, testIndices, stepTimes, stats)
+       
                 
-            resultsStorage.steps[step].addResults(c, predicted, testIndices, stepTimes, stats)
-   
+                transRealLabels=lEnc.inverse_transform(realLabels)
+                transPredictedLabels=lEnc.inverse_transform(predicted)
+                cls.writeConfMat(transPredictedLabels, transRealLabels)
+    
+                logger.log(classification_report(transRealLabels, 
+                                                 transPredictedLabels))
+                
+                logger.log("accuracy\t{}".format(accuracy_score(realLabels, predicted)))
+                logger.log("\n\n")
+            resultsStorage.finalize()   #for better score calculation
+            commQ.put((cls.MultPMessageType.RESULT_SIGNAL,resultsStorage))
             
-            transRealLabels=lEnc.inverse_transform(realLabels)
-            transPredictedLabels=lEnc.inverse_transform(predicted)
-            cls.writeConfMat(transPredictedLabels, transRealLabels)
-
-            logger.log(classification_report(transRealLabels, 
-                                             transPredictedLabels))
-            
-            logger.log("accuracy\t{}".format(accuracy_score(realLabels, predicted)))
-            logger.log("\n\n")
-        resultsStorage.finalize()   #for better score calculation
-        commQ.put((cls.MultPMessageType.RESULT_SIGNAL,resultsStorage))
-        commQ.close()
-        commQ.join_thread()
+        except Exception as e:
+            #error
+            commQ.put((cls.MultPMessageType.ERROR_SIGNAL,str(e)))
+        finally:
+            commQ.close()
+            commQ.join_thread()
     @classmethod
     def nextSubStep(cls,commQ:multiprocessing.Queue):
         """

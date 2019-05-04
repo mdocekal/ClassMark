@@ -12,7 +12,7 @@ from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QFile, QObject, Qt
 from PySide2.QtGui import QPixmap, QIcon
 from PySide2.QtWidgets import QWidget, QComboBox, QCheckBox,QLineEdit,QHBoxLayout, QVBoxLayout, QLabel,\
-    QPushButton, QLayout
+    QPushButton, QLayout, QMessageBox
 from builtins import isinstance
 from typing import List
 from ..core.plugins import PluginAttribute
@@ -117,6 +117,18 @@ class WidgetManager(object):
         while child:
             child.widget().deleteLater()
             child=layout.takeAt(0)
+            
+    def _showMessageInBox(self, msg:str):
+        """
+        Show error message.
+        
+        :param msg: Error message
+        :type msg: str
+        """
+        
+        msgBox=QMessageBox();
+        msgBox.setText(msg);
+        msgBox.exec();
 
 class AttributesWidgetManager(WidgetManager):
     """

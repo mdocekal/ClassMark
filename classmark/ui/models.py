@@ -993,7 +993,7 @@ class TableDataAttributesModel(QAbstractTableModel):
         elif role==Qt.EditRole:
             if index.column() == self.COLL_LABEL:
                 #radio button
-                self._experiment.label=attributeName
+                self._experiment.setAttributeSetting(attributeName, Experiment.AttributeSettings.LABEL, True)
             elif index.column() == self.COLL_FEATURE_EXTRACTION:
                 if self._experiment.getAttributeSetting(attributeName, 
                         Experiment.AttributeSettings.FEATURE_EXTRACTOR).getName()!=value:

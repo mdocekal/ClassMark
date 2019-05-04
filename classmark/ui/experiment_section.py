@@ -531,6 +531,8 @@ class ExperimentSection(WidgetManager):
         self._parent=parent
         self.loadExperiment(load)
         
+        self.__dataStatsStartHaveStats=False    #flag that is used when will call background process for data stats
+        
     @property
     def experiment(self):
         """
@@ -564,7 +566,11 @@ class ExperimentSection(WidgetManager):
         
         #create new or load saved experiment
         self._experiment=Experiment(load)
+        
+        #register observable for experiment data statistics
 
+        self._experiment.registerObserver("NEW_DATA_STATS",self._dataStatsFinished)
+        
         self._initData()
         self._initDataStats()
         self._initFeatSel()
@@ -593,6 +599,7 @@ class ExperimentSection(WidgetManager):
         self._experimentRunner.numberOfSteps.connect(self._widget.experimentProgressBar.setMaximum)
         self._experimentRunner.step.connect(self._incExperimentProgressBar)
         self._experimentRunner.actInfo.connect(self._widget.experimentActInfo.setText)
+        self._experimentRunner.error.connect(self._showMessageInBox)
         self._experimentRunner.result.connect(partial(self._experiment.setResults))
         self._experimentRunner.log.connect(self._widget.logView.append)
         
@@ -637,8 +644,6 @@ class ExperimentSection(WidgetManager):
             self._resultPageManager.showResults(self._experiment.results)
             self._widget.logView.setText("")    #clear the log
             
-            
-                
         
     def _dataStatsStart(self):
         """
@@ -650,7 +655,9 @@ class ExperimentSection(WidgetManager):
             msgBox.exec();
             return
         
+        
         self._experiment.useDataSubset()
+        self.__dataStatsStartHaveStats=False    #mark that we actual get the stats
 
         #create runner for 
         self._statsRunner=ExperimentStatsRunner(self._experiment)
@@ -658,6 +665,7 @@ class ExperimentSection(WidgetManager):
         self._statsRunner.numberOfSteps.connect(self._widget.dataStatsRunProgressBar.setMaximum)
         self._statsRunner.step.connect(self._incDataStatsProgressBar)
         self._statsRunner.actInfo.connect(self._widget.dataStatsRunActInfo.setText)
+        self._statsRunner.error.connect(self._showMessageInBox)
         self._statsRunner.calcStatsResult.connect(self._newDataStatsResults)
         
         #clear the act info
@@ -697,19 +705,21 @@ class ExperimentSection(WidgetManager):
         :param stats: The new stats.
         :type stats: ExperimentDataStatistics
         """
+
         self._experiment.setDataStats(stats, True)
+        self.__dataStatsStartHaveStats=True
         
         
     def _dataStatsFinished(self):
         """
-        Shows statistics.
+        Shows statistics. Is also used when data stats changed (was removed) when use changes label.
         """
         
         #show the data stats tab
-        if self._experiment.dataStats is None:
-            self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_NO_RESULTS.value)
-        else:
+        if self.__dataStatsStartHaveStats and self.experiment.dataStats is not None:
             self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_RESULTS.value)
+        else:
+            self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_NO_RESULTS.value)
             
             
         

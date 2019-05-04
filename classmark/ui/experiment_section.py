@@ -312,7 +312,7 @@ class ExperimentSectionDataStatsTabWatcher(WidgetManager):
         
         self._widget.dataStatsAttributesTable.horizontalHeader().setSectionResizeMode(TableAttributesStatsModel.COLL_ATTRIBUTE_NAME,QHeaderView.Stretch);
         self._widget.dataStatsAttributesTable.horizontalHeader().setSectionResizeMode(TableAttributesStatsModel.COLL_NUM_OF_FEATURES,QHeaderView.ResizeMode.ResizeToContents);
-        self._widget.dataStatsAttributesTable.horizontalHeader().setSectionResizeMode(TableAttributesStatsModel.COLL_FEATURES_VARIANCE,QHeaderView.ResizeMode.ResizeToContents);
+        self._widget.dataStatsAttributesTable.horizontalHeader().setSectionResizeMode(TableAttributesStatsModel.COLL_FEATURES_SD,QHeaderView.ResizeMode.ResizeToContents);
 
     
 class ResultsPageManager(WidgetManager):

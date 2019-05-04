@@ -564,8 +564,8 @@ class TableAttributesStatsModel(QAbstractTableModel):
     COLL_NUM_OF_FEATURES=1
     """Index of column with number of features for attribute."""
     
-    COLL_FEATURES_VARIANCE=2
-    """Index of column with features variance."""
+    COLL_FEATURES_SD=2
+    """Index of column with features standard deviation."""
 
     
     def __init__(self, parent, experiment:Experiment):
@@ -647,8 +647,8 @@ class TableAttributesStatsModel(QAbstractTableModel):
             if index.column()==self.COLL_NUM_OF_FEATURES:
                 return str(self.experiment.dataStats.attributesFeatures[attributeName])
             
-            if index.column()==self.COLL_FEATURES_VARIANCE:
-                return str(self.experiment.dataStats.attributesAVGFeatureVariance[attributeName])
+            if index.column()==self.COLL_FEATURES_SD:
+                return str(self.experiment.dataStats.attributesAVGFeatureSD[attributeName])
 
         return None
         
@@ -672,7 +672,7 @@ class TableAttributesStatsModel(QAbstractTableModel):
                 return self._HEADERS[section]
             except AttributeError:
                 """Name of columns in table. Initialization is performed on demand."""
-                self._HEADERS=[self.tr("attribute"),self.tr("number of features"),self.tr("average features variance")]
+                self._HEADERS=[self.tr("attribute"),self.tr("number of features"),self.tr("average features standard deviation")]
                 return self._HEADERS[section]
         
         return None

@@ -144,7 +144,7 @@ class ExperimentDataStatistics(Observable):
         self._classes=[]    #just to give order to the classes
         self._attributes=[]
         self._attributesFeatures={}
-        self._attributesAVGFeatureVariance={}
+        self._attributesAVGFeatureSD={}
         
     
     def isActive(self,c):
@@ -215,11 +215,11 @@ class ExperimentDataStatistics(Observable):
         """
         
         self._attributesFeatures={}
-        self._attributesAVGFeatureVariance={}
+        self._attributesAVGFeatureSD={}
         
         for a in attr:
             self._attributesFeatures[a]=0
-            self._attributesAVGFeatureVariance[a]=0
+            self._attributesAVGFeatureSD[a]=0
             
         self._attributes=attr
         
@@ -350,11 +350,11 @@ class ExperimentDataStatistics(Observable):
     
     
     @property
-    def attributesAVGFeatureVariance(self):
+    def attributesAVGFeatureSD(self):
         """
-        Average variance of features for each attribute.
+        Average standard deviation of features for each attribute.
         """
-        return self._attributesAVGFeatureVariance
+        return self._attributesAVGFeatureSD
     
 class ExperimentLoadException(Exception):
     """
@@ -1056,7 +1056,7 @@ class ExperimentStatsRunner(ExperimentBackgroundWorker):
                 if self.isInterruptionRequested():
                     return
                 statsExp.attributesFeatures[attr]=actF.shape[1]
-                statsExp.attributesAVGFeatureVariance[attr]=np.average(np.array([sparseMatVariance(actF[:,c]) for c in range(actF.shape[1])]))
+                statsExp.attributesAVGFeatureSD[attr]=np.average(np.array([(sparseMatVariance(actF[:,c]))**0.5 for c in range(actF.shape[1])]))
                 self.step.emit() 
                 
             self.actInfo.emit("Done") 

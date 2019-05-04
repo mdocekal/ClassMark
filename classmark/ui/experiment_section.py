@@ -9,8 +9,9 @@ Module for experiment section of the application.
 from .widget_manager import WidgetManager, IconName, AttributesWidgetManager
 from .section_router import SectionRouter
 from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton, QMessageBox,\
-    QWidget
+    QWidget, QTableView
 from PySide2.QtCore import Qt
+
 from ..core.experiment import Experiment, PluginSlot, ExperimentRunner, ExperimentStatsRunner, ExperimentDataStatistics
 from ..core.plugins import Plugin, Classifier
 from ..core.selection import FeaturesSelector
@@ -346,6 +347,11 @@ class ResultsPageManager(WidgetManager):
         #changing views
         self._widget.resultsSummarizationButton.clicked.connect(partial(self.changePage,self.ResultShowPage.PAGE_SUMMARIZATION))
         self._widget.resultsLogButton.clicked.connect(partial(self.changePage,self.ResultShowPage.PAGE_LOG))
+        
+        #register save buttons events
+        self._widget.summarizationSaveButton.clicked.connect(self._saveSummarizationAsCsv)
+        self._widget.saveClassificatorCunfusionMatrixButton.clicked.connect(self._saveConfusionMatrixAsCsv)
+        self._widget.saveClassificationResultsButton.clicked.connect(self._saveClassificationResultsAsCsv)
 
     def changePage(self, page):
         """
@@ -371,9 +377,6 @@ class ResultsPageManager(WidgetManager):
 
         for i in range(TableSummarizationResultsModel.NUM_COL):
             self._widget.resultSummarizationTable.horizontalHeader().setSectionResizeMode(i,QHeaderView.ResizeMode.ResizeToContents);
-        
-        #register summarization save button
-        self._widget.summarizationSaveButton.clicked.connect(self._saveSummarizationAsCsv)
         
                 
         #assign log
@@ -402,16 +405,37 @@ class ResultsPageManager(WidgetManager):
         """
         Saves summarization results as csv.
         """
+        self._saveTableAsCsv(self._widget.resultSummarizationTable, self.tr("Save summarized results."))
+                
+    def _saveConfusionMatrixAsCsv(self):
+        """
+        Saves confusion matrix as csv.
+        """
+        self._saveTableAsCsv(self._widget.resultConfussionMatrixTable, self.tr("Save confusion matrix."))
+    
+    def _saveClassificationResultsAsCsv(self):
+        """
+        Saves classification result as csv.
+        """
+        self._saveTableAsCsv(self._widget.resultClassificationResultTable, self.tr("Save experiment results."))
+    
+    def _saveTableAsCsv(self, table:QTableView, title:str):
+        """
+        Saves given table to csv.
+        
+        :param table: Table you want to save.
+        :type table: QTableView
+        :param title: Title for file selection window.
+        :type title: str
+        """
         
         #get model
-        
-        if self._widget.resultSummarizationTable.model():
+        if table.model():
             #let user choose path
-            file=QFileDialog.getSaveFileName(self._widget, self.tr("Save summarized results."), ".csv", self.tr("Any files (*)"))
+            file=QFileDialog.getSaveFileName(self._widget, title, ".csv", self.tr("Any files (*)"))
             file=file[0]
             if file:
-                saveTableModelAsCsv(self._widget.resultSummarizationTable.model(),file)
-            
+                saveTableModelAsCsv(table.model(),file)
             
     def showConfusionMatrix(self, classifier:Classifier):
         """
@@ -434,6 +458,8 @@ class ResultsPageManager(WidgetManager):
         for i in range(model.columnCount()):
             self._widget.resultConfussionMatrixTable.horizontalHeader().setSectionResizeMode(i,QHeaderView.ResizeMode.ResizeToContents);
             
+        #change title
+        self._widget.confusionMatrixForClsLabel.setText(classifier.getName())
 
         self.changePage(self.ResultShowPage.PAGE_CONF_MAT)
             
@@ -457,6 +483,9 @@ class ResultsPageManager(WidgetManager):
         for i in range(model.columnCount()):
             self._widget.resultClassificationResultTable.horizontalHeader().setSectionResizeMode(i,QHeaderView.ResizeMode.ResizeToContents);
             
+        #change title
+        self._widget.resultsForClsLabel.setText(classifier.getName())
+        
         self.changePage(self.ResultShowPage.PAGE_RESULT)
             
 class ExperimentSection(WidgetManager):

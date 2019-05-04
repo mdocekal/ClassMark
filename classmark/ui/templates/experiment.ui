@@ -1323,7 +1323,7 @@
                 <rect>
                  <x>0</x>
                  <y>0</y>
-                 <width>407</width>
+                 <width>313</width>
                  <height>174</height>
                 </rect>
                </property>
@@ -1415,7 +1415,7 @@
              </widget>
              <widget class="QStackedWidget" name="resultsContentStackedWidget">
               <property name="currentIndex">
-               <number>3</number>
+               <number>2</number>
               </property>
               <widget class="QWidget" name="summarizationPage">
                <layout class="QVBoxLayout" name="verticalLayout_16">
@@ -1460,11 +1460,56 @@
               <widget class="QWidget" name="confussionMatricesPage">
                <layout class="QVBoxLayout" name="verticalLayout_17">
                 <item>
-                 <widget class="QLabel" name="label_24">
-                  <property name="text">
-                   <string>Confusion matrix (sum of all confusion matrices for all validation steps)</string>
-                  </property>
-                 </widget>
+                 <layout class="QHBoxLayout" name="horizontalLayout_7">
+                  <item>
+                   <widget class="QLabel" name="confusionMatrixForClsLabel">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="font">
+                     <font>
+                      <weight>75</weight>
+                      <bold>true</bold>
+                     </font>
+                    </property>
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="label_24">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="font">
+                     <font>
+                      <italic>true</italic>
+                     </font>
+                    </property>
+                    <property name="text">
+                     <string>Confusion matrix (sum of all confusion matrices for all validation steps)</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="saveClassificatorCunfusionMatrixButton">
+                    <property name="text">
+                     <string>...</string>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../icons/save.svg</normaloff>../icons/save.svg</iconset>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
                 </item>
                 <item>
                  <widget class="QTableView" name="resultConfussionMatrixTable"/>
@@ -1474,11 +1519,56 @@
               <widget class="QWidget" name="classificationResultsPage">
                <layout class="QVBoxLayout" name="verticalLayout_18">
                 <item>
-                 <widget class="QLabel" name="label_25">
-                  <property name="text">
-                   <string>Classification results</string>
-                  </property>
-                 </widget>
+                 <layout class="QHBoxLayout" name="horizontalLayout_8">
+                  <item>
+                   <widget class="QLabel" name="resultsForClsLabel">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="font">
+                     <font>
+                      <weight>75</weight>
+                      <bold>true</bold>
+                     </font>
+                    </property>
+                    <property name="text">
+                     <string>TextLabel</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="label_25">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="font">
+                     <font>
+                      <italic>true</italic>
+                     </font>
+                    </property>
+                    <property name="text">
+                     <string>Classification results</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="saveClassificationResultsButton">
+                    <property name="text">
+                     <string>...</string>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normaloff>../icons/save.svg</normaloff>../icons/save.svg</iconset>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
                 </item>
                 <item>
                  <widget class="QTableView" name="resultClassificationResultTable"/>

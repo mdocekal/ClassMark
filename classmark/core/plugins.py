@@ -398,9 +398,9 @@ class Classifier(Plugin):
         pass
     
     @abstractmethod
-    def predict(self, data):
+    def classify(self, data):
         """
-        Predict label on provided data.
+        Classify label on provided data.
         
         :param data: Data for classification.
         :type data: scipy.sparse matrix

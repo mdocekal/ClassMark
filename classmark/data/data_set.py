@@ -9,17 +9,11 @@ Module for data set representation and actions.
 import os
 import csv
 import numpy as np
-import mimetypes
 from typing import List, Dict
 from ..core.plugins import FeatureExtractor
 from skimage.io import imread
 from abc import ABC
 
-class Sample(object):
-    """
-    Representation of one sample in data set.
-    """
-    pass
 
 class LazyFileReaderFactory(object):
     """

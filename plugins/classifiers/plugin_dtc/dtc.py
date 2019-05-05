@@ -61,7 +61,7 @@ class DecisionTree(Classifier):
             
         self._cls.fit(data,labels)
     
-    def predict(self, data):
+    def classify(self, data):
         if self._normalizer.value is not None:
             data=self._normalizer.value.transform(data)
         return self._cls.predict(data)

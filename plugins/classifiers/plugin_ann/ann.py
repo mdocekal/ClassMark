@@ -211,7 +211,7 @@ class ANN(Classifier):
         self._cls.fit(data, labels, epochs=self._epochs.value, batch_size=self._batchSize.value, verbose=0, 
                       callbacks=[EpochLogger(self._logger)] if self._log.value else [])
     
-    def predict(self, data):
+    def classify(self, data):
         self.gpuSwitch()
         if self._normalizer.value is not None:
             data=self._normalizer.value.transform(data)

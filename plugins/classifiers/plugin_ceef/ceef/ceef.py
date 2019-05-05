@@ -212,12 +212,12 @@ class CEEF(Classifier):
 
         return newPopulation
         
-    def predict(self, data):
+    def classify(self, data):
         if self._normalizer.value is not None:
             data=self._normalizer.value.transform(data)
             
         try:
-            return self._evolvedCls.predict(data.A)
+            return self._evolvedCls.classify(data.A)
         except MemoryError:
             #ok lets try the parts
             predicted=np.empty(data.shape[0], dtype=self.trainedClasses.dtype)
@@ -228,7 +228,7 @@ class CEEF(Classifier):
                 try:
                     partSize=int(partSize/2)
                     for offset in range(0, data.shape[0], partSize):
-                        predicted[offset:offset+partSize]=self._evolvedCls.predict(data[offset:offset+partSize,:].A)
+                        predicted[offset:offset+partSize]=self._evolvedCls.classify(data[offset:offset+partSize,:].A)
                 except MemoryError:
                     memEr=True
     

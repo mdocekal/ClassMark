@@ -65,7 +65,7 @@ class NaiveBayesClassifier(Classifier):
             
         
     
-    def predict(self, data):
+    def classify(self, data):
         if self._normalizer.value is not None:
             data=self._normalizer.value.transform(data)
             

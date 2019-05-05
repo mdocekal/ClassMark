@@ -99,7 +99,7 @@ class Individual(object):
             self._evaluate=False
 
             #ok, we do not have it yet so lets calc it
-            predicted=self.predict(self._dataSet.testData)
+            predicted=self.classify(self._dataSet.testData)
             
             score=np.sum(predicted == self._dataSet.testLabels)
         
@@ -111,7 +111,7 @@ class Individual(object):
 
         return self._scoresSum/self._numOfScoresInSum
     
-    def predict(self, samples):
+    def classify(self, samples):
         """
         Predicts class for given samples according to actual chromosome.
         

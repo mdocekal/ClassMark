@@ -7,7 +7,7 @@ Module for experiment representation and actions.
 """
 
 from ..data.data_set import DataSet
-from enum import Enum
+from enum import Enum, auto
 import time
 from _collections import OrderedDict
 from ..core.plugins import Plugin, CLASSIFIERS, FEATURE_EXTRACTORS
@@ -911,7 +911,7 @@ class Experiment(Observable):
         return self._dataset
 
         
-class ExperimentBackgroundWorker(QThread):
+class ExperimentBackgroundRunner(QThread):
     """
     Base class for background tasks.
     Defines all mandatory signals.
@@ -928,29 +928,31 @@ class ExperimentBackgroundWorker(QThread):
     
     error = Signal(str)
     """Sends information about error that cancels background worker."""
-
+    
+    log= Signal(str)
+    """Sends log message that should be shown in GUI."""
     
     class MultPMessageType(Enum):
         """
         Message type for multiprocessing communication.
         """
         
-        NUMBER_OF_STEPS_SIGNAL=0
+        NUMBER_OF_STEPS_SIGNAL=auto()
         """Signalizes that we now know the number of steps. Value is number of steps (int)."""
         
-        STEP_SIGNAL=1
+        STEP_SIGNAL=auto()
         """Next step finished. Value None."""
         
-        ACT_INFO_SIGNAL=2
+        ACT_INFO_SIGNAL=auto()
         """Sends information about what process is doing now. Value is string."""
         
-        LOG_SIGNAL=3
+        LOG_SIGNAL=auto()
         """Sends log message that should be shown in GUI."""
         
-        RESULT_SIGNAL=4
+        RESULT_SIGNAL=auto()
         """Sends experiment results."""
         
-        ERROR_SIGNAL=5
+        ERROR_SIGNAL=auto()
         """Sends information about error that cancels background worker."""
         
     
@@ -963,126 +965,18 @@ class ExperimentBackgroundWorker(QThread):
         """
         QThread.__init__(self)
         
-        self._experiment=experiment
+        self._experiment=copy.copy(experiment)
+        #remove thinks that are no longer useful
+        self._experiment.clearObservers()
         
-    def processMultPMsg(self,msgType,msgVal:Any):
-        """
-        Processes message received from another process.
-        Sends appropriate signals to UI thread.
-        
-        :param msgType: Type of received message.
-        :type msgType: MultPMessageType
-        :param msgVal: The message.
-        :type msgVal: Any
-        :return: Returns True if emits an signal. False otherwise.
-        :rtype: bool
-        """
-        if msgType==self.MultPMessageType.NUMBER_OF_STEPS_SIGNAL:
-            self.numberOfSteps.emit(msgVal)
-        elif msgType==self.MultPMessageType.STEP_SIGNAL:
-            self.step.emit()
-        elif msgType==self.MultPMessageType.ACT_INFO_SIGNAL:
-            self.actInfo.emit(msgVal)
-        elif msgType==self.MultPMessageType.ERROR_SIGNAL:
-            self.error.emit(msgVal)
-        else:
-            return False
-        return True
-    
-
-class ExperimentStatsRunner(ExperimentBackgroundWorker):
-    """
-    Runs the stats calculation in it's own thread.
-    """
-
-    calcStatsResult = Signal(ExperimentDataStatistics)
-    """Sends calculated statistics."""
-    
-    def run(self):
-        """
-        Run the stat calculation.
-        """
-        try:
-            statsExp=ExperimentDataStatistics()
-            statsExp.attributes=self._experiment.attributesThatShouldBeUsed(False)
-
-            #reading, samples, attributes
-            self.numberOfSteps.emit(2+len(statsExp.attributes))
-
-            self.actInfo.emit("dataset reading") 
-            if self.isInterruptionRequested():
-                return
-            #ok, lets first read the data
-            data, labels=self._experiment.dataset.toNumpyArray([
-                statsExp.attributes,
-                [self._experiment.label]
-                ])
-            
-    
-            if data.shape[0]==0:
-                #no data
-                self.error.emit("no data") 
-                return
-            
-            labels=labels.ravel()   #we need row vector   
-            
-            self.step.emit()     
-            self.actInfo.emit("samples counting") 
-            if self.isInterruptionRequested():
-                return
-            
-            classSamples={}
-            
-            classes, samples=np.unique(labels, return_counts=True)
-            
-            for actClass, actClassSamples in zip(classes, samples):
-                if self.isInterruptionRequested():
-                    return
-                classSamples[actClass]=actClassSamples
-     
-            statsExp.classSamples=classSamples
-            #extractors mapping
-            extMap=[(a, self._experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR)) \
-                    for a in self._experiment.attributesThatShouldBeUsed(False)]
-            
-            self.step.emit() 
-            
-            #get the attributes values
-            for i,(attr,extractor) in enumerate(extMap):
-                self.actInfo.emit("attribute: "+attr) 
-                if self.isInterruptionRequested():
-                    return
-                actF=extractor.fitAndExtract(data[:,i],labels).tocsc()
-                if self.isInterruptionRequested():
-                    return
-                statsExp.attributesFeatures[attr]=actF.shape[1]
-                statsExp.attributesAVGFeatureSD[attr]=np.average(np.array([(sparseMatVariance(actF[:,c]))**0.5 for c in range(actF.shape[1])]))
-                self.step.emit() 
-                
-            self.actInfo.emit("Done") 
-            
-            self.calcStatsResult.emit(statsExp)
-        except Exception as e:
-            #error
-            self.error.emit(str(e))
-
-        
-class ExperimentRunner(ExperimentBackgroundWorker):
-    """
-    Runs experiment in it's own thread.
-    """
-    
-        
-    log= Signal(str)
-    """Sends log message that should be shown in GUI."""
-    
-    result= Signal(Results)
-    """Send signal with experiment results."""
         
     def run(self):
         """
-        Run the experiment.
+        Run the background work.
+        Default implementation that creates new process with which communicates via queue.
+        The true work must be implemented in work method.
         """
+        
         try:
             commQ = multiprocessing.Queue()
             p = multiprocessing.Process(target=partial(self.work, self._experiment, commQ))
@@ -1109,11 +1003,174 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         except Exception as e:
             #error
             self.error.emit(str(e))
-        
+            
     @classmethod
     def work(cls, experiment:Experiment, commQ:multiprocessing.Queue):
         """
         The actual work of that thread
+        
+        :param experiment: Work on that experiment.
+        :type experiment: Experiment
+        :param commQ: Communication queue.
+        :type commQ: multiprocessing.Queue
+        """
+        raise NotImplemented("Please implement the work method")
+        
+        
+    def processMultPMsg(self,msgType,msgVal:Any):
+        """
+        Processes message received from another process.
+        Sends appropriate signals to UI thread.
+        
+        :param msgType: Type of received message.
+        :type msgType: MultPMessageType
+        :param msgVal: The message.
+        :type msgVal: Any
+        :return: Returns True if emits an signal. False otherwise.
+        :rtype: bool
+        """
+
+        if msgType==self.MultPMessageType.NUMBER_OF_STEPS_SIGNAL:
+            self.numberOfSteps.emit(msgVal)
+        elif msgType==self.MultPMessageType.STEP_SIGNAL:
+            self.step.emit()
+        elif msgType==self.MultPMessageType.ACT_INFO_SIGNAL:
+            self.actInfo.emit(msgVal)
+        elif msgType==self.MultPMessageType.LOG_SIGNAL:
+            self.log.emit(msgVal)
+        elif msgType==self.MultPMessageType.ERROR_SIGNAL:
+            self.error.emit(msgVal)
+        else:
+            return False
+        return True
+    
+
+class ExperimentStatsRunner(ExperimentBackgroundRunner):
+    """
+    Runs the stats calculation in it's own thread.
+    """
+
+    calcStatsResult = Signal(ExperimentDataStatistics)
+    """Sends calculated statistics."""
+    
+    
+    
+
+    @classmethod
+    def work(cls, experiment:Experiment, commQ:multiprocessing.Queue):
+        """
+        Stats calculation.
+        
+        :param experiment: Work on that experiment.
+        :type experiment: Experiment
+        :param commQ: Communication queue.
+        :type commQ: multiprocessing.Queue
+        """
+        
+        try:
+            statsExp=ExperimentDataStatistics()
+            statsExp.attributes=experiment.attributesThatShouldBeUsed(False)
+
+            #reading, samples, attributes
+            
+            commQ.put((cls.MultPMessageType.NUMBER_OF_STEPS_SIGNAL, 2+len(statsExp.attributes)))
+
+            commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL, "dataset reading"))
+
+            #ok, lets first read the data
+            data, labels=experiment.dataset.toNumpyArray([
+                statsExp.attributes,
+                [experiment.label]
+                ])
+            
+    
+            if data.shape[0]==0:
+                #no data
+                commQ.put((cls.MultPMessageType.ERROR_SIGNAL, "no data"))
+                return
+            
+            labels=labels.ravel()   #we need row vector   
+            
+            commQ.put((cls.MultPMessageType.STEP_SIGNAL, None))
+ 
+            commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL, "samples counting"))
+            
+            
+            classSamples={}
+            
+            classes, samples=np.unique(labels, return_counts=True)
+            
+            for actClass, actClassSamples in zip(classes, samples):
+                classSamples[actClass]=actClassSamples
+     
+            statsExp.classSamples=classSamples
+            #extractors mapping
+            extMap=[(a, experiment.getAttributeSetting(a, Experiment.AttributeSettings.FEATURE_EXTRACTOR)) \
+                    for a in experiment.attributesThatShouldBeUsed(False)]
+            
+            commQ.put((cls.MultPMessageType.STEP_SIGNAL, None))
+            
+            #get the attributes values
+            for i,(attr,extractor) in enumerate(extMap):
+                commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL, "attribute: "+attr))
+
+                actF=extractor.fitAndExtract(data[:,i],labels).tocsc()
+
+                statsExp.attributesFeatures[attr]=actF.shape[1]
+                statsExp.attributesAVGFeatureSD[attr]=np.average(np.array([(sparseMatVariance(actF[:,c]))**0.5 for c in range(actF.shape[1])]))
+                commQ.put((cls.MultPMessageType.STEP_SIGNAL, None))
+                
+            commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL, "Done"))
+            commQ.put((cls.MultPMessageType.RESULT_SIGNAL, statsExp))
+
+        except Exception as e:
+            #error
+            commQ.put((cls.MultPMessageType.ERROR_SIGNAL, str(e)))
+        finally:
+            commQ.close()
+            commQ.join_thread()
+            
+    def processMultPMsg(self,msgType,msgVal:Any):
+        """
+        Processes message received from another process.
+        Sends appropriate signals to UI thread.
+        
+        :param msgType: Type of received message.
+        :type msgType: MultPMessageType
+        :param msgVal: The message.
+        :type msgVal: Any
+        :return: Returns True if emits an signal. False otherwise.
+        :rtype: bool
+        """
+        
+        if not super().processMultPMsg(msgType,msgVal):
+            if msgType==self.MultPMessageType.RESULT_SIGNAL:
+                self.calcStatsResult.emit(msgVal)
+            else:
+                return False
+            return True
+                
+        return False
+
+        
+class ExperimentRunner(ExperimentBackgroundRunner):
+    """
+    Runs experiment in it's own thread.
+    
+    """
+
+    result= Signal(Results)
+    """Send signal with experiment results."""
+        
+    def __init__(self, experiment:Experiment):
+        super().__init__(experiment)
+        #remove thinks that are no longer useful
+        self._experiment.setDataStats(None)
+        
+    @classmethod
+    def work(cls, experiment:Experiment, commQ:multiprocessing.Queue):
+        """
+        The actual work of that thread.
         
         :param experiment: Work on that experiment.
         :type experiment: Experiment
@@ -1224,10 +1281,8 @@ class ExperimentRunner(ExperimentBackgroundWorker):
         :rtype: bool
         """
         if not super().processMultPMsg(msgType,msgVal):
-            if msgType==self.MultPMessageType.LOG_SIGNAL:
-                self.log.emit(msgVal)
-            elif  msgType==self.MultPMessageType.RESULT_SIGNAL:
-                
+            if  msgType==self.MultPMessageType.RESULT_SIGNAL:
+
                 self.result.emit(msgVal)
             else:
                 return False

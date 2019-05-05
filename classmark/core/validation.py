@@ -280,7 +280,7 @@ class Validator(Plugin):
                 times[self.TimeDuration.TEST]=time.time()
                 times[self.TimeDuration.TEST_PROC]=time.process_time()
                 #predict the labels
-                predictedLabels=classifier.predict(testFeatures)
+                predictedLabels=classifier.classify(testFeatures)
                 
                 times[self.TimeDuration.TEST_PROC]=time.process_time()-times[self.TimeDuration.TEST_PROC]
                 times[self.TimeDuration.TEST]=time.time()-times[self.TimeDuration.TEST]
@@ -360,12 +360,7 @@ class Validator(Plugin):
             
         return features.tocsr()
     
-    def step(self):
-        """
-        Run one step of validation process.
-        """
-        pass
-    
+
     @property
     @abstractmethod
     def results(self):

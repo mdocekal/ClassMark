@@ -569,7 +569,7 @@ class ExperimentSection(WidgetManager):
         
         #register observable for experiment data statistics
 
-        self._experiment.registerObserver("NEW_DATA_STATS",self._dataStatsFinished)
+        self._experiment.registerObserver("NEW_DATA_STATS",self._dataStatsChanged)
         
         self._initData()
         self._initDataStats()
@@ -590,11 +590,8 @@ class ExperimentSection(WidgetManager):
         self._experiment.useDataSubset()
         self._experiment.results=None   #remove old
         #create runner for that experiment
-        useExperiment=copy.copy(self._experiment)
-        useExperiment.setDataStats(None)
-        useExperiment.clearObservers()
         
-        self._experimentRunner=ExperimentRunner(useExperiment)
+        self._experimentRunner=ExperimentRunner(self._experiment)
         self._experimentRunner.finished.connect(self._experimentFinished)
         self._experimentRunner.numberOfSteps.connect(self._widget.experimentProgressBar.setMaximum)
         self._experimentRunner.step.connect(self._incExperimentProgressBar)
@@ -709,18 +706,30 @@ class ExperimentSection(WidgetManager):
         self._experiment.setDataStats(stats, True)
         self.__dataStatsStartHaveStats=True
         
+    def _dataStatsChanged(self):
+        """
+        Data stats changed.
+        """
+        if self.experiment.dataStats is None:
+            #in this method we just hiding (when user changes the label)
+            #showing results is _dataStatsFinished responsibility
+            self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_NO_RESULTS.value)
+        
+            
+        
         
     def _dataStatsFinished(self):
         """
-        Shows statistics. Is also used when data stats changed (was removed) when use changes label.
+        Background worker just finished with data stats counting.
         """
         
         #show the data stats tab
-        if self.__dataStatsStartHaveStats and self.experiment.dataStats is not None:
-            self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_RESULTS.value)
-        else:
+        if not self.__dataStatsStartHaveStats or self.experiment.dataStats is None:
+            #we couldn't show data stats
+            #we do not havy any or data stats finished without result (error)
             self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_NO_RESULTS.value)
-            
+        else:
+            self._widget.dataStatsPager.setCurrentIndex(self.DataStatsPage.PAGE_RESULTS.value)
             
         
     def _initData(self):

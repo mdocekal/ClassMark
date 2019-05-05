@@ -33,8 +33,8 @@ class Selector(ABC):
         :type n: int
         :param theirScore: Score of each individual.
         :type theirScore: List[float]
-        :return: Selected individuals.
-        :rtype: List[Individual]
+        :return: Selected individuals and their position in population.
+        :rtype: List[(pos, Individual)]
         """
         pass
         
@@ -50,11 +50,11 @@ class Rulete(Selector):
             sel=random.uniform(0, s)
             
             c=0
-            for individual in population:
+            for pos, individual in enumerate(population):
                 c+= individual.score
                 
                 if sel<=c:
-                    res.append(individual)
+                    res.append((pos,individual))
                     n-=1
                     break
         
@@ -66,7 +66,7 @@ class Rank(Selector):
     """
     
     def __call__(self, population:List[Individual],n):
-        s=sorted(population, key=lambda i: i.score)
+        s=sorted(enumerate(population), key=lambda x:x[1].score)
         
         #count the sum of rank sequence
         rankSum=len(population)*(1+len(population))/2
@@ -85,7 +85,7 @@ class Rank(Selector):
                 c+= rank+1
                 
                 if sel<=c:
-                    res.append(i)
+                    res.append(i)   #i contains orig position and individual
                     n-=1
                     break
         

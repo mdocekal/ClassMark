@@ -19,6 +19,7 @@ import numpy as np
 
 
 
+
 class CEEF(Classifier):
     """
     Classification by evolutionary estimated functions (or CEEF) is classification method that uses
@@ -27,7 +28,7 @@ class CEEF(Classifier):
     SELECTION_METHODS={"RANK":Rank(), "RULETE":Rulete()}
     
     def __init__(self, normalizer:BaseNormalizer=None, generations:int=100, stopAccuracy:float=None, \
-                 population:int=10, nbestToNext=1, selectionMethod:Selector="RANK", randomSeed:int=None, maxMutations=5, \
+                 population:int=10, selectionMethod:Selector="RANK", randomSeed:int=None, maxCrossovers:int=1, maxMutations:int=5, \
                  maxStartSlots=1,
                  crossoverProb:float=0.75, testSetSize:float=1, changeTestSet:bool=False, logGenFitness:bool=True):
         """
@@ -41,12 +42,12 @@ class CEEF(Classifier):
         :type stopAccuracy: None | float
         :param population: Population size.
         :type population: int
-        :param nbestToNext: N best chromosomes proceeds to next generation.
-        :type nbestToNext: int
         :param selectionMethod: Selection method for evolution.
         :type selectionMethod: Selector
         :param randomSeed: If not None than fixed seed is used.
         :type randomSeed: int
+        :param maxCrossovers: Maximum number of crossovers when createing generation.
+        :type maxCrossovers: int
         :param maxMutations: Maximum number of changed genes in one mutation.
         :type maxMutations: int
         :param maxStartSlots: Maximum number of slots for start. (minimal is always 1)
@@ -77,11 +78,7 @@ class CEEF(Classifier):
         
         self._population=PluginAttribute("Population size", PluginAttribute.PluginAttributeType.VALUE, int)
         self._population.value=population
-        
-        
-        self._nbestToNext=PluginAttribute("N best to next generation", PluginAttribute.PluginAttributeType.VALUE, int)
-        self._nbestToNext.value=nbestToNext
-        
+    
         
         self._selectionMethod=PluginAttribute("Selection method", PluginAttribute.PluginAttributeType.SELECTABLE, None,
                                               list(self.SELECTION_METHODS.keys()))
@@ -90,6 +87,9 @@ class CEEF(Classifier):
         
         self._randomSeed=PluginAttribute("Random seed", PluginAttribute.PluginAttributeType.VALUE, int)
         self._randomSeed.value=randomSeed
+        
+        self._maxCrossovers=PluginAttribute("Max crossovers in generation", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._maxCrossovers.value=maxCrossovers
         
         self._maxMutations=PluginAttribute("Max changed genes in mutation", PluginAttribute.PluginAttributeType.VALUE, int)
         self._maxMutations.value=maxMutations
@@ -156,7 +156,7 @@ class CEEF(Classifier):
             #        crossover
             #        mutation
             #        replacement
-            population=self._generateNewPopulation(population)
+            self._generateNewPopulation(population)
             
             #evaluate
             if self._changeTestSet.value:
@@ -178,39 +178,30 @@ class CEEF(Classifier):
         Generates new population from actual population.
         Whole new population is created and the actual best one is added (elitism).
         
-        :param population: Actual population.
+        :param population: Actual population. Manipulates in place.
         :type population: List[Individual]
-        :return: New population
-        :rtype: List[Individual]
         """
 
         selMethod=self.SELECTION_METHODS[self._selectionMethod.value]
 
-        newPopulation=sorted(population, key=lambda i: i.score)[:self._nbestToNext.value]
-        while(len(newPopulation)<self._population.value):
-            #selection
-            parents=selMethod(population,2)   #we are selecting two parents
-            
+        #selection
+        parents=selMethod(population,2)   #we are selecting two parents an their positions in population
+        
+        for _ in range(random.randint(1,self._maxCrossovers.value)):
             #crossover
             if random.uniform(0,1)<=self._crossoverProb.value:
                 #the crossover is requested
-                child1,child2=Individual.crossover(parents[0],parents[1])
+                child1,child2=Individual.crossover(parents[0][1],parents[1][1])
             else:
                 #ok no crossover
-                child1=copy.copy(parents[0])
-                child2=copy.copy(parents[1])
-                
-            #lets do the mutation
-            child1.mutate(self._maxMutations.value)
-            child2.mutate(self._maxMutations.value)
+                child1=copy.copy(parents[0][1])
+                child2=copy.copy(parents[1][1])
             
             #select two best out of children and parents
-            for b in sorted([child1,child2]+parents, key=lambda i: i.score, reverse=True)[:2]:
-                newPopulation.append(b)
-                if(len(newPopulation)>=self._population.value):
-                    break
+            bestOfThem=sorted([child1,child2,parents[0][1],parents[1][1]], key=lambda i: i.score, reverse=True)[:2]
+            population[parents[0][0]]=bestOfThem[0]  #instead of first parent (could be inserted first parent again)
+            population[parents[1][0]]=bestOfThem[1]  #instead of second parent (could be inserted second parent again)
 
-        return newPopulation
         
     def classify(self, data):
         if self._normalizer.value is not None:

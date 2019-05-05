@@ -171,23 +171,23 @@ class Individual(object):
             that individual.
         :type m: int
         """
-        
-        self._score=None
-        
+
         #randomly selects number of mutations
         actM=random.randint(0,m)
+        if actM >0:
+            self._score=None
 
-        order=[o for o in range(len(self._funGenes))]
-        random.shuffle(order)
-        
-        for o in order:
-            #we are iterating f. genes in random order
-            fG=self._funGenes[o]
+            order=[o for o in range(len(self._funGenes))]
+            random.shuffle(order)
             
-            actM-=fG.mutate(actM)
-            if actM<=0:
-                #maximal number of mutations exceeded
-                break
+            for o in order:
+                #we are iterating f. genes in random order
+                fG=self._funGenes[o]
+                
+                actM-=fG.mutate(actM)
+                if actM<=0:
+                    #maximal number of mutations exceeded
+                    break
 
     
 class FunGenes(object):

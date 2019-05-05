@@ -544,7 +544,7 @@ class TableSummarizationResultsModel(QAbstractTableModel):
                                self.tr("micro avg F1"),self.tr("micro avg precision"),self.tr("micro avg recall"),
                                self.tr("macro avg F1"),self.tr("macro avg precision"),self.tr("macro avg recall"),
                                self.tr("weighted avg F1"),self.tr("weighted avg precision"),self.tr("weighted avg recall"),
-                               self.tr("train time"),self.tr("test time")]
+                               self.tr("avg train time"),self.tr("avg test time")]
                 return self._HEADERS[section]
         
         return None

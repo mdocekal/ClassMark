@@ -14,7 +14,7 @@ from .section_router import SectionRouter
 
 from PySide2.QtWidgets import QFileDialog, QMessageBox, QShortcut
 from PySide2.QtGui import QKeySequence
-from PySide2.QtCore import Qt, QStringListModel
+from PySide2.QtCore import Qt
 
 
 
@@ -49,7 +49,7 @@ class MainWindow(WidgetManager,SectionRouter):
         
         #register click events
         
-        self._widget.menuFileNewExperiment.triggered.connect(self.goExperiment)
+        self._widget.menuFileNewExperiment.triggered.connect(partial(self.goExperiment, None))
         self._widget.menuFileLoadExperiment.triggered.connect(self.goLoadExperiment)
         self._widget.menuFileSaveExperiment.triggered.connect(self.goSaveExperiment)
         self._widget.menuFileSaveAsExperiment.triggered.connect(partial(self.goSaveExperiment,True))

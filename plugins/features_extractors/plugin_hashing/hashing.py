@@ -7,7 +7,6 @@ Feature extractor plugin for ClassMark.
 """
 from classmark.core.plugins import FeatureExtractor, PluginAttribute
 from sklearn.feature_extraction.text import HashingVectorizer
-from telnetlib import SE
 
 class Hashing(FeatureExtractor):
     """

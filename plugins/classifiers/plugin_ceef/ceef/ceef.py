@@ -91,7 +91,7 @@ class CEEF(Classifier):
         self._maxCrossovers=PluginAttribute("Max crossovers in generation", PluginAttribute.PluginAttributeType.VALUE, int)
         self._maxCrossovers.value=maxCrossovers
         
-        self._maxMutations=PluginAttribute("Max changed genes in mutation", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._maxMutations=PluginAttribute("Max mutations", PluginAttribute.PluginAttributeType.VALUE, int)
         self._maxMutations.value=maxMutations
         
         self._maxStartSlots=PluginAttribute("Max start slots", PluginAttribute.PluginAttributeType.VALUE, int)

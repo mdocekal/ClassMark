@@ -65,15 +65,13 @@ class LazyTextFileReader(LazyFileReader,str):
     """
     def __init__(self, filePath:str):
         super().__init__(filePath)
-        #TODO:temporaly not lazy
-        with open(self._filePath, "r", encoding="utf-8") as fileToRead:
-            self._data=fileToRead.read()
         
     def __str__(self):
         """
         Get content of the file.
         """
-        return self._data
+        with open(self._filePath, "r", encoding="utf-8") as fileToRead:
+            return fileToRead.read()
 
     
  
@@ -84,11 +82,9 @@ class LazyImageFileReader(LazyFileReader):
     
     def __init__(self, filePath:str):
         super().__init__(filePath)
-        #TODO:temporaly not lazy
-        self._img=imread(self._filePath)
 
     def getRGB(self):
-        return self._img
+        return imread(self._filePath)
         
 
 class DataSet(object):

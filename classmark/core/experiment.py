@@ -31,6 +31,7 @@ from sklearn.preprocessing import LabelEncoder
 
 import os
 
+
 class LastUsedExperiments(Observable, metaclass=Singleton):
     """
     Last used experiments manager. (singleton)
@@ -1014,6 +1015,7 @@ class ExperimentBackgroundRunner(QThread):
         :param commQ: Communication queue.
         :type commQ: multiprocessing.Queue
         """
+        
         raise NotImplemented("Please implement the work method")
         
         
@@ -1201,6 +1203,7 @@ class ExperimentRunner(ExperimentBackgroundRunner):
             labels=labels.ravel()   #we need row vector       
             lEnc=LabelEncoder()
             #let's encode labels to save some memory space
+            #also this is more suitable representation for some classifiers such as neural networks
             labels=lEnc.fit_transform(labels)
             
             

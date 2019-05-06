@@ -359,17 +359,6 @@ class Plugin(ABC):
         """
         pass
     
-    @staticmethod
-    @abstractmethod
-    def getInfo():
-        """
-        Informations about this plugin.
-        
-        :return: Text description of this plugin.
-        :rtype: str
-        """
-        pass
-    
     def stub(self):
         """
         Make stub of plugin. The stub has copy of marking, name and attributes.

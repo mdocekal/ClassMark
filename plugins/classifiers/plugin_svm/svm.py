@@ -17,22 +17,16 @@ class SVM(Classifier):
     SVM classifier plugin for ClassMark.
     """
     
-    def __init__(self, normalizer:BaseNormalizer=NormalizerPlugin(), maxIter:int=None, 
+    def __init__(self, normalizer:BaseNormalizer=NormalizerPlugin(), 
                  kernel:str="linear"):
         """
         Classifier initialization.
         
         :param normalizer: Normalizer used for input data. If none than normalization/scalling is omitted.
         :type normalizer: None | BaseNormalizer
-        :param maxIter: Maximum number of iterations.
-        :type maxIter: int
         :param kernel: Kernel type that should be used.
         :type kernel: str
         """
-
-        
-        self._maxIter=PluginAttribute("Max iterations", PluginAttribute.PluginAttributeType.VALUE, int)
-        self._maxIter.value=maxIter
 
         #TODO: type control must be off here (None -> BaseNormalizer) maybe it will be good if one could pass
         #object
@@ -64,11 +58,9 @@ class SVM(Classifier):
         #    Prefer dual=False when n_samples > n_features.
         if self._kernel.value=="linear":
             #this should be faster
-            self._cls=LinearSVC(dual=data.shape[0]<=data.shape[1], 
-                                max_iter=1000 if self._maxIter.value is None else self._maxIter.value)
+            self._cls=LinearSVC(dual=data.shape[0]<=data.shape[1])
         else:
-            self._cls=SVC(kernel=self._kernel.value, 
-                          max_iter=-1 if self._maxIter.value is None else self._maxIter.value)
+            self._cls=SVC(kernel=self._kernel.value)
             
         self._cls.fit(data,labels)
     

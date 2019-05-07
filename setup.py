@@ -11,7 +11,7 @@ ClassMark is a classifier benchmark.
 from distutils.core import setup
 
 setup(name='ClassMark',
-    version='1.0dev',
+    version='1.0',
     description='ClassMark is a benchmark for classifiers.',
     author='Martin Dočekal',
     packages=['classmark'],

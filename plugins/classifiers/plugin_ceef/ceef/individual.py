@@ -273,8 +273,8 @@ class FunGenes(object):
             numberOfClassSlots=1
             numberOfOuterSlots=1
         else:
-            numberOfClassSlots=random.randint(1,maxSlots)
-            numberOfOuterSlots=random.randint(1,maxSlots)
+            numberOfClassSlots=random.randint(1,maxSlots-1)
+            numberOfOuterSlots=random.randint(1,maxSlots-numberOfClassSlots)
 
         
         try:
@@ -549,9 +549,6 @@ class FunGenes(object):
         """
         self._mutations-=1
         self._fun=random.choice(self.FUNCTIONS)
-        #TODO: not all functions are suitable
-        #LinearNDInterpolator  cipy.spatial.qhull.QhullError: QH6214 qhull input error: not enough points(3) to construct initial simplex (need 6)
-        
     
     @property
     def fenotype(self):

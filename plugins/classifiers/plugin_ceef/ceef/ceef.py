@@ -29,7 +29,7 @@ class CEEF(Classifier):
     
     def __init__(self, normalizer:BaseNormalizer=None, generations:int=100, stopAccuracy:float=None, \
                  population:int=10, selectionMethod:Selector="RANK", randomSeed:int=None, maxCrossovers:int=1, maxMutations:int=5, \
-                 maxStartSlots=1,
+                 maxStartSlots=2,
                  crossoverProb:float=0.75, testSetSize:float=1, changeTestSet:bool=False, logGenFitness:bool=True):
         """
         Classifier initialization.

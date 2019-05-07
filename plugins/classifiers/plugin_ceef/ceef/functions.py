@@ -30,7 +30,7 @@ def fNearest(samples, samplesVals):
         return samplesVals[IA]
     return res
     
-def fNearest2x2FromEachClass(samples, samplesVals):
+def fNearest2x2FromClassAndOuter(samples, samplesVals):
     """
     Finds two nearest from class and two from outer samples and performs weighted average of their values.
     As weight is used distance. If distance from some data sample is zero than it's

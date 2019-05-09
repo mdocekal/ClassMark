@@ -28,7 +28,7 @@ from .selection import FeaturesSelector
 import pickle
 from classmark.core.plugins import Classifier
 from sklearn.preprocessing import LabelEncoder
-
+import traceback
 import os
 
 
@@ -927,8 +927,9 @@ class ExperimentBackgroundRunner(QThread):
     actInfo = Signal(str)
     """Sends information about what thread is doing now."""
     
-    error = Signal(str)
-    """Sends information about error that cancels background worker."""
+    error = Signal(str,str)
+    """Sends information about error that cancels background worker.
+    First string is short error message and second is detailed error description."""
     
     log= Signal(str)
     """Sends log message that should be shown in GUI."""
@@ -954,7 +955,9 @@ class ExperimentBackgroundRunner(QThread):
         """Sends experiment results."""
         
         ERROR_SIGNAL=auto()
-        """Sends information about error that cancels background worker."""
+        """Sends information about error that cancels background worker.
+        To queue pass tuple with message and detailed message in that order.
+        If you want to pass just message, than pass it just like regular string."""
         
     
     def __init__(self, experiment:Experiment):
@@ -1003,7 +1006,7 @@ class ExperimentBackgroundRunner(QThread):
             
         except Exception as e:
             #error
-            self.error.emit(str(e))
+            self.error.emit(str(e), traceback.format_exc())
             
     @classmethod
     def work(cls, experiment:Experiment, commQ:multiprocessing.Queue):
@@ -1041,7 +1044,10 @@ class ExperimentBackgroundRunner(QThread):
         elif msgType==self.MultPMessageType.LOG_SIGNAL:
             self.log.emit(msgVal)
         elif msgType==self.MultPMessageType.ERROR_SIGNAL:
-            self.error.emit(msgVal)
+            if isinstance(msgVal, str):
+                self.error.emit(msgVal, None)
+            else:
+                self.error.emit(msgVal[0],msgVal[1])
         else:
             return False
         return True
@@ -1070,6 +1076,7 @@ class ExperimentStatsRunner(ExperimentBackgroundRunner):
         """
         
         try:
+            experiment.useDataSubset()
             statsExp=ExperimentDataStatistics()
             statsExp.attributes=experiment.attributesThatShouldBeUsed(False)
 
@@ -1078,17 +1085,16 @@ class ExperimentStatsRunner(ExperimentBackgroundRunner):
             commQ.put((cls.MultPMessageType.NUMBER_OF_STEPS_SIGNAL, 2+len(statsExp.attributes)))
 
             commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL, "dataset reading"))
-
+            
             #ok, lets first read the data
             data, labels=experiment.dataset.toNumpyArray([
                 statsExp.attributes,
                 [experiment.label]
                 ])
-            
-    
+
             if data.shape[0]==0:
                 #no data
-                commQ.put((cls.MultPMessageType.ERROR_SIGNAL, "no data"))
+                commQ.put((cls.MultPMessageType.ERROR_SIGNAL, ("no data", "Given data set does not have any samples.")))
                 return
             
             labels=labels.ravel()   #we need row vector   
@@ -1127,7 +1133,7 @@ class ExperimentStatsRunner(ExperimentBackgroundRunner):
 
         except Exception as e:
             #error
-            commQ.put((cls.MultPMessageType.ERROR_SIGNAL, str(e)))
+            commQ.put((cls.MultPMessageType.ERROR_SIGNAL, (str(e),traceback.format_exc())))
         finally:
             commQ.close()
             commQ.join_thread()
@@ -1164,11 +1170,6 @@ class ExperimentRunner(ExperimentBackgroundRunner):
     result= Signal(Results)
     """Send signal with experiment results."""
         
-    def __init__(self, experiment:Experiment):
-        super().__init__(experiment)
-        #remove thinks that are no longer useful
-        self._experiment.setDataStats(None)
-        
     @classmethod
     def work(cls, experiment:Experiment, commQ:multiprocessing.Queue):
         """
@@ -1180,6 +1181,11 @@ class ExperimentRunner(ExperimentBackgroundRunner):
         :type commQ: multiprocessing.Queue
         """
         try:
+            experiment.useDataSubset()
+            #remove thinks that are no longer useful
+            experiment.setDataStats(None)
+            
+            
             commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,"dataset reading"))
     
             logger=Logger() #get singleton instance of logger
@@ -1196,7 +1202,6 @@ class ExperimentRunner(ExperimentBackgroundRunner):
             
             if data.shape[0]==0:
                 #no data
-                #TODO: ERROR MESSAGE FOR USER THIS IS TO FAST
                 commQ.put((cls.MultPMessageType.ACT_INFO_SIGNAL,"no data"))
                 return
             
@@ -1252,7 +1257,7 @@ class ExperimentRunner(ExperimentBackgroundRunner):
             
         except Exception as e:
             #error
-            commQ.put((cls.MultPMessageType.ERROR_SIGNAL,str(e)))
+            commQ.put((cls.MultPMessageType.ERROR_SIGNAL, (str(e), traceback.format_exc())))
         finally:
             commQ.close()
             commQ.join_thread()

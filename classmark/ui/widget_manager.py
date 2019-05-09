@@ -118,16 +118,24 @@ class WidgetManager(object):
             child.widget().deleteLater()
             child=layout.takeAt(0)
             
-    def _showMessageInBox(self, msg:str):
+    def _showErrorMessageInBox(self, msg, detail=None):
         """
         Show error message.
         
         :param msg: Error message
         :type msg: str
+        :param detail: Detail of error message.
+        :type detail:str
         """
         
         msgBox=QMessageBox();
+        msgBox.setWindowTitle("Error occurred :(")
         msgBox.setText(msg);
+        
+        if detail is not None:
+            msgBox.setDetailedText(detail)
+            
+        msgBox.setIcon(QMessageBox.Critical)
         msgBox.exec();
 
 class AttributesWidgetManager(WidgetManager):

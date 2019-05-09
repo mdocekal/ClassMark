@@ -31,6 +31,7 @@ class LazyFileReaderFactory(object):
         :param t: Data type.
         :type t: FeatureExtractor.DataTypes
         """
+        
         if t ==FeatureExtractor.DataTypes.STRING:
             return LazyTextFileReader(filePath)
         if t==FeatureExtractor.DataTypes.IMAGE:
@@ -65,14 +66,18 @@ class LazyTextFileReader(LazyFileReader,str):
     """
     def __init__(self, filePath:str):
         super().__init__(filePath)
+
         
     def __str__(self):
         """
         Get content of the file.
         """
-        with open(self._filePath, "r", encoding="utf-8") as fileToRead:
-            return fileToRead.read()
 
+        try:
+            with open(self._filePath, "r", encoding="utf-8") as fileToRead:
+                return fileToRead.read()
+        except:
+            raise RuntimeError("Couldn't read file: "+self._filePath)
     
  
 class LazyImageFileReader(LazyFileReader):
@@ -84,7 +89,10 @@ class LazyImageFileReader(LazyFileReader):
         super().__init__(filePath)
 
     def getRGB(self):
-        return imread(self._filePath)
+        try:
+            return imread(self._filePath)
+        except:
+            raise RuntimeError("Couldn't read file: "+self._filePath)
         
 
 class DataSet(object):
@@ -103,6 +111,7 @@ class DataSet(object):
         self._samples=[]
         self._attributes=[]
         self._filePath=filePath
+        self._cntSamples=None
         self._folder=os.path.dirname(filePath)
         self._pathAttributes={}  #attributes that points to content in different file
         
@@ -127,6 +136,7 @@ class DataSet(object):
         :type subset:np.array | None
         """
         self._subset=subset
+        self._cntSamples=None
     
     def save(self, filePath, useOnly:List[str]=None):    
         """
@@ -143,7 +153,7 @@ class DataSet(object):
             writter=csv.DictWriter(opF, useOnly)
             writter.writeheader()
             
-            for sample in self:
+            for _, sample in self._goThrough():
                 writter.writerow(sample)
             
     @property
@@ -199,29 +209,46 @@ class DataSet(object):
         """
         Iterate over each sample.
         """
+        
+        for sampleNum, sample in self._goThrough():
+            try:
+                self._prepareSample(sample)
+                yield sample
+            except Exception as e:
+                raise RuntimeError("Error when reading file "+self._filePath+" on sample: "+str(sampleNum))
+                        
+    def _goThrough(self):
+        """
+        Just goes trough of selected samples in csv.
+        
+        :return: Generator with filter sample and sample number (number is counted among all samples not just the filtered).
+        :rtype: Iterator[Tuple[int, Any]]
+        """
+        
         with open(self._filePath, "r", encoding="utf-8") as opF:
             reader = csv.DictReader(opF)
             if self._subset is None:
-                for sample in reader:
-                    self._prepareSample(sample)
-                    yield sample
+                for i, sample in enumerate(reader):
+                    yield (i, sample)
+                    
             else:
                 if self._subset.shape[0]>0:
                     #user wants just the subset
                     subIter=iter(self._subset)
-                    nextFromSub=next(subIter)
-                    
-                    for i, sample in enumerate(reader):
-                        if i==nextFromSub:
-                            #we are in subset
-                            
-                            self._prepareSample(sample)
-                            yield sample
-                            try:
-                                nextFromSub=next(subIter)
-                            except StopIteration:
-                                break
+                    try:
+                        nextFromSub=next(subIter)
                         
+                        for i, sample in enumerate(reader):
+                            if i==nextFromSub:
+                                #we are in subset
+                                yield (i, sample)
+                                
+                                nextFromSub=next(subIter)
+                    except StopIteration:
+                        #end of subset
+                        pass
+
+        
                         
     def _prepareSample(self, sample:Dict[str,str]):
         """
@@ -232,11 +259,51 @@ class DataSet(object):
         """
         #convert the path attributes
         for pA, pT in self._pathAttributes.items():
-            if not os.path.isabs(sample[pA]):
+            
+            if os.path.isabs(sample[pA]):
+                sample[pA]=LazyFileReaderFactory.getReader(sample[pA], pT)
+            else:
                 #it is relative path so let's 
-                #add as base folder of that data set
+                #add, as base, folder of that data set
                 
                 sample[pA]=LazyFileReaderFactory.getReader(os.path.join(self._folder,sample[pA]), pT)
+
+    
+    def countSamples(self):
+        """
+        Get number of samples inside data set.
+        """
+        
+        if self._cntSamples is None:
+            self._cntSamples=0
+            with open(self._filePath, "r", encoding="utf-8") as opF:
+                reader = csv.reader(opF)
+                
+                try:
+                    next(reader)#skip the header
+                except StopIteration:
+                    #ok nothing here
+                    return 0
+                
+                if self._subset is None:
+                    for _ in reader:
+                        self._cntSamples+=1
+                else:
+                    if self._subset.shape[0]>0:
+                        #user wants just the subset
+                        subIter=iter(self._subset)
+                        nextFromSub=next(subIter)
+                        for i, _ in enumerate(reader):
+                            if i==nextFromSub:
+                                #we are in subset
+                                self._cntSamples+=1
+                                try:
+                                    nextFromSub=next(subIter)
+                                except StopIteration:
+                                    break
+                                
+                
+        return self._cntSamples
         
     def toNumpyArray(self, useOnly:List[List[str]]=[]):
         """
@@ -246,21 +313,27 @@ class DataSet(object):
             The order of attributes is given by this sub list.
             Because this attribute is list of list than multiple numpy arrays are created
             for each sub list.
+            
+            Example use case:
+                [["attribute1", ["attribute 2"]],["label"]]
+                
+                and you wil get two numpy array one for attributes and the other for labels
+                
         :type useOnly: List[List[str]]
         :return: Numpy array with samples values.
-        :rtype: [np.array] | [np.array]
+        :rtype: [np.array] | np.array
         """
-        
-        
+
         if useOnly:
-            res=[[]for _ in range(len(useOnly))]
-            for s in self:
+            res=[np.empty([self.countSamples(), len(u)], dtype=object) for u in useOnly]
+            for n, s in enumerate(self):
                 for i, u in enumerate(useOnly):
-                    res[i].append([s[a] for a in u])
-            return [np.array(r) for r in res]
+                    for ui, a in enumerate(u):
+                        res[i][n][ui]=s[a]
+            return res
         else:
             samples=[]
-            for s in self:
+            for i, s in enumerate(self):
                 samples.append([v for v in s.value()])
         
             return np.array(samples)

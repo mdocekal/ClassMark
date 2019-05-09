@@ -297,9 +297,34 @@ class Results(object):
             #use cached
             return self._finalConfMat[c]
         
-        resConfMat=self.steps[0].confusionMatrix(c)
-        for step in range(1,len(self.steps)):
-            resConfMat+=self.steps[step].confusionMatrix(c)
+        
+        #If we have two few samples
+        #there could be steps without some labels.
+        #So we must have on mind this.
+        
+        resConfMat=np.zeros([len(self.encoder.classes_),len(self.encoder.classes_)], dtype=int)
+        
+        for step in self.steps:
+            actMat=step.confusionMatrix(c)
+            if actMat.shape[0]!=resConfMat.shape[0]:
+                #a label is missing
+                usL=np.unique(step.labels)#returns unique sorted labels
+                usLP=np.unique(step.predictionsForCls(c))
+                #our labels are just number that are zero or greater
+                
+                for row in range(actMat.shape[0]):
+                    for col in range(actMat.shape[1]):
+                        #mapping example:
+                        #    all labels: 0 1 2 3 4
+                        #    real labels in act step: 1 3 4
+                        #    predicted labels in act step:  1 2 4
+                        #
+                        #    row=0 -> 1
+                        #    col=1 -> 2
+                        resConfMat[usL[row]][usLP[col]]+=actMat[row][col]
+            else:
+                #all labels
+                resConfMat+=actMat
         
         if self._finalize:
             self._finalConfMat[c]=resConfMat

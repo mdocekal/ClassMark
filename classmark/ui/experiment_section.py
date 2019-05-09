@@ -278,6 +278,7 @@ class ExperimentSectionDataStatsTabWatcher(WidgetManager):
         """
         if self._experiment.dataStats is None:
             self._widget.numOfSamplesLabel.setText(self.tr("Loading"))
+            self._widget.numOfClassesLabel.setText(self.tr("Loading"))
             self._widget.numOfSelAttrLabel.setText(self.tr("Loading"))
             self._widget.maxSamplesInClassLabel.setText(self.tr("Loading"))
             self._widget.classWithMaxSamplesLabel.setText(self.tr("Loading"))
@@ -287,6 +288,7 @@ class ExperimentSectionDataStatsTabWatcher(WidgetManager):
             self._widget.classSamplesStandardDeviationLabel.setText(self.tr("Loading"))
         else:
             self._widget.numOfSamplesLabel.setText(str(self._experiment.dataStats.numberOfSamples))
+            self._widget.numOfClassesLabel.setText(str(len(self._experiment.dataStats.activeClasses)))
             self._widget.numOfSelAttrLabel.setText(str(len(self._experiment.dataStats.attributes)))
             
             maxVal,maxC=self._experiment.dataStats.maxSamplesInClass
@@ -587,7 +589,6 @@ class ExperimentSection(WidgetManager):
             msgBox.exec();
             return
         
-        self._experiment.useDataSubset()
         self._experiment.results=None   #remove old
         #create runner for that experiment
         
@@ -596,7 +597,7 @@ class ExperimentSection(WidgetManager):
         self._experimentRunner.numberOfSteps.connect(self._widget.experimentProgressBar.setMaximum)
         self._experimentRunner.step.connect(self._incExperimentProgressBar)
         self._experimentRunner.actInfo.connect(self._widget.experimentActInfo.setText)
-        self._experimentRunner.error.connect(self._showMessageInBox)
+        self._experimentRunner.error.connect(self._showErrorMessageInBox)
         self._experimentRunner.result.connect(partial(self._experiment.setResults))
         self._experimentRunner.log.connect(self._widget.logView.append)
         
@@ -653,7 +654,6 @@ class ExperimentSection(WidgetManager):
             return
         
         
-        self._experiment.useDataSubset()
         self.__dataStatsStartHaveStats=False    #mark that we actual get the stats
 
         #create runner for 
@@ -662,7 +662,7 @@ class ExperimentSection(WidgetManager):
         self._statsRunner.numberOfSteps.connect(self._widget.dataStatsRunProgressBar.setMaximum)
         self._statsRunner.step.connect(self._incDataStatsProgressBar)
         self._statsRunner.actInfo.connect(self._widget.dataStatsRunActInfo.setText)
-        self._statsRunner.error.connect(self._showMessageInBox)
+        self._statsRunner.error.connect(self._showErrorMessageInBox)
         self._statsRunner.calcStatsResult.connect(self._newDataStatsResults)
         
         #clear the act info

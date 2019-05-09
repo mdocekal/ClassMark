@@ -516,8 +516,8 @@
                     <rect>
                      <x>0</x>
                      <y>0</y>
-                     <width>308</width>
-                     <height>129</height>
+                     <width>596</width>
+                     <height>149</height>
                     </rect>
                    </property>
                    <property name="sizePolicy">
@@ -537,7 +537,7 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="3" column="0">
+                    <item row="4" column="0">
                      <widget class="QLabel" name="label_12">
                       <property name="text">
                        <string>Min samples in class:</string>
@@ -547,7 +547,7 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="2" column="0">
+                    <item row="3" column="0">
                      <widget class="QLabel" name="label_11">
                       <property name="text">
                        <string>Max samples in class:</string>
@@ -557,7 +557,7 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="1" column="0">
+                    <item row="2" column="0">
                      <widget class="QLabel" name="label_9">
                       <property name="text">
                        <string>Number of selected attributes:</string>
@@ -567,7 +567,7 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="3" column="1" colspan="2">
+                    <item row="4" column="1" colspan="2">
                      <widget class="QLabel" name="minSamplesInClassLabel">
                       <property name="text">
                        <string>Loading</string>
@@ -577,7 +577,7 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="3" column="3">
+                    <item row="4" column="3">
                      <widget class="QLabel" name="classWithMinSamplesLabel">
                       <property name="text">
                        <string>Loading</string>
@@ -587,7 +587,7 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="2" column="3">
+                    <item row="3" column="3">
                      <widget class="QLabel" name="classWithMaxSamplesLabel">
                       <property name="text">
                        <string>Loading</string>
@@ -597,7 +597,7 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="2" column="1" colspan="2">
+                    <item row="3" column="1" colspan="2">
                      <widget class="QLabel" name="maxSamplesInClassLabel">
                       <property name="text">
                        <string>Loading</string>
@@ -607,7 +607,7 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="4" column="0">
+                    <item row="5" column="0">
                      <widget class="QLabel" name="label_13">
                       <property name="text">
                        <string>AVG number of class samples:</string>
@@ -617,7 +617,7 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="4" column="1" colspan="3">
+                    <item row="5" column="1" colspan="3">
                      <widget class="QLabel" name="avgNumberOfClassSamplesLabel">
                       <property name="text">
                        <string>Loading</string>
@@ -627,7 +627,7 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="5" column="0">
+                    <item row="6" column="0">
                      <widget class="QLabel" name="label_14">
                       <property name="text">
                        <string>Standard deviation of class samples:</string>
@@ -637,7 +637,7 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="5" column="1" colspan="3">
+                    <item row="6" column="1" colspan="3">
                      <widget class="QLabel" name="classSamplesStandardDeviationLabel">
                       <property name="text">
                        <string>Loading</string>
@@ -647,7 +647,7 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="1" column="1" colspan="3">
+                    <item row="2" column="1" colspan="3">
                      <widget class="QLabel" name="numOfSelAttrLabel">
                       <property name="text">
                        <string>Loading</string>
@@ -662,6 +662,20 @@
                       <property name="styleSheet">
                        <string notr="true"/>
                       </property>
+                      <property name="text">
+                       <string>Loading</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="0">
+                     <widget class="QLabel" name="label_22">
+                      <property name="text">
+                       <string>Number of selected classes:</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="1" colspan="3">
+                     <widget class="QLabel" name="numOfClassesLabel">
                       <property name="text">
                        <string>Loading</string>
                       </property>
@@ -1323,7 +1337,7 @@
                 <rect>
                  <x>0</x>
                  <y>0</y>
-                 <width>313</width>
+                 <width>159</width>
                  <height>174</height>
                 </rect>
                </property>

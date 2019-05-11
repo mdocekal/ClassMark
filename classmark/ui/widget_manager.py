@@ -138,6 +138,57 @@ class WidgetManager(object):
         msgBox.setIcon(QMessageBox.Critical)
         msgBox.exec();
 
+class LineEditAttributeValidaor(QValidator):    
+    """
+    This validator validates user input according to attribute setup.
+    If input is valid it also stores the value to attribute.
+    So this can be used for value binding.
+    """
+    
+    def __init__(self, attribute:PluginAttribute):
+        """
+        Initialization of validator.
+        
+        :param attribute: Validates according to this attribute settings.
+            Also passes valid values to this attribute.
+        :type attribute: PluginAttribute
+        """
+        super().__init__(None)  #We are setting parent to None.
+        self._attribute=attribute
+        
+    def validate(self, val:str, pos:int):
+        """
+        Input validation.
+        
+        :param val: Value for validation.
+        :type val: str
+        :param pos: Cursor position.
+        :type pos: int
+        """
+        
+        if val=="":
+            return self.Intermediate
+        
+        try:
+            #set and check value
+            self._attribute.setValue(val)
+            return self.Acceptable
+            
+        except ValueError:
+            #value is invalid
+            return self.Invalid
+    
+    def fixup(self, val:str):
+        """
+        Fix the input value.
+        
+        :param val: Value that should be fixed.
+        :type val: str
+        """
+        
+        return self._attribute.value
+
+
 class AttributesWidgetManager(WidgetManager):
     """
     This manager could help you create attributes widget for your plugin, if you do not want
@@ -346,7 +397,8 @@ class AttributesWidgetManager(WidgetManager):
         inputW=QLineEdit()
         if a.value is not None:
             inputW.setText(str(a.value))
-        inputW.textChanged.connect(a.setValueBind(inputW.setText))
+            
+        inputW.setValidator(a.setValidator(LineEditAttributeValidaor(self._a)))
 
         return self._createWidget(a, inputW)
     

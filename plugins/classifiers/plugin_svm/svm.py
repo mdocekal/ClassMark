@@ -17,7 +17,7 @@ class SVM(Classifier):
     SVM classifier plugin for ClassMark.
     """
     
-    def __init__(self, normalizer:BaseNormalizer=NormalizerPlugin(), 
+    def __init__(self, normalizer:BaseNormalizer=None, 
                  kernel:str="linear"):
         """
         Classifier initialization.
@@ -27,7 +27,8 @@ class SVM(Classifier):
         :param kernel: Kernel type that should be used.
         :type kernel: str
         """
-
+        normalizer=NormalizerPlugin()
+        
         #TODO: type control must be off here (None -> BaseNormalizer) maybe it will be good if one could pass
         #object
         self._normalizer=PluginAttribute("Normalize", PluginAttribute.PluginAttributeType.SELECTABLE_PLUGIN, None,

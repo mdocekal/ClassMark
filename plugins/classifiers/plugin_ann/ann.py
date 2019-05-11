@@ -10,8 +10,8 @@ from classmark.core.plugins import Classifier, PluginAttribute, Plugin, PluginAt
 from classmark.core.preprocessing import BaseNormalizer, NormalizerPlugin,\
     MinMaxScalerPlugin,StandardScalerPlugin, RobustScalerPlugin
     
-from keras.models import Sequential
-from keras.layers import Dense
+from keras.models import Model
+from keras.layers import Dense, Input
 from keras import optimizers, metrics
 from keras.callbacks import Callback
 import numpy as np
@@ -98,7 +98,7 @@ class ANN(Classifier):
         :type log: bool
         """
         
-        #TODO: type control must be off here (None -> BaseNormalizer) maybe it will be good if one could pass
+        normalizer=MinMaxScalerPlugin(-1,1)
         #object
         self._normalizer=PluginAttribute("Normalize", PluginAttribute.PluginAttributeType.SELECTABLE_PLUGIN, None,
                                          [None, NormalizerPlugin, MinMaxScalerPlugin, StandardScalerPlugin, RobustScalerPlugin])
@@ -183,25 +183,25 @@ class ANN(Classifier):
         
         numberOfClasses=np.unique(labels).shape[0]
         
-        #create model
-        self._cls=Sequential()
+        
+        #add input layer
+        inputL=outputL=Input(shape=(data.shape[1],))
         
         if self._hiddenLayers.value:
             #we have hidden layers
-            #first hidden layer 
-            self._cls.add(Dense(self._hiddenLayers.value[0].neurons.value, input_dim=data.shape[1], activation=self._hiddenLayers.value[0].activation.value))
-            for i in range(1, len(self._hiddenLayers.value)): #add rest of hidden layer
+
+            for i in range(0, len(self._hiddenLayers.value)): #add rest of hidden layer
                 layer=self._hiddenLayers.value[i]
                 #add dense layer
-                self._cls.add(Dense(layer.neurons.value, activation=layer.activation.value))
-            #add output layer
-            self._cls.add(Dense(numberOfClasses, input_dim=data.shape[1], activation=self._outLactFun.value))
-        else:
-            #no hidden layers
-            #so we have just output layer
-            self._cls.add(Dense(numberOfClasses, input_dim=data.shape[1], activation=self._outLactFun.value))
+                outputL=Dense(layer.neurons.value, activation=layer.activation.value)(outputL)
+
+        #add output layer
+        #must have same number of neurons as the number of classes
+        outputL=Dense(numberOfClasses, activation=self._outLactFun.value)(outputL)
             
-        
+        #create model
+        self._cls=Model(inputs=inputL, outputs=outputL)
+
 
         #compile model
         #sparse_categorical_crossentropy because we will receive labels as integers

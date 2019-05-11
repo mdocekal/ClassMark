@@ -432,20 +432,7 @@ class FunGenes(object):
                 
         return (newSib,newSib2)
     
-    '''
-    TODO:REMOVE
-    @classmethod
-    def _slotsCrossover(cls, classSamples, *funGenes):
-        """
-        Performs uniform crossover over slots..
-        
-        :param classSamples: True means crossover over class slots. False means over outer slots.
-        :type classSamples: bool
-        :param funGenes: FunGenes for crossover.
-        :type funGenes: FunGenes
-        """
-        pass
-        '''
+
     
     def mutate(self, m:int):
         """

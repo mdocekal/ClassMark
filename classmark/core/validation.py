@@ -314,6 +314,8 @@ class Validator(Plugin):
         :type labels: np.array
         :param fit: Should do fit step ("train" on input).
         :type fit: bool
+        :return: Extracted features.
+        :rtype: csr_matrix
         """
         features=None
         

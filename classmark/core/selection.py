@@ -6,7 +6,7 @@ Module for feature selection methods.
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
 
-from .plugins import Plugin, PluginAttribute
+from .plugins import Plugin, PluginAttribute, PluginAttributeStringChecker, PluginAttributeFloatChecker
 
 from sklearn.feature_selection import SelectFromModel, VarianceThreshold
 from sklearn.tree import DecisionTreeClassifier
@@ -56,7 +56,7 @@ class VarianceSelector(FeaturesSelector):
         :type threshold: float
         """
         
-        self._threshold=PluginAttribute("Threshold", PluginAttribute.PluginAttributeType.VALUE, float)
+        self._threshold=PluginAttribute("Threshold", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeFloatChecker(minV=0))
         self._threshold.value=threshold
         
         self._sel=None
@@ -92,9 +92,8 @@ class TreeBasedFeatureImportanceSelector(FeaturesSelector):
         :param threshold: Importance threshold.
         :type threshold: str
         """
-        
-        #TODO: VALIDATE INPUT VALUES
-        self._threshold=PluginAttribute("Threshold", PluginAttribute.PluginAttributeType.VALUE, str)
+
+        self._threshold=PluginAttribute("Threshold", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeStringChecker(couldBeNone=True))
         self._threshold.value=threshold
         
         self._sel=None

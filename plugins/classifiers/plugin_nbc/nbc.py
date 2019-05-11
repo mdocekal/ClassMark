@@ -9,6 +9,8 @@ from classmark.core.plugins import Classifier, PluginAttribute
 from classmark.core.preprocessing import BaseNormalizer, NormalizerPlugin,\
     MinMaxScalerPlugin,StandardScalerPlugin, RobustScalerPlugin
     
+from scipy.sparse import spmatrix
+    
 from sklearn.naive_bayes import MultinomialNB, GaussianNB
 
 class NaiveBayesClassifier(Classifier):
@@ -28,7 +30,7 @@ class NaiveBayesClassifier(Classifier):
         :type typeV: str
         """
         
-        #TODO: type control must be off here (None -> BaseNormalizer) maybe it will be good if one could pass
+
         #object
         self._normalizer=PluginAttribute("Normalize", PluginAttribute.PluginAttributeType.SELECTABLE_PLUGIN, None,
                                          [None, NormalizerPlugin, MinMaxScalerPlugin, StandardScalerPlugin, RobustScalerPlugin])
@@ -57,7 +59,8 @@ class NaiveBayesClassifier(Classifier):
         
         if self._type.value=="gaussian":
             self._cls=GaussianNB()
-            data=data.A #this classifier does not like sparse matrices
+            if isinstance(data, spmatrix):
+                data=data.A  #this classifier does not like sparse matrices
         else:
             self._cls=MultinomialNB()
         
@@ -71,5 +74,6 @@ class NaiveBayesClassifier(Classifier):
             
         if (isinstance(self._cls, GaussianNB)):
             #this classifier does not like sparse matrices
-            data=data.A
+            if isinstance(data, spmatrix):
+                data=data.A #this classifier does not like sparse matrices
         return self._cls.predict(data)

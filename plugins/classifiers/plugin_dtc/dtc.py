@@ -15,8 +15,11 @@ class DecisionTree(Classifier):
     """
     Decision Tree classifier.
     """
+    
+    TRANSLATE_CRITERIONS={"Gini Impurity":"gini", "Information Gain":"entropy"}
+    """Mapping from user form to model form."""
 
-    def __init__(self, normalizer:BaseNormalizer=None, randomSeed:int=None, criterion:str="gini"):
+    def __init__(self, normalizer:BaseNormalizer=None, randomSeed:int=None, criterion:str="Gini Impurity"):
         """
         lassifier initialization.
         
@@ -37,10 +40,8 @@ class DecisionTree(Classifier):
         self._randomSeed=PluginAttribute("Random seed", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(couldBeNone=True))
         self._randomSeed.value=randomSeed
         
-        splitCriterions=["Gini Index", "Information Gain"]
-        
         self._criterion=PluginAttribute("Split criterion", PluginAttribute.PluginAttributeType.SELECTABLE, 
-                                        PluginAttributeStringChecker(set(splitCriterions)), splitCriterions)
+                                        None, ["Gini Impurity", "Information Gain"])
         self._criterion.value=criterion
         
     @staticmethod
@@ -59,7 +60,7 @@ class DecisionTree(Classifier):
         if self._normalizer.value is not None:
             data=self._normalizer.value.fitTransform(data)
         
-        self._cls=DecisionTreeClassifier(random_state=self._randomSeed.value, criterion=self._criterion.value)
+        self._cls=DecisionTreeClassifier(random_state=self._randomSeed.value, criterion=self.TRANSLATE_CRITERIONS[self._criterion.value])
             
         self._cls.fit(data,labels)
     

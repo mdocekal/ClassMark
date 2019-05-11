@@ -6,7 +6,7 @@ Module for features preprocessing techniques.
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
 
-from .plugins import Plugin, PluginAttribute
+from .plugins import Plugin, PluginAttribute, PluginAttributeIntChecker
 from abc import abstractmethod
 
 from sklearn.preprocessing import StandardScaler, normalize, MinMaxScaler, RobustScaler
@@ -42,6 +42,20 @@ class NormalizerPlugin(BaseNormalizer):
     Scale input vectors individually to unit norm (vector length).
     """
     
+    def __init__(self, norm:str="l2"):
+        """
+        MinMaxScaler initialization.
+        
+        :param norm: Used norm.
+        :type norm: str
+        """
+ 
+        self._norm=PluginAttribute("Norm", PluginAttribute.PluginAttributeType.SELECTABLE, str,
+                                         ["l1", "l2"])
+        self._norm.value=norm
+        
+        
+        
     @staticmethod
     def getName():
         return "Normalizer"
@@ -55,10 +69,10 @@ class NormalizerPlugin(BaseNormalizer):
         return ""
     
     def fitTransform(self, data):
-        return normalize(data)
+        return normalize(data, norm=self._norm.value)
     
     def transform(self, data):
-        return normalize(data)
+        return normalize(data, norm=self._norm.value)
         
 class MinMaxScalerPlugin(BaseNormalizer):
     """
@@ -75,10 +89,10 @@ class MinMaxScalerPlugin(BaseNormalizer):
         :type maxV: int
         """
  
-        self._min=PluginAttribute("Min", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._min=PluginAttribute("Min", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker())
         self._min.value=minV
         
-        self._max=PluginAttribute("Max", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._max=PluginAttribute("Max", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker())
         self._max.value=maxV
     
     @staticmethod
@@ -95,7 +109,6 @@ class MinMaxScalerPlugin(BaseNormalizer):
     
     def fitTransform(self, data):
         self._scaler = MinMaxScaler(feature_range=(self._min.value, self._max.value))
-        print(data.shape)
         if isinstance(data,spmatrix):
             #because it throws error otherwise
             data=data.toarray()

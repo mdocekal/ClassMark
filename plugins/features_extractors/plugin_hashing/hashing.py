@@ -14,7 +14,7 @@ class Hashing(FeatureExtractor):
     Uses method called feature hashing.
     """
 
-    def __init__(self, nonNegative:bool=False, nFeatures:int=65536, norm="l2"):
+    def __init__(self, nonNegative:bool=False, nFeatures:int=100, norm="l2"):
         """
         Initialize Hashing features extractor.
         

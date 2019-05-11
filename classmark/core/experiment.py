@@ -511,7 +511,7 @@ class Experiment(Observable):
                 raise ExperimentLoadException("Couldn't load given experiment.")
             self._evaluationMethod=lE["evaluationMethod"]
             
-            if not isinstance(lE["results"], Results):
+            if lE["results"] is not None and not isinstance(lE["results"], Results):
                 raise ExperimentLoadException("Couldn't load given experiment.")
             self.results=lE["results"]
             

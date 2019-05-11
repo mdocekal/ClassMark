@@ -10,6 +10,7 @@ from classmark.core.plugins import Classifier, PluginAttribute,PluginAttributeIn
 from classmark.core.preprocessing import BaseNormalizer, NormalizerPlugin,\
     MinMaxScalerPlugin,StandardScalerPlugin, RobustScalerPlugin
 
+from scipy.sparse import csr_matrix, spmatrix
 from .evo_data_set import EvoDataSet
 from .individual import Individual
 from typing import List
@@ -130,6 +131,10 @@ class CEEF(Classifier):
         random.seed(self._randomSeed.value)
         if self._normalizer.value is not None:
             data=self._normalizer.value.fitTransform(data)
+            if not isinstance(data, spmatrix):
+                #some normalizers may return np array
+                #but we need sparse
+                data=csr_matrix(data)
         
         self._evolvedCls=None
         
@@ -209,6 +214,10 @@ class CEEF(Classifier):
         if self._normalizer.value is not None:
             data=self._normalizer.value.transform(data)
             
+            if not isinstance(data, spmatrix):
+                #some normalizers may return np array
+                #but we need sparse
+                data=csr_matrix(data)
         try:
             return self._evolvedCls.classify(data.A)
         except MemoryError:

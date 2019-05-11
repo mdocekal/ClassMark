@@ -14,7 +14,7 @@ from PySide2.QtGui import QPixmap, QIcon, QValidator
 from PySide2.QtWidgets import QWidget, QComboBox, QCheckBox,QLineEdit,QHBoxLayout, QVBoxLayout, QLabel,\
     QPushButton, QLayout, QMessageBox
 from builtins import isinstance
-from typing import List
+from typing import List, Any
 from ..core.plugins import PluginAttribute, PluginAttributeValueChecker
 
 class IconName(Enum):
@@ -225,8 +225,8 @@ class AttributesWidgetManager(WidgetManager):
             self.inputW.setLayout(QVBoxLayout(self.inputW))
             layout.addWidget(self.inputW)
             
-            for i,v in enumerate(a.value):
-                self._addItemWidget(i, v)
+            for i in range(len(a.value)):
+                self._addItemWidget(i)
 
             
             #add buttons for adding and removing items
@@ -245,30 +245,33 @@ class AttributesWidgetManager(WidgetManager):
             minusButton.clicked.connect(self.popItem)
             buttonsLayout.addWidget(minusButton)
                 
-        def _addItemWidget(self, i):
+        def _addItemWidget(self, i=None):
             """
             Create item widgets and append them to layout.
 
             :param i: Position of item in group.
+                 If true than new value on attribute side is created, else old is reused.
             :type i: int
             """
             
             if not isinstance(self._a._value, list):
                 self._a._value=[]
             
-            #add plugin
-            self._a._value.append(self._a.valType())
             
-            
-
-            hasOwnWidget=self._a._value[-1].getAttributesWidget(self.inputW)
+            if i is None:
+                #add new plugin
+                self._a._value.append(self._a.valType())
                 
+                i=len(self._a._value)-1    #take the last
+            
+            hasOwnWidget=self._a._value[i].getAttributesWidget(self.inputW)
+
             if hasOwnWidget is not None:    #Do plugin have own widget?
                 self.inputW.layout().addWidget(hasOwnWidget)
             else:
                 #no it don't
                 if len(self._a._value[-1].getAttributes())>0:
-                    self.manager=AttributesWidgetManager(self._a._value[-1].getAttributes(), self.inputW)
+                    self.manager=AttributesWidgetManager(self._a._value[i].getAttributes(), self.inputW)
                     #no it haves
                     hasOwnWidget=self.manager.widget
                         
@@ -289,7 +292,7 @@ class AttributesWidgetManager(WidgetManager):
             """
             Append new item.
             """
-            self._addItemWidget(len(self._a.value))
+            self._addItemWidget()
         
         def popItem(self):
             """

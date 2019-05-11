@@ -12,6 +12,8 @@ from typing import List, Callable, Any, Set
 from .utils import Logger
 import copy
 
+import sys
+
 class PluginAttributeValueChecker(object):
     """
     Just formal base class for value checker functors.
@@ -58,7 +60,7 @@ class PluginAttributeStringChecker(PluginAttributeValueChecker):
         if self._couldBeNone and (val is None or val==""):
             return None
         
-        if val not in self._valid:
+        if self._valid is not None and val not in self._valid:
             if val is not None and len(val)>0:
                 if any(val in s for s in self._valid):
                     #is substring
@@ -443,7 +445,11 @@ class Plugin(ABC):
         """
         Just add marking.
         """
-        instance = super().__new__(cls, *args, **kwargs)
+        if sys.version_info[0]>=3 and sys.version_info[1]>=3:
+            #In Python 3.3 and later there could not be any arguments.
+            instance = super().__new__(cls)
+        else:
+            instance = super().__new__(cls, *args, **kwargs)
         instance._marking=Plugin.__MARKING_CNT
         Plugin.__MARKING_CNT+=1
 

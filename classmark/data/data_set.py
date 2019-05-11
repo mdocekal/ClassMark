@@ -275,39 +275,14 @@ class DataSet(object):
         """
         
         if self._cntSamples is None:
-            self._cntSamples=0
-            with open(self._filePath, "r", encoding="utf-8") as opF:
-                reader = csv.reader(opF)
-                
-                try:
-                    next(reader)#skip the header
-                except StopIteration:
-                    #ok nothing here
-                    return 0
-                
-                if self._subset is None:
-                    for _ in reader:
-                        self._cntSamples+=1
-                else:
-                    if self._subset.shape[0]>0:
-                        #user wants just the subset
-                        subIter=iter(self._subset)
-                        nextFromSub=next(subIter)
-                        for i, _ in enumerate(reader):
-                            if i==nextFromSub:
-                                #we are in subset
-                                self._cntSamples+=1
-                                try:
-                                    nextFromSub=next(subIter)
-                                except StopIteration:
-                                    break
-                                
+            self._cntSamples=sum( 1 for _ in self._goThrough())
                 
         return self._cntSamples
         
-    def toNumpyArray(self, useOnly:List[List[str]]=[]):
+    def toNumpyArray(self, useOnly:List[List[str]]):
         """
         Stores all samples to numpy array.
+        All attributes must have value else ValueError is raised.
         
         :param useOnly: Which samples attributes should be only used (stored in sub list).
             The order of attributes is given by this sub list.
@@ -320,20 +295,21 @@ class DataSet(object):
                 and you wil get two numpy array one for attributes and the other for labels
                 
         :type useOnly: List[List[str]]
+
         :return: Numpy array with samples values.
-        :rtype: [np.array] | np.array
+        :rtype: [np.array]
+        :raise ValueError: When attribute has None value.
         """
 
-        if useOnly:
-            res=[np.empty([self.countSamples(), len(u)], dtype=object) for u in useOnly]
-            for n, s in enumerate(self):
-                for i, u in enumerate(useOnly):
-                    for ui, a in enumerate(u):
-                        res[i][n][ui]=s[a]
-            return res
-        else:
-            samples=[]
-            for i, s in enumerate(self):
-                samples.append([v for v in s.value()])
-        
-            return np.array(samples)
+        res=[np.empty([self.countSamples(), len(u)], dtype=object) for u in useOnly]
+        for n, s in enumerate(self):
+            for i, u in enumerate(useOnly):
+                for ui, a in enumerate(u):
+                    if s[a] is None:
+                        raise ValueError("Error when reading file "+self._filePath
+                                         +" on sample: "+str(sampleNum)
+                                         +". Attribute "+str(a)+" has None value.")
+
+                    res[i][n][ui]=s[a]
+                    
+        return res

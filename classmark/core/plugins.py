@@ -8,10 +8,153 @@ Modules defining plugins types and interfaces.
 from abc import ABC, abstractmethod
 import pkg_resources
 from enum import Enum
-from typing import List, Callable, Any
+from typing import List, Callable, Any, Set
 from .utils import Logger
 import copy
 
+class PluginAttributeValueChecker(object):
+    """
+    Just formal base class for value checker functors.
+    """
+    pass
+
+class PluginAttributeStringChecker(PluginAttributeValueChecker):
+    """
+    Checks string values.
+    """
+    
+    def __init__(self, valid:Set[str]=None, couldBeNone=False):
+        """
+        Initialization of checker.
+        
+        :param valid: Set of valid strings.
+        :type valid: Set[str]
+        :param couldBeNone: True means that value could be also None.
+            For empty string or just passed None instead of string for conversion.
+        :type couldBeNone: bool
+        """
+        self._valid=valid
+        self._couldBeNone=couldBeNone
+    
+        
+    def __call__(self, val:str):
+        """
+        Checks if val contains valid string.
+        
+        :param val: String value.
+        :type val: str
+        :return: str
+        :rtype: str | None
+        :raise ValueError: On invalid value. 
+        """
+        
+        if self._couldBeNone and (val is None or val==""):
+            return None
+        
+        if self._couldBeNone is not None and val not in self._valid:
+            raise ValueError("Invalid value: {}".format(val))
+        
+        return val
+        
+class PluginAttributeIntChecker(PluginAttributeValueChecker):
+    """
+    Checks and creates integer values from string.
+    """
+    
+    def __init__(self, min:int=None, max:int=None, couldBeNone=True):
+        """
+        Initialization of checker/creater. You can specify valid value interval.
+        
+        :param min: Min value that is valid.
+        :type min: int
+        :param max: Max valus that is valid.
+        :type max: int
+        :param couldBeNone: True means that value could be also None.
+            For empty string or just passed None instead of string for conversion.
+        :type couldBeNone: bool
+        """
+        self._min=min
+        self._max=max
+        self._couldBeNone=couldBeNone
+    
+    def __call__(self, val:str):
+        """
+        Checks if val contains integer  value.
+        If it is ok, than integer value is created else ValueError is raised.
+        
+        :param val: String value representing int.
+        :type val: str
+        :return: integer
+        :rtype: int | None
+        :raise ValueError: On invalid value. 
+        """
+        if self._couldBeNone and (val is None or val==""):
+            return None
+        
+        if val=="-":
+            #user starts typing negative value.
+            res=-1
+        else:
+            res=int(val)
+        
+        if self._min is not None and res<self._min:
+            raise ValueError("Minimal value could be {}.".format(self._min))
+
+        if self._max is not None and res>self._max:
+            raise ValueError("Maximal value could be {}.".format(self._max))
+        
+        return res
+
+class PluginAttributeFloatChecker(PluginAttributeValueChecker):
+    """
+    Checks and creates float values from string.
+    """
+    
+    def __init__(self, min:float=None,max:float=None,couldBeNone=True):
+        """
+        Initialization of checker/creater. You can specify valid value interval.
+        
+        :param min: Min value that is valid.
+        :type min: float
+        :param max: Max valus that is valid.
+        :type max: float
+        :param couldBeNone: True means that value could be also None.
+            For empty string or just passed None instead of string for conversion.
+        :type couldBeNone: bool
+        """
+        self._min=min
+        self._max=max
+        self._couldBeNone=couldBeNone
+    
+    def __call__(self, val:str):
+        """
+        Checks if val contains float  value.
+        If it is ok, than float value is created else ValueError is raised.
+        
+        :param val: String value representing float.
+        :type val: str
+        :return: float
+        :rtype: float | None
+        :raise ValueError: On invalid value. 
+        """
+        
+        if self._couldBeNone and (val is None or val==""):
+            return None
+        
+        if val=="-":
+            #user starts typing negative value.
+            res=-1.0
+        else:
+            res=float(val)
+        
+        if self._min is not None and res<self._min:
+            raise ValueError("Minimal value could be {}.".format(self._min))
+
+        if self._max is not None and res>self._max:
+            raise ValueError("Maximal value could be {}.".format(self._max))
+        
+        return res
+    
 class PluginAttribute(object):
     """
     Wrapper for plugin attribute. You could use this for auto creating of attributes widget.
@@ -50,17 +193,21 @@ class PluginAttribute(object):
         :param t: Type of attribute.
         :type t: PluginAttributeType
         :param valT: Type of attribute value. Could be used for type controls and 
-            auto type conversion. None means any type. Attribute value that is None or empty string
-            is always ok regardless valT.
+            auto type conversion. None means any type.
             
             If you use GROUP_PLUGINS, than pass to this type class of plugin that should be used.
-        :type valT: Type
+            
+            You can pass your own function that will be checking valid values
+            and raises ValueError on invalid value and returns created value else.
+            
+            You can use one of PluginAttributeValueChecker or get inspiration from them.
+        :type valT: Type | Callable[[str], Any]
         :param selVals: Values for combobox if SELECTABLE type is used.
         :type selVals: List[Any]
         """
         self._name=name
         self._type=t
-        #TODO: control if valT inherit from Plugin in case of SELECTABLE_PLUGIN
+
         self._valT=valT
         self._value=[] if t==self.PluginAttributeType.GROUP_PLUGINS else None
         self._selVals=selVals
@@ -144,21 +291,13 @@ class PluginAttribute(object):
         :raise ValueError: When the type of new value is invalid.
         """
         
-        
-        if nVal is None or nVal=="":
-            if index is None:
-                self._value=None
+        if index is None:
+            if self.type==PluginAttribute.PluginAttributeType.GROUP_PLUGINS:
+                self._value=[x if x is None else self._valT(x) for x in nVal]
             else:
-                self._value[index]=None
+                self._value=nVal if self._valT is None else self._valT(nVal)
         else:
-            #TODO: Troubles with numbers when writing minus values because minus alone is not number
-            if index is None:
-                if self.type==PluginAttribute.PluginAttributeType.GROUP_PLUGINS:
-                    self._value=[x if x is None else self._valT(x) for x in nVal]
-                else:
-                    self._value=nVal if self._valT is None else self._valT(nVal)
-            else:
-                self._value[index]=nVal if self._valT is None else self._valT(nVal)
+            self._value[index]=nVal if self._valT is None else self._valT(nVal)
             
         
     def setValueBind(self, bind:Callable[[str],Any],index=None):
@@ -180,9 +319,9 @@ class PluginAttribute(object):
                 self.setValue(val,index)
             except ValueError:
                 if index is None:
-                    bind(str(self._value))
+                    bind("" if self._value is None else str(self._value))
                 else:
-                    bind(str(self._value[index]))
+                    bind("" if self._value[index] is None else str(self._value[index]))
             
         return setV
         

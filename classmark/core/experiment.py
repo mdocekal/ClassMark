@@ -561,7 +561,7 @@ class Experiment(Observable):
         :return: Original data stats.
         :rtype: ExperimentDataStatistics | None
         """
-        return copy.copy(self._origDataStats)
+        return self._origDataStats
     
     
     @Observable._event("NEW_DATA_STATS")
@@ -609,14 +609,12 @@ class Experiment(Observable):
         """
         #available features extractors
         if len(FEATURE_EXTRACTORS)==0:
-            #TODO: Maybe multilanguage message will be better.
             raise RuntimeError("There are no features extractors plugins.")
         
         feTmp={}
         for fe in FEATURE_EXTRACTORS.values():
             if fe.getName() in feTmp:
                 #wow, name collision
-                #TODO: Maybe multilanguage message will be better.
                 raise RuntimeError("Collision of features extractors names. For name: "+fe.getName())
             feTmp[fe.getName()]=fe
         
@@ -631,14 +629,12 @@ class Experiment(Observable):
         
         #available classifiers
         if len(CLASSIFIERS)==0:
-            #TODO: Maybe multilanguage message will be better.
             raise RuntimeError("There are no classifiers plugins.")
         
         clsTmp=set()
         for cls in CLASSIFIERS.values():
             if cls.getName() in clsTmp:
                 #wow, name collision
-                #TODO: Maybe multilanguage message will be better.
                 raise RuntimeError("Collision of classifiers names. For name: "+cls.getName())
             clsTmp.add(cls.getName())
             
@@ -973,6 +969,12 @@ class ExperimentBackgroundRunner(QThread):
         #remove thinks that are no longer useful
         self._experiment.clearObservers()
         
+        if self._experiment.dataStats is not None:
+            self._experiment.dataStats.clearObservers()
+            
+        if self._experiment.origDataStats is not None:
+            self._experiment.origDataStats.clearObservers()
+        
         
     def run(self):
         """
@@ -1229,7 +1231,6 @@ class ExperimentRunner(ExperimentBackgroundRunner):
             
             commQ.put((cls.MultPMessageType.STEP_SIGNAL,None))  #because reading is finished
     
-            #TODO catch memory error
             resultsStorage=Results(steps,experiment.classifiers,lEnc)
     
             

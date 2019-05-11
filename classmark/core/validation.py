@@ -10,7 +10,8 @@ from scipy.sparse import hstack
 import numpy as np
 from abc import abstractmethod
 from typing import List, Callable
-from .plugins import Plugin, PluginAttribute, Classifier, FeatureExtractor
+from .plugins import Plugin, PluginAttribute, PluginAttributeFloatChecker, \
+    PluginAttributeIntChecker, PluginAttributeStringChecker, Classifier, FeatureExtractor
 from .selection import FeaturesSelector
 from ..data.data_set import DataSet
 from .utils import Logger
@@ -411,13 +412,14 @@ class ValidatorStratifiedKFold(Validator):
         :type folds: int
         """
         
-        self._folds=PluginAttribute("Folds", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._folds=PluginAttribute("Folds", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(min=1))
         self._folds.value=folds
         
         self._shuffle=PluginAttribute("Shuffle", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
         self._shuffle.value=False
         
-        self._randomSeed=PluginAttribute("Shuffle - random seed", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._randomSeed=PluginAttribute("Shuffle - random seed", PluginAttribute.PluginAttributeType.VALUE, 
+                                         PluginAttributeIntChecker(couldBeNone=True))
         self._randomSeed.value=None
         
     @property
@@ -467,13 +469,14 @@ class ValidatorKFold(Validator):
         :type randomSeed: None| int
         """
         
-        self._folds=PluginAttribute("Folds", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._folds=PluginAttribute("Folds", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(min=1))
         self._folds.value=folds
         
         self._shuffle=PluginAttribute("Shuffle", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
         self._shuffle.value=shuffle
         
-        self._randomSeed=PluginAttribute("Shuffle - random seed", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._randomSeed=PluginAttribute("Shuffle - random seed", PluginAttribute.PluginAttributeType.VALUE, 
+                                         PluginAttributeIntChecker(couldBeNone=True))
         self._randomSeed.value=randomSeed
         
     @property
@@ -583,7 +586,7 @@ class ValidatorPeparedSets(Validator):
         :type attribute: str
         """
 
-        self._attribute=PluginAttribute("Attribute", PluginAttribute.PluginAttributeType.VALUE, str)
+        self._attribute=PluginAttribute("Attribute", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeStringChecker(couldBeNone=True))
         self._attribute.value=attribute
         
     @property

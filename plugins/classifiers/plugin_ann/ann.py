@@ -5,7 +5,8 @@ Artificial Neural Networks classifier plugin for ClassMark.
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
-from classmark.core.plugins import Classifier, PluginAttribute, Plugin
+from classmark.core.plugins import Classifier, PluginAttribute, Plugin, PluginAttributeIntChecker,\
+    PluginAttributeFloatChecker
 from classmark.core.preprocessing import BaseNormalizer, NormalizerPlugin,\
     MinMaxScalerPlugin,StandardScalerPlugin, RobustScalerPlugin
     
@@ -32,7 +33,7 @@ class Layer(Plugin):
         :type activation: str
         """
         
-        self.neurons=PluginAttribute("Neurons", PluginAttribute.PluginAttributeType.VALUE, int)
+        self.neurons=PluginAttribute("Neurons", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self.neurons.value=neurons
         
         self.activation=PluginAttribute("Activation function", PluginAttribute.PluginAttributeType.SELECTABLE, str,
@@ -74,7 +75,7 @@ class ANN(Classifier):
     Artificial Neural Networks classifier.
     """
 
-    def __init__(self, normalizer:BaseNormalizer=None, randomSeed:int=None, epochs:int=10, batchSize:int=None, learningRate:float=0.001, 
+    def __init__(self, normalizer:BaseNormalizer=None, randomSeed:int=None, epochs:int=10, batchSize:int=32, learningRate:float=0.001, 
                  gpu:bool=True, outLactFun:str="softmax", log:bool=True):
         """
         Classifier initialization.
@@ -103,16 +104,16 @@ class ANN(Classifier):
                                          [None, NormalizerPlugin, MinMaxScalerPlugin, StandardScalerPlugin, RobustScalerPlugin])
         self._normalizer.value=normalizer
         
-        self._randomSeed=PluginAttribute("Random seed", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._randomSeed=PluginAttribute("Random seed", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(couldBeNone=True))
         self._randomSeed.value=randomSeed
         
-        self._epochs=PluginAttribute("Epochs", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._epochs=PluginAttribute("Epochs", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._epochs.value=epochs
         
-        self._batchSize=PluginAttribute("Batch size", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._batchSize=PluginAttribute("Batch size", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._batchSize.value=batchSize
         
-        self._learningRate=PluginAttribute("Learning rate", PluginAttribute.PluginAttributeType.VALUE, float)
+        self._learningRate=PluginAttribute("Learning rate", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeFloatChecker())
         self._learningRate.value=learningRate
 
         self._gpu=PluginAttribute("GPU", PluginAttribute.PluginAttributeType.CHECKABLE, bool)

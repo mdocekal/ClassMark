@@ -16,6 +16,13 @@ class PluginAttributeValueChecker(object):
     """
     Just formal base class for value checker functors.
     """
+    
+    class IntermediateValue(Exception):
+        """
+        Signalises that value is not valid, but could be if user wil change it litle bit.
+        """
+        pass
+    
     pass
 
 class PluginAttributeStringChecker(PluginAttributeValueChecker):
@@ -51,7 +58,12 @@ class PluginAttributeStringChecker(PluginAttributeValueChecker):
         if self._couldBeNone and (val is None or val==""):
             return None
         
-        if self._couldBeNone is not None and val not in self._valid:
+        if val not in self._valid:
+            if val is not None and len(val)>0:
+                if any(val in s for s in self._valid):
+                    #is substring
+                    raise self.IntermediateValue()
+                
             raise ValueError("Invalid value: {}".format(val))
         
         return val
@@ -61,20 +73,20 @@ class PluginAttributeIntChecker(PluginAttributeValueChecker):
     Checks and creates integer values from string.
     """
     
-    def __init__(self, min:int=None, max:int=None, couldBeNone=True):
+    def __init__(self, minV:int=None, maxV:int=None, couldBeNone=False):
         """
         Initialization of checker/creater. You can specify valid value interval.
         
-        :param min: Min value that is valid.
-        :type min: int
-        :param max: Max valus that is valid.
-        :type max: int
+        :param minV: Min value that is valid.
+        :type minV: int
+        :param maxV: Max valus that is valid.
+        :type maxV: int
         :param couldBeNone: True means that value could be also None.
             For empty string or just passed None instead of string for conversion.
         :type couldBeNone: bool
         """
-        self._min=min
-        self._max=max
+        self._min=minV
+        self._max=maxV
         self._couldBeNone=couldBeNone
     
     def __call__(self, val:str):
@@ -86,7 +98,7 @@ class PluginAttributeIntChecker(PluginAttributeValueChecker):
         :type val: str
         :return: integer
         :rtype: int | None
-        :raise ValueError: On invalid value. 
+        :raise ValueError: On invalid value. | self.IntermediateValue when value is not valid but could be.
         """
         if self._couldBeNone and (val is None or val==""):
             return None
@@ -98,7 +110,12 @@ class PluginAttributeIntChecker(PluginAttributeValueChecker):
             res=int(val)
         
         if self._min is not None and res<self._min:
-            raise ValueError("Minimal value could be {}.".format(self._min))
+            if len(str(res))==len(str(self._min)):
+                raise ValueError("Minimal value could be {}.".format(self._min))
+            else:
+                #ok, the length does not match maybe user is just typing
+                raise self.IntermediateValue()
+            
 
         if self._max is not None and res>self._max:
             raise ValueError("Maximal value could be {}.".format(self._max))
@@ -110,20 +127,20 @@ class PluginAttributeFloatChecker(PluginAttributeValueChecker):
     Checks and creates float values from string.
     """
     
-    def __init__(self, min:float=None,max:float=None,couldBeNone=True):
+    def __init__(self, minV:float=None,maxV:float=None,couldBeNone=False):
         """
         Initialization of checker/creater. You can specify valid value interval.
         
-        :param min: Min value that is valid.
-        :type min: float
-        :param max: Max valus that is valid.
-        :type max: float
+        :param minV: Min value that is valid.
+        :type minV: float
+        :param maxV: Max valus that is valid.
+        :type maxV: float
         :param couldBeNone: True means that value could be also None.
             For empty string or just passed None instead of string for conversion.
         :type couldBeNone: bool
         """
-        self._min=min
-        self._max=max
+        self._min=minV
+        self._max=maxV
         self._couldBeNone=couldBeNone
     
     def __call__(self, val:str):
@@ -135,7 +152,7 @@ class PluginAttributeFloatChecker(PluginAttributeValueChecker):
         :type val: str
         :return: float
         :rtype: float | None
-        :raise ValueError: On invalid value. 
+        :raise ValueError: On invalid value. | self.IntermediateValue when value is not valid but could be.
         """
         
         if self._couldBeNone and (val is None or val==""):
@@ -148,7 +165,12 @@ class PluginAttributeFloatChecker(PluginAttributeValueChecker):
             res=float(val)
         
         if self._min is not None and res<self._min:
-            raise ValueError("Minimal value could be {}.".format(self._min))
+            if len(str(res))==len(str(self._min)):
+                raise ValueError("Minimal value could be {}.".format(self._min))
+            else:
+                #ok, the length does not match maybe user is just typing
+                raise self.IntermediateValue()
+            
 
         if self._max is not None and res>self._max:
             raise ValueError("Maximal value could be {}.".format(self._max))
@@ -288,7 +310,7 @@ class PluginAttribute(object):
         :param index: This parameter is for GROUP attributes and
             defines index in list where the value should be set.
         :type index: int
-        :raise ValueError: When the type of new value is invalid.
+        :raise ValueError: When the type of new value is invalid. | self.IntermediateValue when value is not valid but could be.
         """
         
         if index is None:
@@ -322,6 +344,9 @@ class PluginAttribute(object):
                     bind("" if self._value is None else str(self._value))
                 else:
                     bind("" if self._value[index] is None else str(self._value[index]))
+            except PluginAttributeValueChecker.IntermediateValue:
+                #probably just intermediate value
+                pass
             
         return setV
         

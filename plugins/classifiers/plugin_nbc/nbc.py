@@ -16,16 +16,16 @@ class NaiveBayesClassifier(Classifier):
     Naive Bayes classifier.
     """
 
-    def __init__(self, normalizer:BaseNormalizer=None, type:str="gaussian"):
+    def __init__(self, normalizer:BaseNormalizer=None, typeV:str="gaussian"):
         """
         Classifier initialization.
         
         :param normalizer: Normalizer used for input data. If none than normalization/scalling is omitted.
         :type normalizer: None | BaseNormalizer
-        :param type: Type of naive bayes.
+        :param typeV: Type of naive bayes.
             multinomial    -    Discrete non negative values like counts or something like that.
             gaussian    -    Continuous values. Likelihood of features is assumed to be gaussian.
-        :type type: str
+        :type typeV: str
         """
         
         #TODO: type control must be off here (None -> BaseNormalizer) maybe it will be good if one could pass
@@ -36,7 +36,7 @@ class NaiveBayesClassifier(Classifier):
         
         self._type=PluginAttribute("Type", PluginAttribute.PluginAttributeType.SELECTABLE, str,
                                          ["gaussian", "multinomial"])
-        self._type.value=type
+        self._type.value=typeV
 
         
     @staticmethod

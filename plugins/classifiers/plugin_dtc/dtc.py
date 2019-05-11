@@ -5,7 +5,7 @@ Decision Tree classifier plugin for ClassMark.
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
-from classmark.core.plugins import Classifier, PluginAttribute
+from classmark.core.plugins import Classifier, PluginAttribute, PluginAttributeIntChecker, PluginAttributeStringChecker
 from classmark.core.preprocessing import BaseNormalizer, NormalizerPlugin,\
     MinMaxScalerPlugin,StandardScalerPlugin, RobustScalerPlugin
     
@@ -34,11 +34,13 @@ class DecisionTree(Classifier):
                                          [None, NormalizerPlugin, MinMaxScalerPlugin, StandardScalerPlugin, RobustScalerPlugin])
         self._normalizer.value=normalizer
 
-        self._randomSeed=PluginAttribute("Random seed", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._randomSeed=PluginAttribute("Random seed", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(couldBeNone=True))
         self._randomSeed.value=randomSeed
         
-        self._criterion=PluginAttribute("Split criterion", PluginAttribute.PluginAttributeType.SELECTABLE, str,
-                                        ["Gini Index", "Information Gain"])
+        splitCriterions=["Gini Index", "Information Gain"]
+        
+        self._criterion=PluginAttribute("Split criterion", PluginAttribute.PluginAttributeType.SELECTABLE, 
+                                        PluginAttributeStringChecker(set(splitCriterions)), splitCriterions)
         self._criterion.value=criterion
         
     @staticmethod

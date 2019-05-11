@@ -71,14 +71,14 @@ class CEEF(Classifier):
                                          [None, NormalizerPlugin, MinMaxScalerPlugin, StandardScalerPlugin, RobustScalerPlugin])
         self._normalizer.value=normalizer
         
-        self._generations=PluginAttribute("Number of generations", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(min=0))
+        self._generations=PluginAttribute("Number of generations", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=0))
         self._generations.value=generations
         
         self._stopAccuracy=PluginAttribute("Stop accuracy", PluginAttribute.PluginAttributeType.VALUE, 
-                                           PluginAttributeFloatChecker(min=0.0, max=1.0,couldBeNone=True))
+                                           PluginAttributeFloatChecker(minV=0.0, maxV=1.0,couldBeNone=True))
         self._stopAccuracy.value=stopAccuracy
         
-        self._population=PluginAttribute("Population size", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(min=1))
+        self._population=PluginAttribute("Population size", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._population.value=population
     
         
@@ -90,19 +90,19 @@ class CEEF(Classifier):
         self._randomSeed=PluginAttribute("Random seed", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(couldBeNone=True))
         self._randomSeed.value=randomSeed
         
-        self._maxCrossovers=PluginAttribute("Max crossovers in generation", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(min=1))
+        self._maxCrossovers=PluginAttribute("Max crossovers in generation", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._maxCrossovers.value=maxCrossovers
         
-        self._maxMutations=PluginAttribute("Max mutations", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(min=0))
+        self._maxMutations=PluginAttribute("Max mutations", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=0))
         self._maxMutations.value=maxMutations
         
-        self._maxStartSlots=PluginAttribute("Max start slots", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(min=2))
+        self._maxStartSlots=PluginAttribute("Max start slots", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=2))
         self._maxStartSlots.value=maxStartSlots
         
-        self._crossoverProb=PluginAttribute("Crossover probability", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeFloatChecker(min=0.0, max=1.0))
+        self._crossoverProb=PluginAttribute("Crossover probability", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeFloatChecker(minV=0.0, maxV=1.0))
         self._crossoverProb.value=crossoverProb
         
-        self._testSetSize=PluginAttribute("Test set size", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeFloatChecker(min=0.0, max=1.0))
+        self._testSetSize=PluginAttribute("Test set size", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeFloatChecker(minV=0.0, maxV=1.0))
         self._testSetSize.value=testSetSize
         
         self._changeTestSet=PluginAttribute("Change test set for each generation", PluginAttribute.PluginAttributeType.CHECKABLE, bool)

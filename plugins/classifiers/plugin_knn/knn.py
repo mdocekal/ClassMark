@@ -5,7 +5,7 @@ KNN classifier plugin for ClassMark.
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
-from classmark.core.plugins import Classifier, PluginAttribute
+from classmark.core.plugins import Classifier, PluginAttribute, PluginAttributeIntChecker
 from classmark.core.preprocessing import BaseNormalizer, NormalizerPlugin,\
     MinMaxScalerPlugin,StandardScalerPlugin, RobustScalerPlugin
     
@@ -32,7 +32,7 @@ class KNN(Classifier):
                                          [None, NormalizerPlugin, MinMaxScalerPlugin, StandardScalerPlugin, RobustScalerPlugin])
         self._normalizer.value=normalizer
         
-        self._neighbors=PluginAttribute("Neighbors", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._neighbors=PluginAttribute("Neighbors", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._neighbors.value=neighbors
         
     @staticmethod

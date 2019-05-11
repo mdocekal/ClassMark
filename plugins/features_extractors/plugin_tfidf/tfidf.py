@@ -5,7 +5,7 @@ Feature extractor plugin for ClassMark.
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
-from classmark.core.plugins import FeatureExtractor, PluginAttribute
+from classmark.core.plugins import FeatureExtractor, PluginAttribute, PluginAttributeIntChecker
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 class TFIDF(FeatureExtractor):
@@ -26,7 +26,7 @@ class TFIDF(FeatureExtractor):
 
         """
         
-        self._maxFeatures=PluginAttribute("Max number of features", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._maxFeatures=PluginAttribute("Max number of features", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1,couldBeNone=True))
         self._maxFeatures.value=maxFeatures
         
         self._caseSensitive=PluginAttribute("Case sensitive", PluginAttribute.PluginAttributeType.CHECKABLE, bool)

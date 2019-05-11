@@ -15,7 +15,7 @@ from PySide2.QtWidgets import QWidget, QComboBox, QCheckBox,QLineEdit,QHBoxLayou
     QPushButton, QLayout, QMessageBox
 from builtins import isinstance
 from typing import List
-from ..core.plugins import PluginAttribute
+from ..core.plugins import PluginAttribute, PluginAttributeValueChecker
 
 class IconName(Enum):
     """
@@ -177,6 +177,10 @@ class LineEditAttributeValidaor(QValidator):
         except ValueError:
             #value is invalid
             return self.Invalid
+        
+        except PluginAttributeValueChecker.IntermediateValue:
+            #input is not valid but could be
+            return self.Intermediate
     
     def fixup(self, val:str):
         """
@@ -186,7 +190,7 @@ class LineEditAttributeValidaor(QValidator):
         :type val: str
         """
         
-        return self._attribute.value
+        return str(self._attribute.value)
 
 
 class AttributesWidgetManager(WidgetManager):
@@ -398,7 +402,7 @@ class AttributesWidgetManager(WidgetManager):
         if a.value is not None:
             inputW.setText(str(a.value))
             
-        inputW.setValidator(a.setValidator(LineEditAttributeValidaor(self._a)))
+        inputW.setValidator(LineEditAttributeValidaor(a))
 
         return self._createWidget(a, inputW)
     

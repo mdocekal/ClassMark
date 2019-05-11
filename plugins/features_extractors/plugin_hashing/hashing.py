@@ -5,7 +5,7 @@ Feature extractor plugin for ClassMark.
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
-from classmark.core.plugins import FeatureExtractor, PluginAttribute
+from classmark.core.plugins import FeatureExtractor, PluginAttribute, PluginAttributeIntChecker
 from sklearn.feature_extraction.text import HashingVectorizer
 
 class Hashing(FeatureExtractor):
@@ -29,7 +29,7 @@ class Hashing(FeatureExtractor):
         self._nonNegativ=PluginAttribute("Non negative values", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
         self._nonNegativ.value=nonNegative
         
-        self._nFeatures=PluginAttribute("Number of features", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._nFeatures=PluginAttribute("Number of features", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._nFeatures.value=nFeatures
         
         self._norm=PluginAttribute("Normalization", PluginAttribute.PluginAttributeType.SELECTABLE, str,

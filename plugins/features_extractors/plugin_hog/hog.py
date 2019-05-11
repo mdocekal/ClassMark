@@ -5,7 +5,7 @@ Histogram of Oriented Gradients plugin for ClassMark.
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
-from classmark.core.plugins import FeatureExtractor, PluginAttribute
+from classmark.core.plugins import FeatureExtractor, PluginAttribute, PluginAttributeIntChecker
 from skimage.feature import hog
 from scipy.sparse import csr_matrix
 
@@ -36,19 +36,19 @@ class HOG(FeatureExtractor):
         """
         hog(image, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(3, 3), block_norm='L2-Hys', visualize=False, visualise=None, transform_sqrt=False, feature_vector=True, multichannel=None)
         """
-        self._orientationsBins=PluginAttribute("Number of orientation bins", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._orientationsBins=PluginAttribute("Number of orientation bins", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._orientationsBins.value=orientationsBins
         
-        self._pixelsPerCellHorizontal=PluginAttribute("Width of a cell [px]", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._pixelsPerCellHorizontal=PluginAttribute("Width of a cell [px]", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._pixelsPerCellHorizontal.value=pixelsPerCellHorizontal
         
-        self._pixelsPerCellVertical=PluginAttribute("Height of a cell [px]", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._pixelsPerCellVertical=PluginAttribute("Height of a cell [px]", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._pixelsPerCellVertical.value=pixelsPerCellVertical
         
-        self._cellsPerBlockHorizontal=PluginAttribute("Number of cells in each block (horizontal)", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._cellsPerBlockHorizontal=PluginAttribute("Number of cells in each block (horizontal)", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._cellsPerBlockHorizontal.value=cellsPerBlockHorizontal
         
-        self._cellsPerBlockVertical=PluginAttribute("Number of cells in each block (vertical)", PluginAttribute.PluginAttributeType.VALUE, int)
+        self._cellsPerBlockVertical=PluginAttribute("Number of cells in each block (vertical)", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._cellsPerBlockVertical.value=cellsPerBlockVertical
         
         self._blockNorm=PluginAttribute("Normalization", PluginAttribute.PluginAttributeType.SELECTABLE, str,

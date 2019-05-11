@@ -10,7 +10,7 @@ from scipy.sparse import hstack
 import numpy as np
 from abc import abstractmethod
 from typing import List, Callable
-from .plugins import Plugin, PluginAttribute, PluginAttributeFloatChecker, \
+from .plugins import Plugin, PluginAttribute, \
     PluginAttributeIntChecker, PluginAttributeStringChecker, Classifier, FeatureExtractor
 from .selection import FeaturesSelector
 from ..data.data_set import DataSet
@@ -412,7 +412,7 @@ class ValidatorStratifiedKFold(Validator):
         :type folds: int
         """
         
-        self._folds=PluginAttribute("Folds", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(min=1))
+        self._folds=PluginAttribute("Folds", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._folds.value=folds
         
         self._shuffle=PluginAttribute("Shuffle", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
@@ -469,7 +469,7 @@ class ValidatorKFold(Validator):
         :type randomSeed: None| int
         """
         
-        self._folds=PluginAttribute("Folds", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(min=1))
+        self._folds=PluginAttribute("Folds", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._folds.value=folds
         
         self._shuffle=PluginAttribute("Shuffle", PluginAttribute.PluginAttributeType.CHECKABLE, bool)

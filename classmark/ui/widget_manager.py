@@ -10,7 +10,7 @@ import os
 from enum import Enum
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QFile, QObject, Qt
-from PySide2.QtGui import QPixmap, QIcon
+from PySide2.QtGui import QPixmap, QIcon, QValidator
 from PySide2.QtWidgets import QWidget, QComboBox, QCheckBox,QLineEdit,QHBoxLayout, QVBoxLayout, QLabel,\
     QPushButton, QLayout, QMessageBox
 from builtins import isinstance

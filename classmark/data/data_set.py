@@ -150,7 +150,7 @@ class DataSet(object):
         if useOnly is None:
             useOnly=self._attributes
         with open(filePath, "w", encoding="utf-8") as opF:
-            writter=csv.DictWriter(opF, useOnly)
+            writter=csv.DictWriter(opF, useOnly, extrasaction='ignore')
             writter.writeheader()
             
             for _, sample in self._goThrough():

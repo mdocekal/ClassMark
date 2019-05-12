@@ -33,9 +33,6 @@ class HOG(FeatureExtractor):
         :type blockNorm: str
         """
         
-        """
-        hog(image, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(3, 3), block_norm='L2-Hys', visualize=False, visualise=None, transform_sqrt=False, feature_vector=True, multichannel=None)
-        """
         self._orientationsBins=PluginAttribute("Number of orientation bins", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._orientationsBins.value=orientationsBins
         
@@ -54,6 +51,7 @@ class HOG(FeatureExtractor):
         self._blockNorm=PluginAttribute("Normalization", PluginAttribute.PluginAttributeType.SELECTABLE, str,
                                             [None,"L1","L1-sqrt","L2","L2-Hys"])
         self._blockNorm.value=blockNorm
+        
     
     @staticmethod
     def getName():
@@ -83,13 +81,15 @@ class HOG(FeatureExtractor):
     
     def extract(self, data):
         res=[]
+
         for lReader in data:
-            res.append( hog(lReader.getRGB(), 
+            data=lReader.getRGB()
+            res.append( hog(data, 
                             orientations=self._orientationsBins.value, 
                             pixels_per_cell=(self._pixelsPerCellHorizontal.value, self._pixelsPerCellVertical.value), 
                             cells_per_block=(self._cellsPerBlockHorizontal.value, self._cellsPerBlockVertical.value), 
                             block_norm=self._blockNorm.value, 
-                            feature_vector=True))
+                            feature_vector=True, multichannel=len(data.shape)>2))
         return csr_matrix(res)
     
     def fitAndExtract(self, data, labels=None):

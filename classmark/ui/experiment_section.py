@@ -562,12 +562,14 @@ class ExperimentSection(WidgetManager):
         :param load: Path to file containing experiment configuration.
             None means that new experiment should be loaded.
         :type load: string|None
-        :raise exception: 
+        :raise ExperimentLoadException: When experiment couldn't be loaded.
         """
-        self._widget=self._loadTemplate(self.TEMPLATE, self._parent)
         
         #create new or load saved experiment
-        self._experiment=Experiment(load)
+        loaded=Experiment(load) #could raise exception
+        self._experiment=loaded
+        
+        self._widget=self._loadTemplate(self.TEMPLATE, self._parent)
         
         #register observable for experiment data statistics
 

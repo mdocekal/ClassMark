@@ -18,6 +18,8 @@ from .selection import Selector, Rulete, Rank
 import random
 import copy
 import numpy as np
+from pygments.lexers.esoteric import BefungeLexer
+from plugins.classifiers.plugin_ceef.ceef.individual import FunGenes
 
 
 
@@ -143,8 +145,19 @@ class CEEF(Classifier):
         self.trainedClasses=dataset.classes
         
         #create initial population
-        population=[Individual.createInit(dataset, self._maxMutations.value, self._maxStartSlots.value) for _ in range(self._population.value)]
+        population=[]
         
+        saveExp=None
+        for _ in range(self._population.value):
+            try:
+                population.append(Individual.createInit(dataset, self._maxStartSlots.value))
+            except Exception as e:
+                #probably to few samples
+                #let's skip it maybe another will be generated with better numbers
+                saveExp=e
+        
+        if saveExp is not None and len(population)<1:
+            raise saveExp
         #evaluate
         
         #set the best as the result
@@ -154,7 +167,7 @@ class CEEF(Classifier):
         while (self._stopAccuracy.value is None or self._stopAccuracy.value>self._evolvedCls.score) and \
                self._generations.value>=generations:
             if self._logGenFitness.value:
-                self._logger.log("Actual score: {}".format(self._evolvedCls.score))
+                self._logger.log("{}/{} | Actual score: {}".format(generations, self._generations.value, self._evolvedCls.score))
             
 
             #get new population

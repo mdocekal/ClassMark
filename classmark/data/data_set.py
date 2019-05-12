@@ -307,7 +307,7 @@ class DataSet(object):
                 for ui, a in enumerate(u):
                     if s[a] is None:
                         raise ValueError("Error when reading file "+self._filePath
-                                         +" on sample: "+str(sampleNum)
+                                         +" on sample: "+str(n)
                                          +". Attribute "+str(a)+" has None value.")
 
                     res[i][n][ui]=s[a]

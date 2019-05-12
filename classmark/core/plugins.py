@@ -112,11 +112,8 @@ class PluginAttributeIntChecker(PluginAttributeValueChecker):
             res=int(val)
         
         if self._min is not None and res<self._min:
-            if len(str(res))==len(str(self._min)):
-                raise ValueError("Minimal value could be {}.".format(self._min))
-            else:
-                #ok, the length does not match maybe user is just typing
-                raise self.IntermediateValue()
+            #ok, the min does not match, but maybe user is just still typing
+            raise self.IntermediateValue()
             
 
         if self._max is not None and res>self._max:
@@ -167,11 +164,8 @@ class PluginAttributeFloatChecker(PluginAttributeValueChecker):
             res=float(val)
         
         if self._min is not None and res<self._min:
-            if len(str(res))==len(str(self._min)):
-                raise ValueError("Minimal value could be {}.".format(self._min))
-            else:
-                #ok, the length does not match maybe user is just typing
-                raise self.IntermediateValue()
+            #ok, the min does not match, but maybe user is just still typing
+            raise self.IntermediateValue()
             
 
         if self._max is not None and res>self._max:

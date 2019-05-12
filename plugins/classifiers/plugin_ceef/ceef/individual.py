@@ -38,19 +38,17 @@ class Individual(object):
         self._funGenes=[]
         
     @classmethod
-    def createInit(cls, dataSet:EvoDataSet, maxMutations, maxStartSlots):
+    def createInit(cls, dataSet:EvoDataSet, maxStartSlots):
         """
         Creates individual for initial population.
 
         :param dataSet: Data set that will be used for evolution and evaluation of solution.
         :type dataSet: EvoDataSet
-        :param maxMutations: Maximal number of mutations used in init.
-            Is used for determination of maximal number of sample slots for FunGenes.
-        :type maxMutations: int
         :param maxStartSlots: Maximum number of slots for start. (minimal is always 1)
         :type maxStartSlots: int
         :return: The new individual.
         :rtype: Individual
+        :raise FunGenes.CanNotFillSlotException: When there is to few samples.
         """
         
         theNewSelf=cls(dataSet)
@@ -61,7 +59,7 @@ class Individual(object):
             indices=np.where(dataSet.labels==c)[0]
             outerIndices=np.where(dataSet.labels!=c)[0]
 
-            theNewSelf._funGenes.append(FunGenes.createInit(dataSet,indices,outerIndices,maxMutations))
+            theNewSelf._funGenes.append(FunGenes.createInit(dataSet,indices,outerIndices,maxStartSlots))
 
         return theNewSelf
     
@@ -287,8 +285,8 @@ class FunGenes(object):
         try:
             self._addNewSlots(numberOfOuterSlots, False)
         except self.CanNotFillSlotException as e:
-            #if we have at least two than it is ok
-            if len(self._samplesSlots)<2:
+            #if we have at least one than it is ok
+            if len(self._samplesSlots)<1:
                 raise e
 
         return self
@@ -335,8 +333,7 @@ class FunGenes(object):
                     #unique
                     break
                 tmpSel=(tmpSel+1)%indicies.shape[0]
-                
-            if tmpSel==sel:
+            else:
                 #couldn't get unique
                 raise self.CanNotFillSlotException()
 
@@ -355,36 +352,6 @@ class FunGenes(object):
         
         return any(True for x in samplesSlots if np.allclose(sample,x))
         
-        
-    '''
-    TODO: DELETE
-    def _occurences(self, sample,classSamples):
-        """
-        Counts occurrences of given sample in class data.
-        
-        :param sample: The sample.
-        :type sample: np.array()
-        :param classSamples: True means fill with class samples. False means outer samples (always returns zero).
-        :type classSamples: bool
-        :return: Number of occurrences of sample but for classSamples=False returns 0.
-        :rtype: int
-        """
-        
-
-        if not classSamples:
-            return 0
- 
-        
-        sampleSparse=csr_matrix(sample)
-
-        res=0
-        for i in self._classDataIndices:
-            act=self._dataSet.data[i]
-            if sampleSparse.nnz==act.nnz:
-                res+=1
-
-        return res
-    '''
     
     
     @classmethod      

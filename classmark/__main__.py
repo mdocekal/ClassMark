@@ -29,12 +29,13 @@ def main():
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     app = QApplication(sys.argv)
     
-    
+
     try:
         
         window = MainWindow(app)
         window.show()
-    
+        if len(sys.argv)>1:
+            window.goExperiment(sys.argv[1])
         sys.exit(app.exec_())
     except Exception as e: 
         errTxt="--------------------\nError detail:\n\n"+traceback.format_exc()\

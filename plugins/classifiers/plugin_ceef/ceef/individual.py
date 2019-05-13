@@ -273,7 +273,6 @@ class FunGenes(object):
         else:
             numberOfClassSlots=random.randint(1,maxSlots-1)
             numberOfOuterSlots=random.randint(1,maxSlots-numberOfClassSlots)
-
         
         try:
             self._addNewSlots(numberOfClassSlots, True)

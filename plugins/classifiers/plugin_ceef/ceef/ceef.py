@@ -217,6 +217,11 @@ class CEEF(Classifier):
                 child1=copy.copy(parents[0][1])
                 child2=copy.copy(parents[1][1])
             
+            #mutate
+            child1.mutate(self._maxMutations.value)
+            child2.mutate(self._maxMutations.value)
+            
+            
             #select two best out of children and parents
             bestOfThem=sorted([child1,child2,parents[0][1],parents[1][1]], key=lambda i: i.score, reverse=True)[:2]
             population[parents[0][0]]=bestOfThem[0]  #instead of first parent (could be inserted first parent again)

@@ -32,7 +32,7 @@ class TFIDF(FeatureExtractor):
         self._caseSensitive=PluginAttribute("Case sensitive", PluginAttribute.PluginAttributeType.CHECKABLE, bool)
         self._caseSensitive.value=caseSensitive
         
-        self._norm=PluginAttribute("Normalization", PluginAttribute.PluginAttributeType.SELECTABLE, str,
+        self._norm=PluginAttribute("Normalization", PluginAttribute.PluginAttributeType.SELECTABLE, None,
                                             [None,"l1","l2",])
         self._norm.value=norm
     
@@ -52,6 +52,9 @@ class TFIDF(FeatureExtractor):
         """
         Creates and initializes extractor according to current attributes values.
         """
+        if self._norm.value=="":
+            self._norm.value=None
+            
         self._ext=TfidfVectorizer(max_features=self._maxFeatures.value,lowercase=not self._caseSensitive.value,
                                   norm=self._norm.value)
     

@@ -48,8 +48,8 @@ class HOG(FeatureExtractor):
         self._cellsPerBlockVertical=PluginAttribute("Number of cells in each block (vertical)", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._cellsPerBlockVertical.value=cellsPerBlockVertical
         
-        self._blockNorm=PluginAttribute("Normalization", PluginAttribute.PluginAttributeType.SELECTABLE, str,
-                                            [None,"L1","L1-sqrt","L2","L2-Hys"])
+        self._blockNorm=PluginAttribute("Normalization", PluginAttribute.PluginAttributeType.SELECTABLE, None,
+                                            ["L1","L1-sqrt","L2","L2-Hys"])
         self._blockNorm.value=blockNorm
         
     

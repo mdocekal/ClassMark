@@ -8,7 +8,7 @@ Usefull utils
 
 from scipy.sparse import spmatrix
 from functools import wraps
-
+from typing import Dict, Callable
 
 def getAllSubclasses(cls):
     """
@@ -95,6 +95,25 @@ class Observable(object):
     def __init__(self):
         self.__observers = {}
         
+    @property
+    def observers(self):
+        """
+        Get all observers.
+        """
+        
+        return self.__observers
+    
+    @observers.setter
+    def observers(self, observers:Dict[str,Callable]):
+        """
+        Set new observers.
+        
+        :param observers: New observers.
+        :type observers:Dict[str,Callable]
+        """
+        
+        self.__observers=observers
+    
     def clearObservers(self):
         """
         Clears all observers.

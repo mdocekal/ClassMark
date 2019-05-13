@@ -32,8 +32,8 @@ class Hashing(FeatureExtractor):
         self._nFeatures=PluginAttribute("Number of features", PluginAttribute.PluginAttributeType.VALUE, PluginAttributeIntChecker(minV=1))
         self._nFeatures.value=nFeatures
         
-        self._norm=PluginAttribute("Normalization", PluginAttribute.PluginAttributeType.SELECTABLE, str,
-                                            [None,"l1","l2",])
+        self._norm=PluginAttribute("Normalization", PluginAttribute.PluginAttributeType.SELECTABLE, None,
+                                            [None,"l1","l2"])
         self._norm.value=norm
     
         self._vectorizer=None
@@ -54,6 +54,9 @@ class Hashing(FeatureExtractor):
         """
         Creates and initializes extractor according to current attributes values.
         """
+        if self._norm.value=="":
+            self._norm.value=None
+            
         self._ext=HashingVectorizer(n_features=self._nFeatures.value, non_negative=self._nonNegativ.value,
                                     norm=self._norm.value)
     

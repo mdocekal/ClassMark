@@ -969,11 +969,27 @@ class ExperimentBackgroundRunner(QThread):
         #remove thinks that are no longer useful
         self._experiment.clearObservers()
         
+        saveObservers=None
+        saveObserversOrig=None
         if self._experiment.dataStats is not None:
+            saveObservers=self._experiment.dataStats.observers
             self._experiment.dataStats.clearObservers()
             
+            
         if self._experiment.origDataStats is not None:
+            saveObserversOrig=self._experiment.origDataStats.observers
             self._experiment.origDataStats.clearObservers()
+            
+        #no we can make deep copy
+        self._experiment=copy.deepcopy(self._experiment)
+        
+        #return original observers
+        if saveObservers is not None:
+            experiment.dataStats.observers=saveObservers
+            
+        if saveObserversOrig is not None:
+            experiment.origDataStats.observers=saveObserversOrig
+        
         
         
     def run(self):

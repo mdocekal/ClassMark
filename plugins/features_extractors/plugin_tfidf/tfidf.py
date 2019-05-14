@@ -56,7 +56,7 @@ class TFIDF(FeatureExtractor):
             self._norm.value=None
             
         self._ext=TfidfVectorizer(max_features=self._maxFeatures.value,lowercase=not self._caseSensitive.value,
-                                  norm=self._norm.value)
+                                  norm=self._norm.value,analyzer=lambda x: str(x).split())
     
     def fit(self, data, labels=None):
         self._initExt()
@@ -67,4 +67,5 @@ class TFIDF(FeatureExtractor):
     
     def fitAndExtract(self, data, labels=None):
         self._initExt()
+        
         return self._ext.fit_transform(data)

@@ -58,7 +58,7 @@ class Hashing(FeatureExtractor):
             self._norm.value=None
             
         self._ext=HashingVectorizer(n_features=self._nFeatures.value, non_negative=self._nonNegativ.value,
-                                    norm=self._norm.value)
+                                    norm=self._norm.value,analyzer=lambda x: str(x).split())
     
     def fit(self, data, labels=None):
         """

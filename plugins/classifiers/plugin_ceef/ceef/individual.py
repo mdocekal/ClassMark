@@ -322,19 +322,6 @@ class FunGenes(object):
         indicies=self._classDataIndices if classSamples else self._outerIndices
         sel=random.randrange(indicies.shape[0])
         actSel=self._dataSet.data[indicies[sel]].todense().A1   #.A1 matrix to vector conversion
-        if self._sampleAllreadyIn(self._samplesSlots,actSel):
-            #not unique sample
-            #find next that is free
-            tmpSel=(sel+1)%indicies.shape[0]
-            while tmpSel!=sel:
-                actSel=self._dataSet.data[indicies[tmpSel]].todense().A1   #.A1 matrix to vector conversion
-                if not self._sampleAllreadyIn(self._samplesSlots,actSel):
-                    #unique
-                    break
-                tmpSel=(tmpSel+1)%indicies.shape[0]
-            else:
-                #couldn't get unique
-                raise self.CanNotFillSlotException()
 
         return actSel
         

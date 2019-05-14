@@ -60,7 +60,7 @@ class LazyFileReader(ABC):
         """
         return "{}: {}".format(__class__.__name__, self._filePath)
     
-class LazyTextFileReader(LazyFileReader,str):
+class LazyTextFileReader(LazyFileReader):
     """
     Lazy text reader for attributes that are marked as path.
     """
@@ -78,6 +78,12 @@ class LazyTextFileReader(LazyFileReader,str):
                 return fileToRead.read()
         except:
             raise RuntimeError("Couldn't read file: "+self._filePath)
+        
+    def __repr__(self):
+        """
+        Representation of that reader
+        """
+        return str(self)
     
  
 class LazyImageFileReader(LazyFileReader):

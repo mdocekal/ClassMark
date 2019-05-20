@@ -18,8 +18,6 @@ from .selection import Selector, Rulete, Rank
 import random
 import copy
 import numpy as np
-from pygments.lexers.esoteric import BefungeLexer
-from plugins.classifiers.plugin_ceef.ceef.individual import FunGenes
 
 
 
@@ -50,7 +48,7 @@ class CEEF(Classifier):
         :type selectionMethod: Selector
         :param randomSeed: If not None than fixed seed is used.
         :type randomSeed: int
-        :param maxCrossovers: Maximum number of crossovers when createing generation.
+        :param maxCrossovers: Maximum number of crossovers when creating generation.
         :type maxCrossovers: int
         :param maxMutations: Maximum number of changed genes in one mutation.
         :type maxMutations: int
@@ -68,8 +66,6 @@ class CEEF(Classifier):
         """
 
 
-        #TODO: type control must be off here (None -> BaseNormalizer) maybe it will be good if one could pass
-        #object
         self._normalizer=PluginAttribute("Normalize", PluginAttribute.PluginAttributeType.SELECTABLE_PLUGIN, None,
                                          [None, NormalizerPlugin, MinMaxScalerPlugin, StandardScalerPlugin, RobustScalerPlugin])
         self._normalizer.value=normalizer

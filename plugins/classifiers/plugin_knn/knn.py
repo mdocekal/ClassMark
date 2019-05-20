@@ -25,9 +25,7 @@ class KNN(Classifier):
         :param neighbors: Number of neighbors (k).
         :type neighbors: int
         """
-        
-        #TODO: type control must be off here (None -> BaseNormalizer) maybe it will be good if one could pass
-        #object
+
         self._normalizer=PluginAttribute("Normalize", PluginAttribute.PluginAttributeType.SELECTABLE_PLUGIN, None,
                                          [None, NormalizerPlugin, MinMaxScalerPlugin, StandardScalerPlugin, RobustScalerPlugin])
         self._normalizer.value=normalizer

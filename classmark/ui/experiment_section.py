@@ -13,15 +13,15 @@ from PySide2.QtWidgets import QFileDialog, QHeaderView, QPushButton, QMessageBox
 from PySide2.QtCore import Qt
 
 from ..core.experiment import Experiment, PluginSlot, ExperimentRunner, ExperimentStatsRunner, ExperimentDataStatistics
-from ..core.plugins import Plugin, Classifier
+from ..core.plugins import Plugin, Classifier, FeatureExtractor
 from ..core.selection import FeaturesSelector
+from ..core.validation import Validator
 from .delegates import RadioButtonDelegate, ComboBoxDelegate
 from .models import TableDataAttributesModel, TableClassStatsModel, TableAttributesStatsModel, \
     TableSummarizationResultsModel, TableConfusionMatrixModel, TableResultsModel, saveTableModelAsCsv
 from ..core.results import Results
 from typing import Callable, Dict
 from functools import partial
-import copy
 from enum import Enum
 from abc import ABC, abstractmethod
 
@@ -142,7 +142,6 @@ class PluginRowWidgetManager(ABC,WidgetManager):
     
 class ClassifierRowWidgetManager(PluginRowWidgetManager):
     """
-    TODO: TRANSFORM TO ORDINARY WIDGET
     Widget manager of row with selection of classifier for testing.
     
     About user choice of classifier this widget informs Experiment object directly, but
@@ -183,7 +182,6 @@ class ClassifierRowWidgetManager(PluginRowWidgetManager):
 
 class FeaturesSelectorRowWidgetManager(PluginRowWidgetManager):
     """
-    TODO: TRANSFORM TO ORDINARY WIDGET
     Widget manager of row with selection of features selector.
     
     This widget informs about user choice of features selector Experiment object directly, but
@@ -763,8 +761,7 @@ class ExperimentSection(WidgetManager):
         self._setSecResModeForDataAttrTable()
         
         #hide the plugin attributes
-        self._widget.dataPluginAttributesHeader.hide()
-        self._widget.dataAttributesScrollArea.hide()
+        self._hideDataProperties()
         
         #init validators
 
@@ -782,6 +779,13 @@ class ExperimentSection(WidgetManager):
         self._widget.comboBoxValidation.currentTextChanged.connect(self._experiment.setEvaluationMethod)
         self._widget.comboBoxValidation.currentTextChanged.connect(self._showEvaluationMethodProperties)
         self._widget.validationPropertiesButton.clicked.connect(self._showEvaluationMethodProperties)
+        
+    def _hideDataProperties(self):
+        """
+        Hides UI section of plugin properties that are shown on the right side of data tab..
+        """
+        self._widget.dataPluginAttributesHeader.hide()
+        self._widget.dataAttributesScrollArea.hide()
         
     def _initDataStats(self):
         """
@@ -886,29 +890,8 @@ class ExperimentSection(WidgetManager):
         :param featuresSelector: The features selector which attributes you want to show.
         :type featuresSelector: FeaturesSelector
         """
-
-        #TODO: _featuresSelectorPropertiesEvent _classifierPropertiesEvent _showFeaturesExtractorProperties is quite the same code
-        #    maybe they can share a method
         
-        #remove old
-        child=self._widget.featureSelectorPluginAttributesContent.takeAt(0)
-        while child:
-            child.widget().deleteLater()
-            child=self._widget.featureSelectorPluginAttributesContent.takeAt(0)
-
-        #set the header
-        self._widget.featureSelectorAttributesHeader.show()
-        self._widget.featureSelectorAttributesScrollArea.show()
-        self._widget.featureSelectorNameShownAttributes.setText(featuresSelector.getName())
-        
-        
-        hasOwnWidget=featuresSelector.getAttributesWidget(self._widget.featureSelectorPluginAttributesWidget)
-        
-        if hasOwnWidget is not None:
-            self._widget.featureSelectorPluginAttributesContent.addWidget(hasOwnWidget)
-        else:
-            self.manager=AttributesWidgetManager(featuresSelector.getAttributes(), self._widget.featureSelectorPluginAttributesWidget)
-            self._widget.featureSelectorPluginAttributesContent.addWidget(self.manager.widget)
+        self._showPluginAttributes(featuresSelector)
         
     def _initRes(self):
         """
@@ -971,29 +954,8 @@ class ExperimentSection(WidgetManager):
         :param classifier: The classifier which attributes you want to show.
         :type classifier: Classifier
         """
-        #TODO: _classifierPropertiesEvent _showFeaturesExtractorProperties is quite the same code
-        #    maybe they can share a method
         
-        #remove old
-        child=self._widget.classifierPluginAttributesContent.takeAt(0)
-        while child:
-            child.widget().deleteLater()
-            child=self._widget.classifierPluginAttributesContent.takeAt(0)
-
-        #set the header
-        self._widget.classifierPluginAttributesHeader.show()
-        self._widget.classifierAttributesScrollArea.show()
-        self._widget.classifierPluginNameShownAttributes.setText(classifier.getName())
-        
-        
-        hasOwnWidget=classifier.getAttributesWidget(self._widget.classifierPluginAttributesWidget)
-        
-        if hasOwnWidget is not None:
-            self._widget.classifierPluginAttributesContent.addWidget(hasOwnWidget)
-        else:
-            self.manager=AttributesWidgetManager(classifier.getAttributes(), self._widget.classifierPluginAttributesWidget)
-            self._widget.classifierPluginAttributesContent.addWidget(self.manager.widget)
-
+        self._showPluginAttributes(classifier)
     
     def _saveAsNewDataset(self):
         """
@@ -1027,7 +989,7 @@ class ExperimentSection(WidgetManager):
             self._setPropertiesButtonsToDataAttrTable()
             
             self._dataStatsClear()
-            #TODO: HIDE OLD FEATURES EXTRACTOR
+            self._hideDataProperties()
             
     def _setPropertiesButtonsToDataAttrTable(self):
         """
@@ -1064,42 +1026,66 @@ class ExperimentSection(WidgetManager):
         plugin=self._experiment.getAttributeSetting(self._experiment.dataset.attributes[row], 
                     self._experiment.AttributeSettings.FEATURE_EXTRACTOR)
         
-        self._showPropertiesInDataSection(plugin, plugin.getName()+"\n["+self._experiment.dataset.attributes[row]+"]")
+        self._showPluginAttributes(plugin, plugin.getName()+"\n["+self._experiment.dataset.attributes[row]+"]")
         
     def _showEvaluationMethodProperties(self):
         """
         Show properties of actually selected evaluation method.
         """
-        self._showPropertiesInDataSection(self._experiment.evaluationMethod, self._experiment.evaluationMethod.getName())
+        self._showPluginAttributes(self._experiment.evaluationMethod)
             
-    
-    def _showPropertiesInDataSection(self, plugin, name):
+
+    def _showPluginAttributes(self, plugin:Plugin, name:str=None):
         """
-        Shows plugins attributes.
+        Shows attributes of given plugin in UI.
+        According to Plugin type the appropriate section is used.
+
         
-        :param plugin: The plugin which attributes should be shown.
-        :type plugin: Plugin
-        :param name: Name that will be shown in header.
+        :param plugin: Plugin that you want to show.
+        :type plugin: Classifier | FeaturesSelector | FeaturesExtractor | Validator
+        :param name: Name of plugin that should be shown in header.
+            If no name is given than plugin name is determined from Plugin itself.
         :type name: str
         """
-        #remove old childs
-        self.removeChildWidgetFromLayout(self._widget.dataPluginAttributesContent)
-
-
-        #set the header
-        self._widget.dataPluginAttributesHeader.show()
-        self._widget.dataAttributesScrollArea.show()
-        self._widget.dataPluginNameShownAttributes.setText(name)
         
-        
-        hasOwnWidget=plugin.getAttributesWidget(self._widget.dataPluginAttributesWidget)
-        
-        if hasOwnWidget is not None:
-            self._widget.dataPluginAttributesContent.addWidget(hasOwnWidget)
-        else:
-            self.manager=AttributesWidgetManager(plugin.getAttributes(), self._widget.dataPluginAttributesWidget)
-            self._widget.dataPluginAttributesContent.addWidget(self.manager.widget)
+        if isinstance(plugin, Classifier):
+            header=self._widget.classifierPluginAttributesHeader
+            subHeader=self._widget.classifierPluginNameShownAttributes
+            content=self._widget.classifierPluginAttributesContent
+            scrollArea=self._widget.classifierAttributesScrollArea
+            attrWidget=self._widget.classifierPluginAttributesWidget
             
+        elif isinstance(plugin, FeaturesSelector):
+            header=self._widget.featureSelectorAttributesHeader
+            subHeader=self._widget.featureSelectorNameShownAttributes
+            content=self._widget.featureSelectorPluginAttributesContent
+            scrollArea=self._widget.featureSelectorAttributesScrollArea
+            attrWidget=self._widget.featureSelectorPluginAttributesWidget
+        
+        elif isinstance(plugin, FeatureExtractor) or isinstance(plugin, Validator):
+            header=self._widget.dataPluginAttributesHeader
+            subHeader=self._widget.dataPluginNameShownAttributes
+            content=self._widget.dataPluginAttributesContent
+            scrollArea=self._widget.dataAttributesScrollArea
+            attrWidget=self._widget.dataPluginAttributesWidget
+            
+        #remove old childs
+        self.removeChildWidgetFromLayout(content)
+        
+        #set the header
+        header.show()
+        scrollArea.show()
+        subHeader.setText(plugin.getName() if name is None else name)
+        
+        hasOwnWidget=plugin.getAttributesWidget(attrWidget)
+        
+        #set the content
+        if hasOwnWidget is not None:
+            content.addWidget(hasOwnWidget)
+        else:
+            self.manager=AttributesWidgetManager(plugin.getAttributes(), attrWidget)
+            content.addWidget(self.manager.widget)
+        
     
     def _setSecResModeForDataAttrTable(self):
         """

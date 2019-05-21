@@ -26,6 +26,14 @@ Jsou tu však i jiné instalační skripty, které můžete místo tohoto použ�
 
 Chcete-li instalovat ClassMark pro ostatní systémy (např. Windows), pak se prosím podívejte do install*.sh skriptů pro získání inspirace. Skládají se pouze z několika pip3 příkazů a z jejich obsahu je hned jasné co je potřeba nainstalovat.
 
+
+Na závěr je vhodné provést restart. Po restartu by mělo jít spustit ClassMark pomocí:
+
+	classmark
+
+## Příklady
+Ve složce examples jsou příklady souborů s datovými sadami.
+
 # ClassMark [en]
 Benchmark for classifiers that was created as a part of diploma thesis by Martin Dočekal at BRNO UNIVERSITY OF TECHNOLOGY in 2019. 
 ## Installation
@@ -53,3 +61,10 @@ There are also another types of installation scripts, that you can use instead:
   * install_editable.sh is preferable choice please use it if you can
 
 If you want to install ClassMark on others systems (eg. Windows), than please take a look at install*.sh scripts to get inspiration. Their just consists of multiple pip3 commands and from their content is immediately clear what you need to install.
+
+At the end it is suitable to restart your computer. After restart finishes you should be able to run ClassMark with:
+
+	classmark
+	
+## Examples
+Examples folder contains examples of data set files.

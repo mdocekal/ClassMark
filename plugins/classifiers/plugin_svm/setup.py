@@ -11,11 +11,12 @@ SVM classifier plugin for ClassMark.
 from distutils.core import setup
 
 setup(name='ClassMarkPluginClassifierSVM',
-    version='1.0dev',
+    version='1.0',
     description='SVM classifier plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.classifiers': 'svm = svm:SVM'},
+    packages=["svm"],
+    entry_points={'classmark.plugins.classifiers': 'svm = svm.svm:SVM'},
     install_requires=[
-        'scikit_learn==0.21.1'
+        'scikit_learn>=0.20'
     ]
 )

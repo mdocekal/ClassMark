@@ -11,13 +11,17 @@ Artificial Neural Networks classifier plugin for ClassMark.
 from distutils.core import setup
 
 setup(name='ClassMarkPluginClassifierANN',
-    version='1.0dev',
+    version='1.0',
     description='Artificial Neural Networks classifier plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.classifiers': 'ann = ann:ANN'},
+    packages=["ann"],
+    entry_points={'classmark.plugins.classifiers': 'ann = ann.ann:ANN'},
+    extras_require={
+        "tf": ['tensorflow>=1.12'],
+        "tf_gpu": ['tensorflow-gpu>=1.12'],
+    },
     install_requires=[
-        'numpy>=1.16.3',
-        'Keras>=2.2.4',
-        'tensorflow>=1.12.0'
+        'numpy>=1.16',
+        'Keras>=2.2',
     ]
 )

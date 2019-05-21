@@ -11,10 +11,10 @@ ClassMark is a classifier benchmark.
 from distutils.core import setup
 
 setup(name='ClassMark',
-    version='1.0',
+    version='1.0.0',
     description='ClassMark is a benchmark for classifiers.',
     author='Martin Dočekal',
-    packages=['classmark'],
+    packages=['classmark', 'classmark.core', 'classmark.ui', 'classmark.data'],
     package_data={'classmark': ['ui/icons/*','ui/languages/*','ui/templates/*','core/data/*']},
     data_files=[('examples', ['examples/test.csv'])],
     entry_points={
@@ -23,14 +23,13 @@ setup(name='ClassMark',
         ]
     },
     install_requires=[
-        'pandas>=0.23.1',
-        'scikit_image>=0.15.0',
-        'setuptools>=39.0.1',
-        'scipy>=1.2.0',
-        'numpy>=1.16.3',
-        'typing>=3.6.6',
-        'PySide2>=5.12.3',
-        'skimage>=0.0',
-        'scikit_learn>=0.21.1'
+        'pandas>=0.23',
+        'scikit_image>=0.15',
+        'setuptools>=39.0',
+        'scipy>=1.2',
+        'numpy>=1.16',
+        'typing>=3.6',
+        'PySide2>=5.12',
+        'scikit_learn>=0.20'
     ]
 )

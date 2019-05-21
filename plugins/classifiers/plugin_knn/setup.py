@@ -11,11 +11,12 @@ KNN classifier plugin for ClassMark.
 from distutils.core import setup
 
 setup(name='ClassMarkPluginClassifierKNN',
-    version='1.0dev',
+    version='1.0',
     description='KNN classifier plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.classifiers': 'knn = knn:KNN'},
+    packages=["knn"],
+    entry_points={'classmark.plugins.classifiers': 'knn = knn.knn:KNN'},
     install_requires=[
-        'scikit_learn==0.21.1',
+        'scikit_learn>=0.20'
     ]
 )

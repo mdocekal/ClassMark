@@ -98,12 +98,21 @@ class MainWindow(WidgetManager,SectionRouter):
         :type load: string|None
         """
 
-        self._experiment.loadExperiment(load)
-
-        self._widget.mainContent.setCurrentIndex(self._widget.mainContent.indexOf(self._experiment.widget))
-        self._widget.menuFileSaveExperiment.setEnabled(True)
-        self._widget.menuFileSaveAsExperiment.setEnabled(True)
-        self._saveShortcut.activated.connect(self.goSaveExperiment)
+        try:
+            self._experiment.loadExperiment(load)
+            self._widget.mainContent.setCurrentIndex(self._widget.mainContent.indexOf(self._experiment.widget))
+            self._widget.menuFileSaveExperiment.setEnabled(True)
+            self._widget.menuFileSaveAsExperiment.setEnabled(True)
+            self._saveShortcut.activated.connect(self.goSaveExperiment)
+        except Exception as e:
+            emsg = QMessageBox()
+            emsg.setWindowTitle(self.tr("There is a problem with loading your experiment :("))
+            emsg.setText(str(e))
+            emsg.setIcon(QMessageBox.Critical)
+            emsg.exec()
+                
+        
+        
         
     def goSaveExperiment(self, saveAs:bool=False):
         """

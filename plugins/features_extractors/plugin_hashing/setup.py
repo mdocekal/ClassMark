@@ -11,12 +11,13 @@ Feature extractor plugin for ClassMark.
 from distutils.core import setup
 
 setup(name='ClassMarkPluginFeatureExtractorHashing',
-    version='1.0dev',
+    version='1.0',
     description='Hashing feature extractor plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.features_extractors': 'hashing = hashing:Hashing'},
+    packages=["hashing"],
+    entry_points={'classmark.plugins.features_extractors': 'hashing = hashing.hashing:Hashing'},
     install_requires=[
-        'scikit_learn==0.21.1'
+        'scikit_learn>=0.20'
     ]
     
 )

@@ -11,14 +11,14 @@ Feature extractor plugin for ClassMark.
 from distutils.core import setup
 
 setup(name='ClassMarkPluginFeatureExtractorHOG',
-    version='1.0dev',
+    version='1.0',
     description='HOG feature extractor plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.features_extractors': 'hog = hog:HOG'},
+    packages=["hog"],
+    entry_points={'classmark.plugins.features_extractors': 'hog = hog.hog:HOG'},
     install_requires=[
-        'scikit_image==0.15.0',
-        'scipy==1.2.0',
-        'skimage==0.0',
+        'scikit_image>=0.15',
+        'scipy>=1.2'
     ]
 
 )

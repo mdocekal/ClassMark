@@ -11,12 +11,13 @@ Naive Bayes classifier plugin for ClassMark.
 from distutils.core import setup
 
 setup(name='ClassMarkPluginClassifierNBC',
-    version='1.0dev',
+    version='1.0',
     description='Naive Bayes classifier plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.classifiers': 'nbc = nbc:NaiveBayesClassifier'},
+    packages=["nbc"],
+    entry_points={'classmark.plugins.classifiers': 'nbc = nbc.nbc:NaiveBayesClassifier'},
     install_requires=[
-        'scipy==1.2.0',
-        'scikit_learn==0.21.1',
+        'scipy>=1.2',
+        'scikit_learn>=0.20'
     ]
 )

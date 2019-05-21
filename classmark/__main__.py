@@ -27,6 +27,11 @@ def killChilds():
 def main():
     atexit.register(killChilds)
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    
+    
+    QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
+    #else strange error occurs Qt WebEngine seems to be initialized from a plugin. Please set Qt::AA_ShareOpenGLContexts using QCoreApplication::setAttribute before constructing QGuiApplication.
+
     app = QApplication(sys.argv)
     
 
@@ -48,6 +53,7 @@ def main():
         emsg.setIcon(QMessageBox.Critical)
         emsg.show()
         sys.exit(app.exec_())
+    finally:
         killChilds()
 
         

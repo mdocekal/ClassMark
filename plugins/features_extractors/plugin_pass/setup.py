@@ -11,11 +11,12 @@ Feature extractor plugin for ClassMark.
 from distutils.core import setup
 
 setup(name='ClassMarkPluginFeatureExtractorPass',
-    version='1.0dev',
+    version='1.0',
     description='Pass feature extractor plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.features_extractors': 'pass = pass:Pass'},
+    packages=["pass"],
+    entry_points={'classmark.plugins.features_extractors': 'pass = pass.pass:Pass'},
     install_requires=[
-        'scipy==1.2.0'
+        'scipy>=1.2'
     ]
 )

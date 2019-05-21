@@ -11,11 +11,12 @@ Decision Tree classifier plugin for ClassMark.
 from distutils.core import setup
 
 setup(name='ClassMarkPluginClassifierDTC',
-    version='1.0dev',
+    version='1.0',
     description='Decision Tree classifier plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.classifiers': 'dtc = dtc:DecisionTree'},
+    packages=["dtc"],
+    entry_points={'classmark.plugins.classifiers': 'dtc = dtc.dtc:DecisionTree'},
     install_requires=[
-        'scikit_learn==0.21.1',
+        'scikit_learn>=0.20'
     ]
 )

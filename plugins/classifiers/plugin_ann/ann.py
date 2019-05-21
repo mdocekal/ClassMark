@@ -12,11 +12,10 @@ from classmark.core.preprocessing import BaseNormalizer, NormalizerPlugin,\
     
 from keras.models import Model
 from keras.layers import Dense, Input
-from keras import optimizers, metrics
+from keras import optimizers
 from keras.callbacks import Callback
+import tensorflow as tf
 import numpy as np
-
-import os
 
 
 USED_ACCURACY="sparse_categorical_accuracy"
@@ -145,77 +144,68 @@ class ANN(Classifier):
     def getInfo():
         return ""
     
-    
-    def gpuSwitch(self):
+    def _selectDevice(self):
         """
-        Switches off or on gpu by user priority.
-        Offcourse if GPU option exists.
+        Selects gpu/cpu by user priority.
+        Ofcourse if GPU option exists.
         """
         
+        GPU=tf.test.gpu_device_name()
 
-        if self._gpu.value:
-            #use GPU
-            if self._CUDA_VISIBLE_DEVICES_CACHED is not None:
-                #return saved
-                if self._CUDA_VISIBLE_DEVICES_CACHED is False:
-                    #the CUDA_VISIBLE_DEVICES does not exists before we set it
-                    del os.environ['CUDA_VISIBLE_DEVICES']
-                else:
-                    os.environ['CUDA_VISIBLE_DEVICES'] = self._CUDA_VISIBLE_DEVICES_CACHED
-                self._CUDA_VISIBLE_DEVICES_CACHED=None
+        if GPU and self._gpu.value:
+            #we have gpu and user wants it
+            return GPU
         else:
-            #no GPU
-            if self._CUDA_VISIBLE_DEVICES_CACHED is None:
-                self._CUDA_VISIBLE_DEVICES_CACHED=os.environ['CUDA_VISIBLE_DEVICES'] if 'CUDA_VISIBLE_DEVICES' in os.environ else False
-            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-                
-                
-
+            return '/cpu:0'
+    
     def train(self, data, labels):
-        self.gpuSwitch()
+        
         if self._normalizer.value is not None:
             data=self._normalizer.value.fitTransform(data)
         
         
-        if self._randomSeed is not None:
-            #fix random seed
-            np.random.seed(self._randomSeed.value)
         
-        numberOfClasses=np.unique(labels).shape[0]
+        with tf.device(self._selectDevice()):
         
-        
-        #add input layer
-        inputL=outputL=Input(shape=(data.shape[1],))
-        
-        if self._hiddenLayers.value:
-            #we have hidden layers
-
-            for i in range(0, len(self._hiddenLayers.value)): #add rest of hidden layer
-                layer=self._hiddenLayers.value[i]
-                #add dense layer
-                outputL=Dense(layer.neurons.value, activation=layer.activation.value)(outputL)
-
-        #add output layer
-        #must have same number of neurons as the number of classes
-        outputL=Dense(numberOfClasses, activation=self._outLactFun.value)(outputL)
+            if self._randomSeed is not None:
+                #fix random seed
+                np.random.seed(self._randomSeed.value)
             
-        #create model
-        self._cls=Model(inputs=inputL, outputs=outputL)
-
-
-        #compile model
-        #sparse_categorical_crossentropy because we will receive labels as integers
-        self._cls.compile(loss='sparse_categorical_crossentropy', optimizer=optimizers.Adam(lr=self._learningRate.value), metrics=[USED_ACCURACY])
-        
-        
-        #and train
-        self._cls.fit(data, labels, epochs=self._epochs.value, batch_size=self._batchSize.value, verbose=0, 
-                      callbacks=[EpochLogger(self._logger)] if self._log.value else [])
+            numberOfClasses=np.unique(labels).shape[0]
+            
+            
+            #add input layer
+            inputL=outputL=Input(shape=(data.shape[1],))
+            
+            if self._hiddenLayers.value:
+                #we have hidden layers
+    
+                for i in range(0, len(self._hiddenLayers.value)): #add rest of hidden layer
+                    layer=self._hiddenLayers.value[i]
+                    #add dense layer
+                    outputL=Dense(layer.neurons.value, activation=layer.activation.value)(outputL)
+    
+            #add output layer
+            #must have same number of neurons as the number of classes
+            outputL=Dense(numberOfClasses, activation=self._outLactFun.value)(outputL)
+                
+            #create model
+            self._cls=Model(inputs=inputL, outputs=outputL)
+    
+    
+            #compile model
+            #sparse_categorical_crossentropy because we will receive labels as integers
+            self._cls.compile(loss='sparse_categorical_crossentropy', optimizer=optimizers.Adam(lr=self._learningRate.value), metrics=[USED_ACCURACY])
+            
+            
+            #and train
+            self._cls.fit(data, labels, epochs=self._epochs.value, batch_size=self._batchSize.value, verbose=0, 
+                          callbacks=[EpochLogger(self._logger)] if self._log.value else [])
     
     def classify(self, data):
-        self.gpuSwitch()
         if self._normalizer.value is not None:
             data=self._normalizer.value.transform(data)
         
+        with tf.device(self._selectDevice()):
 
-        return np.argmax(self._cls.predict(data), axis=1)   #argmax because class probabilities is what we are getting.
+            return np.argmax(self._cls.predict(data), axis=1)   #argmax because class probabilities is what we are getting.

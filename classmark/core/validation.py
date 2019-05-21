@@ -286,7 +286,7 @@ class Validator(Plugin):
                 times[self.TimeDuration.TEST_PROC]=time.process_time()-times[self.TimeDuration.TEST_PROC]
                 times[self.TimeDuration.TEST]=time.time()-times[self.TimeDuration.TEST]
                 
-                
+
                 Logger().log("Train time: {}".format(
                       times[Validator.TimeDuration.TRAINING]))
                 Logger().log("Train process time: {}".format(

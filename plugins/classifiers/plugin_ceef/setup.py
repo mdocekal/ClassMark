@@ -14,5 +14,11 @@ setup(name='ClassMarkPluginClassifierCEEF',
     version='1.0dev',
     description='CEEF classifier plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.classifiers': 'ceef = ceef.ceef:CEEF'}
+    entry_points={'classmark.plugins.classifiers': 'ceef = ceef.ceef:CEEF'},
+    install_requires=[
+        'scipy==1.2.0',
+        'typing==3.6.6',
+        'numpy==1.16.3',
+        'scikit_learn==0.21.1',
+    ]
 )

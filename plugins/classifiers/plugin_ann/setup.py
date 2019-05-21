@@ -14,5 +14,10 @@ setup(name='ClassMarkPluginClassifierANN',
     version='1.0dev',
     description='Artificial Neural Networks classifier plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.classifiers': 'ann = ann:ANN'}
+    entry_points={'classmark.plugins.classifiers': 'ann = ann:ANN'},
+    install_requires=[
+        'numpy>=1.16.3',
+        'Keras>=2.2.4',
+        'tensorflow>=1.12.0'
+    ]
 )

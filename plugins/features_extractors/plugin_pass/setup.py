@@ -16,7 +16,6 @@ setup(name='ClassMarkPluginFeatureExtractorPass',
     author='Martin Dočekal',
     entry_points={'classmark.plugins.features_extractors': 'pass = pass:Pass'},
     install_requires=[
-        'numpy>=1.14',
-        'typing>=3'
+        'scipy==1.2.0'
     ]
 )

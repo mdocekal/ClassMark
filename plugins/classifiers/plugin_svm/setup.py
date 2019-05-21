@@ -14,5 +14,8 @@ setup(name='ClassMarkPluginClassifierSVM',
     version='1.0dev',
     description='SVM classifier plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.classifiers': 'svm = svm:SVM'}
+    entry_points={'classmark.plugins.classifiers': 'svm = svm:SVM'},
+    install_requires=[
+        'scikit_learn==0.21.1'
+    ]
 )

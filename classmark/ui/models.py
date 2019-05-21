@@ -348,7 +348,7 @@ class TableSummarizationResultsModel(QAbstractTableModel):
     Model for tableview that is for showing summarized statistics of experiment.
     """
     
-    NUM_COL=14
+    NUM_COL=16
     """Number of columns in table."""
     
     COLL_CLASSIFIER_NAME=0
@@ -392,6 +392,12 @@ class TableSummarizationResultsModel(QAbstractTableModel):
     
     COLL_TEST_TIME_SCORE=13
     """Index of column with average test time."""
+    
+    COLL_TRAIN_PROCESS_TIME_SCORE=14
+    """Index of column with average train process time."""
+    
+    COLL_TEST_PROCESS_TIME_SCORE=15
+    """Index of column with average test process time."""
     
     def __init__(self, parent, results:Results):
         """
@@ -512,11 +518,16 @@ class TableSummarizationResultsModel(QAbstractTableModel):
             
             
             if index.column()==self.COLL_TRAIN_TIME_SCORE:
-                return str(self._results.times[classifier][Validator.TimeDuration.TRAINING_PROC])
+                return str(self._results.times[classifier][Validator.TimeDuration.TRAINING])
             
             if index.column()==self.COLL_TEST_TIME_SCORE:
-                return str(self._results.times[classifier][Validator.TimeDuration.TEST_PROC])
+                return str(self._results.times[classifier][Validator.TimeDuration.TEST])
 
+            if index.column()==self.COLL_TRAIN_PROCESS_TIME_SCORE:
+                return str(self._results.times[classifier][Validator.TimeDuration.TRAINING_PROC])
+            
+            if index.column()==self.COLL_TEST_PROCESS_TIME_SCORE:
+                return str(self._results.times[classifier][Validator.TimeDuration.TEST_PROC])
 
         return None
         
@@ -544,7 +555,7 @@ class TableSummarizationResultsModel(QAbstractTableModel):
                                self.tr("micro avg F1"),self.tr("micro avg precision"),self.tr("micro avg recall"),
                                self.tr("macro avg F1"),self.tr("macro avg precision"),self.tr("macro avg recall"),
                                self.tr("weighted avg F1"),self.tr("weighted avg precision"),self.tr("weighted avg recall"),
-                               self.tr("avg train time"),self.tr("avg test time")]
+                               self.tr("avg train time"),self.tr("avg test time"),self.tr("avg train process time"),self.tr("avg test process time")]
                 return self._HEADERS[section]
         
         return None

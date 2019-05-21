@@ -18,12 +18,19 @@ setup(name='ClassMark',
     package_data={'classmark': ['ui/icons/*','ui/languages/*','ui/templates/*','core/data/*']},
     data_files=[('examples', ['examples/test.csv'])],
     entry_points={
-        'console_scripts': [
+        'gui_scripts': [
             'classmark = classmark.__main__:main'
         ]
     },
     install_requires=[
-        'PySide2>=5',
-        'typing>=3'
+        'pandas>=0.23.1',
+        'scikit_image>=0.15.0',
+        'setuptools>=39.0.1',
+        'scipy>=1.2.0',
+        'numpy>=1.16.3',
+        'typing>=3.6.6',
+        'PySide2>=5.12.3',
+        'skimage>=0.0',
+        'scikit_learn>=0.21.1'
     ]
 )

@@ -14,5 +14,11 @@ setup(name='ClassMarkPluginFeatureExtractorHOG',
     version='1.0dev',
     description='HOG feature extractor plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.features_extractors': 'hog = hog:HOG'}
+    entry_points={'classmark.plugins.features_extractors': 'hog = hog:HOG'},
+    install_requires=[
+        'scikit_image==0.15.0',
+        'scipy==1.2.0',
+        'skimage==0.0',
+    ]
+
 )

@@ -14,5 +14,8 @@ setup(name='ClassMarkPluginFeatureExtractorTFIDF',
     version='1.0dev',
     description='TF-IDF feature extractor plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.features_extractors': 'tfidf = tfidf:TFIDF'}
+    entry_points={'classmark.plugins.features_extractors': 'tfidf = tfidf:TFIDF'},
+    install_requires=[
+        'scikit_learn==0.21.1'
+    ]
 )

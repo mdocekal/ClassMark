@@ -14,5 +14,8 @@ setup(name='ClassMarkPluginClassifierDTC',
     version='1.0dev',
     description='Decision Tree classifier plugin for ClassMark.',
     author='Martin Dočekal',
-    entry_points={'classmark.plugins.classifiers': 'dtc = dtc:DecisionTree'}
+    entry_points={'classmark.plugins.classifiers': 'dtc = dtc:DecisionTree'},
+    install_requires=[
+        'scikit_learn==0.21.1',
+    ]
 )

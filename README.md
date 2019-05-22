@@ -18,10 +18,10 @@ Jsou tu však i jiné instalační skripty, které můžete místo tohoto použ�
 * install_editable.sh
   * Stejné jako install.sh, ale pro vývojové účely (pip3 install --editable).
 * install_CPU.sh
-  * Stejné jako install.sh, ale ANN klasifikátor použije tensorflow bez GPU. 
+  * Stejné jako install.sh, ale ANN klasifikátor použije tensorflow bez GPU (povolení GPU parametru v GUI nemá vliv). 
   * ./install.sh je preferovaná možnost. Prosím použijte ji je-li to možné.
 * install_editable_CPU.sh
-  * Stejné jako install_editable.sh, ale ANN klasifikátor použije tensorflow bez GPU. 
+  * Stejné jako install_editable.sh, ale ANN klasifikátor použije tensorflow bez GPU (povolení GPU parametru v GUI nemá vliv). 
   * install_editable.sh je preferovaná možnost. Prosím použijte ji je-li to možné.
 
 Chcete-li instalovat ClassMark pro ostatní systémy (např. Windows), pak se prosím podívejte do install*.sh skriptů pro získání inspirace. Skládají se pouze z několika pip3 příkazů a z jejich obsahu je hned jasné co je potřeba nainstalovat.
@@ -54,10 +54,10 @@ There are also another types of installation scripts, that you can use instead:
 * install_editable.sh
   * Same as install.sh, but for development purposes (pip3 install --editable).
 * install_CPU.sh
-  * Same as install.sh, but ANN classifier plugin uses tensorflow without GPU. 
+  * Same as install.sh, but ANN classifier plugin uses tensorflow without GPU (enabling the GPU parameter in the GUI has no effect). 
   * ./install.sh is preferable choice please use it if you can
 * install_editable_CPU.sh
-  * Same as install_editable.sh, but ANN classifier plugin uses tensorflow without GPU.
+  * Same as install_editable.sh, but ANN classifier plugin uses tensorflow without GPU (enabling the GPU parameter in the GUI has no effect).
   * install_editable.sh is preferable choice please use it if you can
 
 If you want to install ClassMark on others systems (eg. Windows), than please take a look at install*.sh scripts to get inspiration. Their just consists of multiple pip3 commands and from their content is immediately clear what you need to install.

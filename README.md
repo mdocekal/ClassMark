@@ -1,3 +1,38 @@
+# ClassMark [en]
+Benchmark for classifiers that was created as a part of diploma thesis by Martin Dočekal at BRNO UNIVERSITY OF TECHNOLOGY in 2019. 
+## Installation
+<i>(Installation description uses commands that are written for ubuntu/debian like systems.)</i>
+
+This benchmark is implemented in python 3 so you must have it installed on your computer. Installation scripts are using the pip3, so make sure that this is also installed. For pip3 installation run:
+	
+	apt install python3-pip
+
+ClassMark uses installable plugins. Basic set of plugins is in plugin folder. One of basic plugins (ANN classifier) needs for its work tensorflow. Preferable version of tensorflow is tensorflow-gpu, that needs CUDA. How to install CUDA could be found on: [https://www.tensorflow.org/install/gpu](https://www.tensorflow.org/install/gpu). If you do not want to or can not use CUDA, than feel free to omit this step, but use installation script with _CPU suffix (described later).
+
+For installation of ClassMark with basic set of plugins please use:
+
+	./install.sh
+
+There are also another types of installation scripts, that you can use instead:
+
+* install_editable.sh
+  * Same as install.sh, but for development purposes (pip3 install --editable).
+* install_CPU.sh
+  * Same as install.sh, but ANN classifier plugin uses tensorflow without GPU (enabling the GPU parameter in the GUI has no effect). 
+  * ./install.sh is preferable choice please use it if you can
+* install_editable_CPU.sh
+  * Same as install_editable.sh, but ANN classifier plugin uses tensorflow without GPU (enabling the GPU parameter in the GUI has no effect).
+  * install_editable.sh is preferable choice please use it if you can
+
+If you want to install ClassMark on others systems (eg. Windows), than please take a look at install*.sh scripts to get inspiration. Their just consists of multiple pip3 commands and from their content is immediately clear what you need to install.
+
+At the end it is suitable to restart your computer. After restart finishes you should be able to run ClassMark with:
+
+	classmark
+	
+## Examples
+Examples folder contains examples of data set files.
+
 # ClassMark [cs]
 Benchmark pro klasifikátory, který byl vytvořen jako součást diplomové práce Martinem Dočekalem na VYSOKÉM UČENÍ TECHNICKÉM V BRNĚ v roce 2019.
 ## Instalace
@@ -34,37 +69,3 @@ Na závěr je vhodné provést restart. Po restartu by mělo jít spustit ClassM
 ## Příklady
 Ve složce examples jsou příklady souborů s datovými sadami.
 
-# ClassMark [en]
-Benchmark for classifiers that was created as a part of diploma thesis by Martin Dočekal at BRNO UNIVERSITY OF TECHNOLOGY in 2019. 
-## Installation
-<i>(Installation description uses commands that are written for ubuntu/debian like systems.)</i>
-
-This benchmark is implemented in python 3 so you must have it installed on your computer. Installation scripts are using the pip3, so make sure that this is also installed. For pip3 installation run:
-	
-	apt install python3-pip
-
-ClassMark uses installable plugins. Basic set of plugins is in plugin folder. One of basic plugins (ANN classifier) needs for its work tensorflow. Preferable version of tensorflow is tensorflow-gpu, that needs CUDA. How to install CUDA could be found on: [https://www.tensorflow.org/install/gpu](https://www.tensorflow.org/install/gpu). If you do not want to or can not use CUDA, than feel free to omit this step, but use installation script with _CPU suffix (described later).
-
-For installation of ClassMark with basic set of plugins please use:
-
-	./install.sh
-
-There are also another types of installation scripts, that you can use instead:
-
-* install_editable.sh
-  * Same as install.sh, but for development purposes (pip3 install --editable).
-* install_CPU.sh
-  * Same as install.sh, but ANN classifier plugin uses tensorflow without GPU (enabling the GPU parameter in the GUI has no effect). 
-  * ./install.sh is preferable choice please use it if you can
-* install_editable_CPU.sh
-  * Same as install_editable.sh, but ANN classifier plugin uses tensorflow without GPU (enabling the GPU parameter in the GUI has no effect).
-  * install_editable.sh is preferable choice please use it if you can
-
-If you want to install ClassMark on others systems (eg. Windows), than please take a look at install*.sh scripts to get inspiration. Their just consists of multiple pip3 commands and from their content is immediately clear what you need to install.
-
-At the end it is suitable to restart your computer. After restart finishes you should be able to run ClassMark with:
-
-	classmark
-	
-## Examples
-Examples folder contains examples of data set files.

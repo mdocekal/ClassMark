@@ -129,7 +129,7 @@ class DataSet(object):
         self._subset=None   #determines if we want to use just subset
         
     def __eq__(self, other):
-        return self._filePath==other._filePath and self._subset == other._subset and \
+        return self._filePath==other._filePath and np.array_equal(self._subset, other._subset) and \
             self._pathAttributes==other._pathAttributes
     
     def useSubset(self, subset:np.array):

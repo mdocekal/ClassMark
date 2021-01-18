@@ -17,8 +17,8 @@ setup(name='ClassMarkPluginClassifierANN',
     packages=["ann"],
     entry_points={'classmark.plugins.classifiers': 'ann = ann.ann:ANN'},
     extras_require={
-        "tf": ['tensorflow>=1.12'],
-        "tf_gpu": ['tensorflow-gpu>=1.12'],
+        "tf": ['tensorflow>=2.4.0'],
+        "tf_gpu": ['tensorflow-gpu>=2.4.0'],
     },
     install_requires=[
         'numpy>=1.16',

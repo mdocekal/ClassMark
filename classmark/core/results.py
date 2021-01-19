@@ -147,9 +147,7 @@ class Results(object):
         def confusionMatrix(self, c:Classifier):
             """
             Get confusion matrix for given classifier.
-            
-            The matrix is sum of all confusion matrices in all cross validation steps.
-            
+
             :param c: The classifier
             :type c: Classifier
             :return: Confusion matrix of given classifier.
@@ -306,22 +304,23 @@ class Results(object):
         
         for step in self.steps:
             actMat=step.confusionMatrix(c)
+
             if actMat.shape[0]!=resConfMat.shape[0]:
                 #a label is missing
-                usL=np.unique(step.labels)#returns unique sorted labels
-                usLP=np.unique(step.predictionsForCls(c))
+                usL=np.unique(np.concatenate([step.labels, step.predictionsForCls(c)]))#returns unique sorted labels
                 #our labels are just number that are zero or greater
-                
+
                 for row in range(actMat.shape[0]):
                     for col in range(actMat.shape[1]):
                         #mapping example:
                         #    all labels: 0 1 2 3 4
                         #    real labels in act step: 1 3 4
                         #    predicted labels in act step:  1 2 4
+                        #    all unique labels in act step:  1 2 3 4
                         #
                         #    row=0 -> 1
                         #    col=1 -> 2
-                        resConfMat[usL[row]][usLP[col]]+=actMat[row][col]
+                        resConfMat[usL[row]][usL[col]]+=actMat[row][col]
             else:
                 #all labels
                 resConfMat+=actMat

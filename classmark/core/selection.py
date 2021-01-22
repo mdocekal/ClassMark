@@ -5,6 +5,7 @@ Module for feature selection methods.
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
+import numpy
 
 from .plugins import Plugin, PluginAttribute, PluginAttributeStringChecker, PluginAttributeFloatChecker
 
@@ -41,13 +42,29 @@ class FeaturesSelector(Plugin):
         :rtype: scipy.sparse matrix
         """
         pass
+
+    @abstractmethod
+    def getSupport(self, indices: bool = False) -> numpy.array:
+        """
+        Get a mask, or integer index, of the features selected
+
+        :param indices: If True, the return value will be an array of integers, rather than a boolean mask.
+        :type indices: bool
+        :return: An index that selects the retained features from a feature vector.
+        If indices is False, this is a boolean array of shape [# input features], in which an element is
+        True iff its corresponding feature is selected for retention.
+        If indices is True, this is an integer array of shape [# output features] whose values are indices into the
+        input feature vector.
+        :rtype: np.array
+        """
+        pass
     
     
 class VarianceSelector(FeaturesSelector):
     """
     Selects features according to variance threshold.
     """
-    
+
     def __init__(self, threshold:float=0):
         """
         Initialize VarianceSelector.
@@ -79,13 +96,17 @@ class VarianceSelector(FeaturesSelector):
     @staticmethod
     def getInfo():
         return ""
+
+    def getSupport(self, indices: bool = False):
+        return self._sel.get_support(indices)
+
     
 class TreeBasedFeatureImportanceSelector(FeaturesSelector):
     """
     Selects features according to tree based feature importance.
     """
     
-    def __init__(self, threshold:str=None):
+    def __init__(self, threshold: str = None):
         """
         Initialize TreeBasedFeatureImportanceSelector.
         
@@ -123,4 +144,7 @@ class TreeBasedFeatureImportanceSelector(FeaturesSelector):
     @staticmethod
     def getInfo():
         return ""
+
+    def getSupport(self, indices: bool = False):
+        return self._sel.get_support(indices)
     

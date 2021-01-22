@@ -296,7 +296,7 @@ class DataSet(object):
             for each sub list.
             
             Example use case:
-                [["attribute1", ["attribute 2"]],["label"]]
+                [["attribute1", "attribute 2"],["label"]]
                 
                 and you wil get two numpy array one for attributes and the other for labels
                 

@@ -151,7 +151,7 @@ class Observable(object):
         
     def __notify(self, eventTag, *arg, **kw):
         """
-        Notify all obervers for given method.
+        Notify all observers for given method.
         
         :param eventTag: The tag that is passed as parameter for _event decorator.
         :type eventTag: str

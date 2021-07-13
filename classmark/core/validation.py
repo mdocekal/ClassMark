@@ -684,3 +684,115 @@ class ValidatorLeaveOneOut(Validator):
 
     def numOfSteps(self, dataSet: DataSet = None, data: np.array = None, labels: np.array = None):
         return labels.shape[0]
+
+
+class ValidatorPeparedCrossValSets(Validator):
+    """
+    Validation process that uses prepared cross validation datasets sets.
+    """
+
+    class Splitter(object):
+        """
+        Functor that makes split according to selected attribute that contains
+        marking.
+        Marking example:
+                1    First validation step train set.
+                1t    First validation step test set.
+                2    Second validation step train set.
+                2t    Second validation step test set.
+        """
+
+        def __init__(self, dataSet: DataSet, attr: str):
+            """
+            Initialization of splitter.
+
+            :param dataSet: This data set will be used for getting the attr values.
+            :type dataSet: dataSet
+            :param attr: Attribute name that contains marking.
+            :type attr: str
+            """
+
+            self.dataSet = dataSet
+            self.attr = attr
+            self.splits = {}
+
+            datasets_ids = self.dataSet.toNumpyArray([[attr]])[0].astype(np.float)
+
+            for i, d_id in enumerate(np.unique(datasets_ids)):
+                self.splits[i] = (
+                    np.argwhere(datasets_ids.flatten() != d_id).flatten(),
+                    np.argwhere(datasets_ids.flatten() == d_id).flatten())
+
+        def __call__(self, data: np.array, labels: np.array):
+            """
+            One split step.
+
+            :param data: Data which will be used for validation.
+            :type data: np.array
+            :param labels: Labels which will be used for validation.
+            :type labels: np.array
+            :return: (indices for train set, indices for test set)
+            :rtype: Tuple[Tuple,Tuple]
+            """
+
+            for split in sorted(self.splits):
+                yield self.splits[split]
+
+    def __init__(self, attribute: str = None):
+        """
+        Initialize validation
+
+        :param attribute: Attribute that contains dataset marking
+            Marking example:
+                1    This sample will be used as first validation set and all others as train
+                2    This sample will be used as second validation set and all others as train
+                3    This sample will be used as third validation set and all others as train
+                4    This sample will be used as fourth validation set and all others as train
+        :type attribute: str
+        """
+
+        self._attribute = PluginAttribute("Attribute", PluginAttribute.PluginAttributeType.VALUE,
+                                          PluginAttributeStringChecker(couldBeNone=True))
+        self._attribute.value = attribute
+
+    @property
+    def _splitter(self):
+        """
+        Beware that this splitter is using attribute column for experiment data set.
+        So do not use other data than the one from the experiment.
+
+        Also the splitter expects that member _lastDataSet is set.
+        """
+        if not hasattr(self, "_splitterObj") or self._splitterObj is None or \
+                self._lastDataSet != self._splitterObj.dataSet or \
+                self._splitterObj.attr != self._attribute.value:
+
+            if self._attribute.value is None:
+                raise ValueError(
+                    "Please fill field " + self._attribute.name + " for validator: " + self.getName() + ".")
+            self._splitterObj = self.Splitter(self._lastDataSet, self._attribute.value)
+
+        return self._splitterObj
+
+    @staticmethod
+    def getName():
+        return "Prepared cross validation datasets"
+
+    @staticmethod
+    def getNameAbbreviation():
+        return "PCVD"
+
+    @staticmethod
+    def getInfo():
+        return ""
+
+    @property
+    def results(self):
+        """
+        Get gathered results so far.
+        """
+        pass
+
+    def numOfSteps(self, dataSet: DataSet = None, data: np.array = None, labels: np.array = None):
+        self._lastDataSet = dataSet
+        return len(self._splitter.splits)

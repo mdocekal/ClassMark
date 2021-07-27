@@ -5,6 +5,7 @@ Module for experiment results.
 :author:     Martin Dočekal
 :contact:    xdocek09@stud.fit.vubtr.cz
 """
+import math
 
 from .plugins import Classifier
 from sklearn.preprocessing import LabelEncoder
@@ -54,6 +55,15 @@ class Results(object):
 
         WEIGHTED_F1 = auto()
         """Average weighted F1 among all steps."""
+
+        BINARY_PRECISION = auto()
+        """Average binary precision among all steps."""
+
+        BINARY_RECALL = auto()
+        """Average binary recall among all steps."""
+
+        BINARY_F1 = auto()
+        """Average binary F1 among all steps."""
 
     class ValidationStep(object):
         """
@@ -212,6 +222,14 @@ class Results(object):
                 weightedPrecision, weightedRecall, weightedF1score, _ = precision_recall_fscore_support(self.labels,
                                                                                                         predictions,
                                                                                                         average='weighted')
+
+                if len(np.unique(self.labels)) == 2:
+                    binaryPrecision, binaryRecall, binaryF1score, _ = precision_recall_fscore_support(self.labels,
+                                                                                                      predictions,
+                                                                                                      average='binary')
+                else:
+                    binaryPrecision, binaryRecall, binaryF1score = math.nan, math.nan, math.nan
+
                 res[c] = {
                     Results.ScoreType.ACCURACY: accuracy_score(self.labels, predictions),
                     Results.ScoreType.MACRO_PRECISION: macroPrecision,
@@ -222,7 +240,10 @@ class Results(object):
                     Results.ScoreType.MICRO_F1: microF1score,
                     Results.ScoreType.WEIGHTED_PRECISION: weightedPrecision,
                     Results.ScoreType.WEIGHTED_RECALL: weightedRecall,
-                    Results.ScoreType.WEIGHTED_F1: weightedF1score
+                    Results.ScoreType.WEIGHTED_F1: weightedF1score,
+                    Results.ScoreType.BINARY_PRECISION: binaryPrecision,
+                    Results.ScoreType.BINARY_RECALL: binaryRecall,
+                    Results.ScoreType.BINARY_F1: binaryF1score
                 }
 
             return res

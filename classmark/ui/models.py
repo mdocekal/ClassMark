@@ -356,7 +356,7 @@ class TableSummarizationResultsModel(QAbstractTableModel):
     Model for tableview that is for showing summarized statistics of experiment.
     """
 
-    NUM_COL = 16
+    NUM_COL = 19
     """Number of columns in table."""
 
     COLL_CLASSIFIER_NAME = 0
@@ -395,16 +395,25 @@ class TableSummarizationResultsModel(QAbstractTableModel):
     COLL_WEIGHTED_AVG_RECALL_SCORE = 11
     """Index of column with weighted avg recall score."""
 
-    COLL_TRAIN_TIME_SCORE = 12
+    COLL_BINARY_AVG_F1_SCORE = 12
+    """Index of column with binary avg F1 score."""
+
+    COLL_BINARY_AVG_PRECISION_SCORE = 13
+    """Index of column with binary avg precision score."""
+
+    COLL_BINARY_AVG_RECALL_SCORE = 14
+    """Index of column with binary avg recall score."""
+
+    COLL_TRAIN_TIME_SCORE = 15
     """Index of column with average train time."""
 
-    COLL_TEST_TIME_SCORE = 13
+    COLL_TEST_TIME_SCORE = 16
     """Index of column with average test time."""
 
-    COLL_TRAIN_PROCESS_TIME_SCORE = 14
+    COLL_TRAIN_PROCESS_TIME_SCORE = 17
     """Index of column with average train process time."""
 
-    COLL_TEST_PROCESS_TIME_SCORE = 15
+    COLL_TEST_PROCESS_TIME_SCORE = 18
     """Index of column with average test process time."""
 
     def __init__(self, parent, results: Results):
@@ -515,6 +524,15 @@ class TableSummarizationResultsModel(QAbstractTableModel):
             if index.column() == self.COLL_WEIGHTED_AVG_RECALL_SCORE:
                 return str(self._results.scores[classifier][Results.ScoreType.WEIGHTED_RECALL])
 
+            if index.column() == self.COLL_BINARY_AVG_F1_SCORE:
+                return str(self._results.scores[classifier][Results.ScoreType.BINARY_F1])
+
+            if index.column() == self.COLL_BINARY_AVG_PRECISION_SCORE:
+                return str(self._results.scores[classifier][Results.ScoreType.BINARY_PRECISION])
+
+            if index.column() == self.COLL_BINARY_AVG_RECALL_SCORE:
+                return str(self._results.scores[classifier][Results.ScoreType.BINARY_RECALL])
+
             if index.column() == self.COLL_TRAIN_TIME_SCORE:
                 return str(self._results.times[classifier][Validator.TimeDuration.TRAINING])
 
@@ -553,6 +571,8 @@ class TableSummarizationResultsModel(QAbstractTableModel):
                                  self.tr("macro avg F1"), self.tr("macro avg precision"), self.tr("macro avg recall"),
                                  self.tr("weighted avg F1"), self.tr("weighted avg precision"),
                                  self.tr("weighted avg recall"),
+                                 self.tr("binary avg F1"), self.tr("binary avg precision"),
+                                 self.tr("binary avg recall"),
                                  self.tr("avg train time"), self.tr("avg test time"), self.tr("avg train process time"),
                                  self.tr("avg test process time")]
                 return self._HEADERS[section]

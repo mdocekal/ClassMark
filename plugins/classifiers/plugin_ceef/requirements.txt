@@ -1,4 +1,4 @@
 scipy==1.2.0
 typing==3.6.6
-numpy==1.16.3
+numpy==1.22.0
 scikit_learn==0.21.1
